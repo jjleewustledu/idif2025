@@ -26,7 +26,25 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
+# re-defining plotting defaults
+from matplotlib import rcParams
+rcParams.update({'xtick.major.pad': '7.0'})
+rcParams.update({'xtick.major.size': '7.5'})
+rcParams.update({'xtick.major.width': '1.5'})
+rcParams.update({'xtick.minor.pad': '7.0'})
+rcParams.update({'xtick.minor.size': '3.5'})
+rcParams.update({'xtick.minor.width': '1.0'})
+rcParams.update({'ytick.major.pad': '7.0'})
+rcParams.update({'ytick.major.size': '7.5'})
+rcParams.update({'ytick.major.width': '1.5'})
+rcParams.update({'ytick.minor.pad': '7.0'})
+rcParams.update({'ytick.minor.size': '3.5'})
+rcParams.update({'ytick.minor.width': '1.0'})
+rcParams.update({'font.size': 30})
+
 from Artery import Artery
+from dynesty import dynesty
+from dynesty import plotting as dyplot
 
 RHO = None
 TAUS = None
@@ -37,8 +55,19 @@ __all__ = ["Boxcar"]
 
 class Boxcar(Artery):
 
-    def __init__(self, input_func_measurement):
+    def __init__(self, input_func_measurement,
+                 sample='rslice',
+                 nlive=55,
+                 rstate=None):
         super().__init__(input_func_measurement)
+
+        if not rstate:
+            # seed the random number generator
+            rstate = np.random.default_rng(916301)
+
+        self.sample = sample
+        self.nlive = nlive
+        self.rstate = rstate
 
         global RHO, TAUS, TIMES_MID
         ifm = self.input_func_measurement
@@ -46,10 +75,26 @@ class Boxcar(Artery):
         TAUS = ifm['taus']
         TIMES_MID = ifm['timesMid']
 
+    def plot_results(self, res: dynesty.DynamicNestedSampler.results):
+        qm, _, _ = self.quantile(res)
+        self.plot_truths(qm)
+
+        dyplot.runplot(res)
+        plt.tight_layout()
+
+        fig, axes = dyplot.traceplot(res, labels=self.labels, truths=qm,
+                                     fig=plt.subplots(11, 2, figsize=(16, 40)))
+        fig.tight_layout()
+
+        fig, axes = dyplot.cornerplot(res, truths=qm, show_titles=True,
+                                      title_kwargs={'y': 1.04}, labels=self.labels,
+                                      fig=plt.subplots(11, 11, figsize=(100, 100)))
+
     def plot_truths(self, truths=None):
-        if not truths:
+        if truths is None:
             truths = self.truths
-        rho_pred, rho_ideal, t_ideal = self.signalmodel(self.data(truths))
+        data = self.data(truths)
+        rho_pred, rho_ideal, t_ideal = self.signalmodel(data)
 
         ifm = self.input_func_measurement
         tM = ifm['timesMid']
@@ -66,23 +111,32 @@ class Boxcar(Artery):
         plt.ylabel('activity (Bq/mL)')
         plt.tight_layout()
 
+    def run_nested(self, checkpoint_file=None):
+        """ checkpoint_file=self.fqfp+"_dynesty-Boxcar.save") """
+
+        sampler = dynesty.DynamicNestedSampler(self.loglike, self.prior_transform, 11,
+                                               sample=self.sample, nlive=self.nlive,
+                                               rstate=self.rstate)
+        sampler.run_nested(checkpoint_file)
+        return sampler.results
+
     @property
     def labels(self):
         """"""
 
         return [
-            r'$t_0$', r'$\tau_2$', r'$\tau_3$',
-            r'$\alpha - 1$', r'$1/\beta$', r'$p$', r'$\delta p_2$', r'$\delta p_3$', r'$1/\gamma$',
-            r'$f_2$', r'$f_3$', r'$f_{ss}$',
+            r'$t_0$', r'$\tau_2$',
+            r'$\alpha - 1$', r'$1/\beta$', r'$p$', r'$\delta p_2$', r'$1/\gamma$',
+            r'$f_2$', r'$f_{ss}$',
             r'$A$', r'$\sigma$']
 
     @property
     def truths(self):
         """/Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-108293/ses-20210421150523/pet"""
 
-        return [15.7, 8.73, 14.77,
-                0.29, 3.04, 2.23, 0, 0, 53.11,
-                0.31, 0.1, 0.07,
+        return [15.7, 8.73,
+                0.29, 3.04, 2.23, 0, 53.11,
+                0.31, 0.07,
                 1.98, 0.01]
 
     @staticmethod
@@ -91,7 +145,8 @@ class Boxcar(Artery):
 
     @staticmethod
     def loglike(v):
-        rho_pred, _ = Boxcar.signalmodel(Boxcar.data(v))
+        data = Boxcar.data(v)
+        rho_pred, _, _ = Boxcar.signalmodel(data)
         sigma = v[-1]
         residsq = (rho_pred - RHO) ** 2 / sigma ** 2
         loglike = -0.5 * np.sum(residsq + np.log(2 * np.pi * sigma ** 2))
@@ -106,39 +161,33 @@ class Boxcar(Artery):
         v = u
         v[0] = u[0] * 30 + 5  # t_0
         v[1] = u[1] * 20 + 5  # \tau_2 ~ t_2 - t_0
-        v[2] = u[2] * 20 + 5  # \tau_3 ~ t_3 - t_2
-        v[3] = u[3] * 5  # \alpha - 1
-        v[4] = u[4] * 10 + 0.1  # 1/\beta
-        v[5] = u[5] * 3 + 0.5  # p
-        v[6] = u[6] * 0.05 - 0.025  # \delta p_2 ~ p_2 - p
-        v[7] = u[7] * 0.05 - 0.025 # \delta p_3 ~ p_3 - p_2
-        v[8] = u[8] * 100 + 5  # 1/\gamma for s.s.
-        v[9] = u[9] * 0.75 + 0.25 # f_2
-        v[10] = u[10] * 0.25  # f_3
-        v[11] = u[11] * 0.125  # f_{ss}
-        v[12] = u[12] * 3 + 1 # A is amplitude adjustment
-        v[13] = u[13] * 0.02  # sigma ~ fraction of M0
+        v[2] = u[2] * 5  # \alpha - 1
+        v[3] = u[3] * 10 + 0.1  # 1/\beta
+        v[4] = u[4] * 3 + 0.5  # p
+        v[5] = u[5] * 0.05 - 0.025  # \delta p_2 ~ p_2 - p
+        v[6] = u[6] * 100 + 5  # 1/\gamma for s.s.
+        v[7] = u[7] * 0.75 + 0.25 # f_2
+        v[8] = u[8] * 0.125  # f_{ss}
+        v[9] = u[9] * 3 + 1 # A is amplitude adjustment
+        v[10] = u[10] * 0.02  # sigma ~ fraction of M0
         return v
 
     @staticmethod
-    def signalmodel(data):
+    def signalmodel(data: dict):
         t_ideal = Boxcar.data2t(data)
         v = data['v']
         t_0 = v[0]
         tau_2 = v[1]
-        tau_3 = v[2]
-        a = v[3]
-        b = 1 / v[4]
-        p = v[5]
-        dp_2 = v[6]
-        dp_3 = v[7]
-        g = 1 / v[8]
-        f_2 = v[9]
-        f_3 = v[10]
-        f_ss = v[11]
-        A = v[12]
+        a = v[2]
+        b = 1 / v[3]
+        p = v[4]
+        dp_2 = v[5]
+        g = 1 / v[6]
+        f_2 = v[7]
+        f_ss = v[8]
+        A = v[9]
 
-        rho_ = A * Boxcar.solution_3bolus(t_ideal, t_0, tau_2, tau_3, a, b, p, dp_2, dp_3, g, f_2, f_3, f_ss)
+        rho_ = A * Boxcar.solution_3bolus(t_ideal, t_0, tau_2, a, b, p, dp_2, g, f_2, f_ss)
         rho = Boxcar.apply_boxcar(rho_, data)
         A_qs = 1 / max(rho)
         signal = A_qs * rho

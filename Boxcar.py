@@ -38,11 +38,13 @@ class Boxcar(Artery):
 
     def __init__(self, input_func_measurement,
                  remove_baseline=False,
+                 tracer=None,
                  sample='rslice',
                  nlive=1000,
                  rstate=np.random.default_rng(916301)):
         super().__init__(input_func_measurement,
                          remove_baseline=remove_baseline,
+                         tracer=tracer,
                          sample=sample,
                          nlive=nlive,
                          rstate=rstate)

@@ -23,6 +23,7 @@
 # SOFTWARE.
 
 # general & system functions
+import re
 from abc import ABC, abstractmethod
 import time, sys, os
 from datetime import datetime
@@ -42,6 +43,8 @@ import json
 
 # plotting
 from matplotlib import pyplot as plt
+from matplotlib import cm
+
 # re-defining plotting defaults
 from matplotlib import rcParams
 rcParams.update({'xtick.major.pad': '7.0'})
@@ -61,6 +64,8 @@ rcParams.update({'font.size': 30})
 # seed the random number generator
 #rstate = np.random.default_rng(916301)
 
+SIGMA = 0.001
+
 __all__ = ["Artery"]
 
 
@@ -70,7 +75,9 @@ def _trim_input_func_measurement(ifm):
     timesMid = ifm['timesMid']
     taus = ifm['taus']
     viable = ~np.isnan(timesMid)
-    ifm.update({'img': img[viable], 'timesMid': timesMid[viable], 'taus': taus[viable]})
+    early = timesMid <= 180
+    selected = viable * early
+    ifm.update({'img': img[selected], 'timesMid': timesMid[selected], 'taus': taus[selected]})
     return ifm
 
 
@@ -79,16 +86,25 @@ class Artery(ABC):
     def __init__(self,
                  input_func_measurement,
                  remove_baseline=False,
+                 tracer=None,
                  home=os.getcwd(),
                  sample='rslice',
                  nlive=1000,
                  rstate=np.random.default_rng(916301)):
         self.__input_func_measurement = input_func_measurement
         self.__remove_baseline = remove_baseline
+        self.tracer = tracer
         self.home = home
         self.sample = sample
         self.nlive = nlive
         self.rstate = rstate
+
+        if not self.tracer:
+            regex = r"_trc-(.*?)_"
+            matches = re.findall(regex, input_func_measurement)
+            assert matches, "no tracer information in input_funct_measurement"
+            self.tracer = matches[0]
+            print(f"{self.__class__.__name__}: found data for tracer {self.tracer}")
 
         # Set numpy error handling for numerical issues such as underflow/overflow/invalid
         np.seterr(under='ignore')
@@ -107,11 +123,18 @@ class Artery(ABC):
         assert os.path.isfile(self.__input_func_measurement), f"{self.__input_func_measurement} was not found."
         fqfn = self.__input_func_measurement
 
+        # manage SIGMA
+        global SIGMA
+        if "TwiliteKit" in fqfn:
+            SIGMA = 0.1
+        if "MipIdif" in fqfn:
+            SIGMA = 0.001
+
         # load img
         nii = nib.load(fqfn)
         img = nii.get_fdata()
         if self.__remove_baseline:
-            img = img - img[1]
+            img = img - img[0,0]
             img = img.clip(min=0)
 
         # find json fields of interest
@@ -145,25 +168,31 @@ class Artery(ABC):
         """/Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-108293/ses-20210421150523/pet for mipidif"""
         """/Volumes/PrecunealSSD/Singularity/CCIR_01211/sourcedata/sub-108293/ses-20210421/pet for twilite nomodel"""
 
-        return [9.02, 1.67, 5.95,
-                7.08, 3.00, 2.79, -1.00, -0.19, 1.54,
-                0.48, 0.19, 0.082,
-                2.47, 0.001]
+        return [8.95, 2.34, 6.05,
+                4.43, 4.23, 4.24, -2.00, -0.36, 8.69,
+                0.49, 0.19, 0.084,
+                2.56, 0.001]
 
     def plot_results(self, res: dyutils.Results):
+        class_name = self.__class__.__name__
+
         qm, _, _ = self.quantile(res)
         self.plot_truths(qm)
+        plt.savefig(self.fqfp+"_dynesty-"+class_name+"-results.png")
 
         dyplot.runplot(res)
         plt.tight_layout()
+        plt.savefig(self.fqfp+"_dynesty-"+class_name+"-runplot.png")
 
         fig, axes = dyplot.traceplot(res, labels=self.labels, truths=qm,
                                      fig=plt.subplots(14, 2, figsize=(16, 50)))
         fig.tight_layout()
+        plt.savefig(self.fqfp+"_dynesty-"+class_name+"-traceplot.png")
 
-        fig, axes = dyplot.cornerplot(res, truths=qm, show_titles=True,
+        dyplot.cornerplot(res, truths=qm, show_titles=True,
                                       title_kwargs={'y': 1.04}, labels=self.labels,
                                       fig=plt.subplots(14, 14, figsize=(100, 100)))
+        plt.savefig(self.fqfp+"_dynesty-"+class_name+"-cornerplot.png")
 
     def plot_truths(self, truths=None):
         if truths is None:
@@ -183,7 +212,35 @@ class Artery(ABC):
         plt.plot(t_ideal, M0 * rho_ideal, color='dodgerblue', linewidth=2, alpha=0.7)
         plt.xlim([-0.1, 1.1*np.max(tM)])
         plt.xlabel('time of mid-frame (s)')
-        plt.ylabel('activity (kBq/mL)')
+        plt.ylabel('activity (Bq/mL)')
+        plt.tight_layout()
+
+    def plot_variations(self, tindex=0, tmin=None, tmax=None, truths=None):
+        if truths is None:
+            truths = self.truths
+
+        plt.figure(figsize=(12, 7.4))
+
+        ncolors: int = 75
+        viridis = cm.get_cmap('viridis', ncolors)
+        dt = (tmax - tmin) / ncolors
+        trange = np.arange(tmin, tmax, dt)
+        for tidx, t in enumerate(trange):
+            truths[tindex] = t
+            data = self.data(truths)
+            _, rho_ideal, t_ideal = self.signalmodel(data)
+            plt.plot(t_ideal, rho_ideal, color=viridis(tidx))
+
+        #plt.xlim([-0.1,])
+        plt.xlabel('time of mid-frame (s)')
+        plt.ylabel('activity (arbitrary)')
+
+        # Add a colorbar to understand colors
+        # First create a mappable object with the same colormap
+        sm = plt.cm.ScalarMappable(cmap=viridis)
+        sm.set_array(trange)
+        plt.colorbar(sm, label="Varying "+self.labels[tindex])
+
         plt.tight_layout()
 
     def run_nested(self, checkpoint_file=None):
@@ -194,12 +251,33 @@ class Artery(ABC):
             now = datetime.now()
             checkpoint_file = self.fqfp+"_dynesty-"+class_name+"-"+now.strftime("%Y%m%d%H%M%S")+".save"
 
-        sampler = dynesty.DynamicNestedSampler(self.loglike, self.prior_transform, 14,
+        __prior_transform = self._switch_prior_transform(self.tracer)
+        sampler = dynesty.DynamicNestedSampler(self.loglike, __prior_transform, 14,
                                                sample=self.sample, nlive=self.nlive,
                                                rstate=self.rstate)
         sampler.run_nested(checkpoint_file=checkpoint_file)
         # for posterior > evidence, use wt_kwargs={'pfrac': 1.0}
-        return sampler.results
+        res = sampler.results
+        class_name = self.__class__.__name__
+        fqfn = self.fqfp+"_dynesty-"+class_name+"-summary.txt"
+        with open(fqfn, 'w') as f:
+            old_stdout = sys.stdout
+            old_stderr = sys.stderr
+            sys.stdout = f
+            sys.stderr = f
+            res.summary()
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+        self.save_results(res)
+        self.plot_results(res)
+        return res
+
+    def _switch_prior_transform(self, tracer):
+        return {
+            'co': self.prior_transform_co,
+            'oc': self.prior_transform_co,
+            'oo': self.prior_transform_oo
+        }.get(tracer, self.prior_transform)
 
     def save_results(self, res: dyutils.Results):
         """"""
@@ -250,22 +328,60 @@ class Artery(ABC):
         pass
 
     @staticmethod
-    def prior_transform(u):
+    def prior_transform_co(u):
         v = u
-        v[0] = u[0] * 20  # t_0
-        v[1] = u[1] * 20  # \tau_2 ~ t_2 - t_0
-        v[2] = u[2] * 20  # \tau_3 ~ t_3 - t_2
+        v[0] = u[0] * 60  # t_0
+        v[1] = u[1] * 60  # \tau_2 ~ t_2 - t_0
+        v[2] = u[2] * 60  # \tau_3 ~ t_3 - t_2
         v[3] = u[3] * 20  # \alpha - 1
         v[4] = u[4] * 30 + 1  # 1/\beta
-        v[5] = u[5] * 4 + 0.25  # p
-        v[6] = u[6] * 3 - 3  # \delta p_2 ~ p_2 - p
-        v[7] = u[7] * 3 - 3  # \delta p_3 ~ p_3 - p_2
-        v[8] = u[8] * 100 + 0.01  # 1/\gamma for s.s.
+        v[5] = u[5] * 10 + 0.25  # p
+        v[6] = u[6] * 10 - 10  # \delta p_2 ~ p_2 - p
+        v[7] = u[7] * 10 - 10  # \delta p_3 ~ p_3 - p_2
+        v[8] = u[8] * 300 + 0.01  # 1/\gamma for s.s.
+        v[9] = u[9] * 0.75 + 0.25  # f_2
+        v[10] = u[10] * 0.75  # f_3
+        v[11] = u[11] * 0.75  # f_{ss}
+        v[12] = u[12] * 4 + 0.5  # A is amplitude adjustment
+        v[13] = u[13] * SIGMA  # sigma ~ fraction of M0
+        return v
+
+    @staticmethod
+    def prior_transform_oo(u):
+        v = u
+        v[0] = u[0] * 60  # t_0
+        v[1] = u[1] * 60  # \tau_2 ~ t_2 - t_0
+        v[2] = u[2] * 60  # \tau_3 ~ t_3 - t_2
+        v[3] = u[3] * 20  # \alpha - 1
+        v[4] = u[4] * 30 + 1  # 1/\beta
+        v[5] = u[5] * 10 + 0.25  # p
+        v[6] = u[6] * 10 - 10  # \delta p_2 ~ p_2 - p
+        v[7] = u[7] * 10 - 10  # \delta p_3 ~ p_3 - p_2
+        v[8] = u[8] * 300 + 0.01  # 1/\gamma for s.s.
         v[9] = u[9] * 0.75 + 0.25  # f_2
         v[10] = u[10] * 0.5  # f_3
-        v[11] = u[11] * 0.125  # f_{ss}
+        v[11] = u[11] * 0.25  # f_{ss}
         v[12] = u[12] * 4 + 0.5  # A is amplitude adjustment
-        v[13] = u[13] * 0.001  # sigma ~ fraction of M0
+        v[13] = u[13] * SIGMA  # sigma ~ fraction of M0
+        return v
+
+    @staticmethod
+    def prior_transform(u):
+        v = u
+        v[0] = u[0] * 60  # t_0
+        v[1] = u[1] * 60  # \tau_2 ~ t_2 - t_0
+        v[2] = u[2] * 60  # \tau_3 ~ t_3 - t_2
+        v[3] = u[3] * 20  # \alpha - 1
+        v[4] = u[4] * 30 + 1  # 1/\beta
+        v[5] = u[5] * 10 + 0.25  # p
+        v[6] = u[6] * 10 - 10  # \delta p_2 ~ p_2 - p
+        v[7] = u[7] * 10 - 10  # \delta p_3 ~ p_3 - p_2
+        v[8] = u[8] * 300 + 0.01  # 1/\gamma for s.s.
+        v[9] = u[9] * 0.5  # f_2
+        v[10] = u[10] * 0.25  # f_3
+        v[11] = u[11] * 0.25  # f_{ss}
+        v[12] = u[12] * 4 + 0.5  # A is amplitude adjustment
+        v[13] = u[13] * SIGMA  # sigma ~ fraction of M0
         return v
 
     @staticmethod
@@ -346,7 +462,6 @@ class Artery(ABC):
         rho = rho.clip(min=0)
         rho = rho / np.max(rho)
         return rho
-
 
 
 

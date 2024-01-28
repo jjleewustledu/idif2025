@@ -46,11 +46,13 @@ class RadialArtery(Artery):
     def __init__(self, input_func_measurement,
                  kernel_measurement,
                  remove_baseline=True,
+                 tracer=None,
                  sample='rslice',
                  nlive=1000,
                  rstate=np.random.default_rng(916301)):
         super().__init__(input_func_measurement,
                          remove_baseline=remove_baseline,
+                         tracer=tracer,
                          sample=sample,
                          nlive=nlive,
                          rstate=rstate)
@@ -82,7 +84,7 @@ class RadialArtery(Artery):
         # assemble dict
         self.__input_func_measurement = {
             'fqfp': fqfp,
-            'img': np.array(img, dtype=float).reshape(1, -1)}
+            'img': np.array(img, dtype=float).reshape(-1)}
         return self.__input_func_measurement
 
     @staticmethod
@@ -132,5 +134,7 @@ class RadialArtery(Artery):
 
     @staticmethod
     def apply_dispersion(vec, data: dict):
-        vec_sampled = np.convolve(vec, data['kernel'], mode='full')
+        k = data['kernel']
+        k = k.T
+        vec_sampled = np.convolve(vec, k, mode='full')
         return vec_sampled[:vec.size]

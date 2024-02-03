@@ -22,9 +22,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from DynestyModel import DynestyModel
+from DynestySolver import DynestySolver
+
 # general & system functions
 import re
-from abc import ABC, abstractmethod
 import time, sys, os
 from datetime import datetime
 
@@ -32,14 +34,9 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
-import dynesty
-from dynesty import dynesty
-from dynesty import utils as dyutils
-from dynesty import plotting as dyplot
-
 # NIfTI support
-import nibabel as nib
 import json
+import nibabel as nib
 
 # plotting
 from matplotlib import pyplot as plt
@@ -47,6 +44,7 @@ from matplotlib import cm
 
 # re-defining plotting defaults
 from matplotlib import rcParams
+
 rcParams.update({'xtick.major.pad': '7.0'})
 rcParams.update({'xtick.major.size': '7.5'})
 rcParams.update({'xtick.major.width': '1.5'})
@@ -61,8 +59,9 @@ rcParams.update({'ytick.minor.size': '3.5'})
 rcParams.update({'ytick.minor.width': '1.0'})
 rcParams.update({'font.size': 30})
 
-# seed the random number generator
-#rstate = np.random.default_rng(916301)
+# dynesty
+from dynesty import utils as dyutils
+from dynesty import plotting as dyplot
 
 SIGMA = 0.001
 
@@ -81,7 +80,7 @@ def _trim_input_func_measurement(ifm):
     return ifm
 
 
-class Artery(ABC):
+class Artery(DynestyModel):
 
     def __init__(self,
                  input_func_measurement,
@@ -95,9 +94,6 @@ class Artery(ABC):
         self.__remove_baseline = remove_baseline
         self.tracer = tracer
         self.home = home
-        self.sample = sample
-        self.nlive = nlive
-        self.rstate = rstate
 
         if not self.tracer:
             regex = r"_trc-(.*?)_"
@@ -106,10 +102,10 @@ class Artery(ABC):
             self.tracer = matches[0]
             print(f"{self.__class__.__name__}: found data for tracer {self.tracer}")
 
-        # Set numpy error handling for numerical issues such as underflow/overflow/invalid
-        np.seterr(under='ignore')
-        np.seterr(over='ignore')
-        np.seterr(invalid='ignore')
+        self.solver = DynestySolver(model=self,
+                                    sample=sample,
+                                    nlive=nlive,
+                                    rstate=rstate)
 
     @property
     def fqfp(self):
@@ -134,7 +130,7 @@ class Artery(ABC):
         nii = nib.load(fqfn)
         img = nii.get_fdata()
         if self.__remove_baseline:
-            img = img - img[0,0]
+            img = img - img[0, 0]
             img = img.clip(min=0)
 
         # find json fields of interest
@@ -164,6 +160,10 @@ class Artery(ABC):
             r'$A$', r'$\sigma$']
 
     @property
+    def ndims(self):
+        return 14
+
+    @property
     def truths(self):
         """/Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-108293/ses-20210421150523/pet for mipidif"""
         """/Volumes/PrecunealSSD/Singularity/CCIR_01211/sourcedata/sub-108293/ses-20210421/pet for twilite nomodel"""
@@ -178,21 +178,21 @@ class Artery(ABC):
 
         qm, _, _ = self.quantile(res)
         self.plot_truths(qm)
-        plt.savefig(self.fqfp+"_dynesty-"+class_name+"-results.png")
+        plt.savefig(self.fqfp + "_dynesty-" + class_name + "-results.png")
 
         dyplot.runplot(res)
         plt.tight_layout()
-        plt.savefig(self.fqfp+"_dynesty-"+class_name+"-runplot.png")
+        plt.savefig(self.fqfp + "_dynesty-" + class_name + "-runplot.png")
 
         fig, axes = dyplot.traceplot(res, labels=self.labels, truths=qm,
                                      fig=plt.subplots(14, 2, figsize=(16, 50)))
         fig.tight_layout()
-        plt.savefig(self.fqfp+"_dynesty-"+class_name+"-traceplot.png")
+        plt.savefig(self.fqfp + "_dynesty-" + class_name + "-traceplot.png")
 
         dyplot.cornerplot(res, truths=qm, show_titles=True,
-                                      title_kwargs={'y': 1.04}, labels=self.labels,
-                                      fig=plt.subplots(14, 14, figsize=(100, 100)))
-        plt.savefig(self.fqfp+"_dynesty-"+class_name+"-cornerplot.png")
+                          title_kwargs={'y': 1.04}, labels=self.labels,
+                          fig=plt.subplots(14, 14, figsize=(100, 100)))
+        plt.savefig(self.fqfp + "_dynesty-" + class_name + "-cornerplot.png")
 
     def plot_truths(self, truths=None):
         if truths is None:
@@ -210,7 +210,7 @@ class Artery(ABC):
                  ls='none', alpha=0.9, markersize=12)
         plt.plot(tM, M0 * rho_pred, marker='o', color='red', ls='none', alpha=0.8)
         plt.plot(t_ideal, M0 * rho_ideal, color='dodgerblue', linewidth=2, alpha=0.7)
-        plt.xlim([-0.1, 1.1*np.max(tM)])
+        plt.xlim([-0.1, 1.1 * np.max(tM)])
         plt.xlabel('time of mid-frame (s)')
         plt.ylabel('activity (Bq/mL)')
         plt.tight_layout()
@@ -231,7 +231,7 @@ class Artery(ABC):
             _, rho_ideal, t_ideal = self.signalmodel(data)
             plt.plot(t_ideal, rho_ideal, color=viridis(tidx))
 
-        #plt.xlim([-0.1,])
+        # plt.xlim([-0.1,])
         plt.xlabel('time of mid-frame (s)')
         plt.ylabel('activity (arbitrary)')
 
@@ -239,45 +239,23 @@ class Artery(ABC):
         # First create a mappable object with the same colormap
         sm = plt.cm.ScalarMappable(cmap=viridis)
         sm.set_array(trange)
-        plt.colorbar(sm, label="Varying "+self.labels[tindex])
+        plt.colorbar(sm, label="Varying " + self.labels[tindex])
 
         plt.tight_layout()
 
-    def run_nested(self, checkpoint_file=None):
-        """ checkpoint_file=self.fqfp+"_dynesty-RadialArtery.save") """
-
-        if checkpoint_file is None:
-            class_name = self.__class__.__name__
-            now = datetime.now()
-            checkpoint_file = self.fqfp+"_dynesty-"+class_name+"-"+now.strftime("%Y%m%d%H%M%S")+".save"
-
-        __prior_transform = self._switch_prior_transform(self.tracer)
-        sampler = dynesty.DynamicNestedSampler(self.loglike, __prior_transform, 14,
-                                               sample=self.sample, nlive=self.nlive,
-                                               rstate=self.rstate)
-        sampler.run_nested(checkpoint_file=checkpoint_file)
-        # for posterior > evidence, use wt_kwargs={'pfrac': 1.0}
-        res = sampler.results
-        class_name = self.__class__.__name__
-        fqfn = self.fqfp+"_dynesty-"+class_name+"-summary.txt"
-        with open(fqfn, 'w') as f:
-            old_stdout = sys.stdout
-            old_stderr = sys.stderr
-            sys.stdout = f
-            sys.stderr = f
-            res.summary()
-            sys.stdout = old_stdout
-            sys.stderr = old_stderr
-        self.save_results(res)
-        self.plot_results(res)
-        return res
-
-    def _switch_prior_transform(self, tracer):
+    def prior_transform(self, tracer):
         return {
             'co': self.prior_transform_co,
             'oc': self.prior_transform_co,
             'oo': self.prior_transform_oo
-        }.get(tracer, self.prior_transform)
+        }.get(tracer, self.prior_transform_default)
+
+    def run_nested(self, checkpoint_file=None):
+        """ checkpoint_file=self.fqfp+"_dynesty-RadialArtery.save") """
+
+        return self.solver.run_nested(prior_tag=self.tracer,
+                                      ndim=14,
+                                      checkpoint_file=checkpoint_file)
 
     def save_results(self, res: dyutils.Results):
         """"""
@@ -294,38 +272,28 @@ class Artery(ABC):
             "timesMid": timesMid,
             "signal": M0 * rho_signal}
         df = pd.DataFrame(d_signal)
-        df.to_csv(self.fqfp+"_dynesty-"+class_name+"-signal.csv")
+        df.to_csv(self.fqfp + "_dynesty-" + class_name + "-signal.csv")
         d_ideal = {
             "times": times,
             "ideal": M0 * rho_ideal}
         df = pd.DataFrame(d_ideal)
-        df.to_csv(self.fqfp+"_dynesty-"+class_name+"-ideal.csv")
+        df.to_csv(self.fqfp + "_dynesty-" + class_name + "-ideal.csv")
         d_quantiles = {
             "label": self.labels,
             "qm": qm,
             "ql": ql,
             "qh": qh}
         df = pd.DataFrame(d_quantiles)
-        df.to_csv(self.fqfp+"_dynesty-"+class_name+"-quantiles.csv")
-
-    @staticmethod
-    @abstractmethod
-    def data(v):
-        pass
+        df.to_csv(self.fqfp + "_dynesty-" + class_name + "-quantiles.csv")
 
     @staticmethod
     def data2t(data: dict):
         timesMid = data['timesMid']
         taus = data['taus']
-        t0 = timesMid[0] - taus[0]/2
-        tF = timesMid[-1] + taus[-1]/2
+        t0 = timesMid[0] - taus[0] / 2
+        tF = timesMid[-1] + taus[-1] / 2
         t = np.arange(t0, tF)
         return t
-
-    @staticmethod
-    @abstractmethod
-    def loglike(v):
-        pass
 
     @staticmethod
     def prior_transform_co(u):
@@ -366,7 +334,7 @@ class Artery(ABC):
         return v
 
     @staticmethod
-    def prior_transform(u):
+    def prior_transform_default(u):
         v = u
         v[0] = u[0] * 60  # t_0
         v[1] = u[1] * 60  # \tau_2 ~ t_2 - t_0
@@ -395,11 +363,6 @@ class Artery(ABC):
             ql[i], qm[i], qh[i] = dyutils.quantile(x, [0.025, 0.5, 0.975], weights=weights)
             print(f"Parameter {i}: {qm[i]:.3f} [{ql[i]:.3f}, {qh[i]:.3f}]")
         return qm, ql, qh
-
-    @staticmethod
-    @abstractmethod
-    def signalmodel(data: dict):
-        pass
 
     @staticmethod
     def slide(rho, t, dt):
@@ -462,6 +425,3 @@ class Artery(ABC):
         rho = rho.clip(min=0)
         rho = rho / np.max(rho)
         return rho
-
-
-

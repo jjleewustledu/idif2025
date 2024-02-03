@@ -40,7 +40,7 @@ class DynestySolver(ABC):
 
     def __init__(self,
                  model=None,
-                 sample='rslice',
+                 sample="rslice",
                  nlive=1000,
                  rstate=np.random.default_rng(916301)):
         self.model = model
@@ -49,9 +49,9 @@ class DynestySolver(ABC):
         self.rstate = rstate
 
         # Set numpy error handling for numerical issues such as underflow/overflow/invalid
-        np.seterr(under='ignore')
-        np.seterr(over='ignore')
-        np.seterr(invalid='ignore')
+        np.seterr(under="ignore")
+        np.seterr(over="ignore")
+        np.seterr(invalid="ignore")
 
     def run_nested(self,
                    prior_tag=None,
@@ -73,11 +73,11 @@ class DynestySolver(ABC):
                                                sample=self.sample, nlive=self.nlive,
                                                rstate=self.rstate)
         sampler.run_nested(checkpoint_file=checkpoint_file)
-        # for posterior > evidence, use wt_kwargs={'pfrac': 1.0}
+        # for posterior > evidence, use wt_kwargs={"pfrac": 1.0}
         res = sampler.results
         class_name = self.__class__.__name__
         fqfn = mdl.fqfp+"_dynesty-"+class_name+"-summary.txt"
-        with open(fqfn, 'w') as f:
+        with open(fqfn, "w") as f:
             old_stdout = sys.stdout
             old_stderr = sys.stderr
             sys.stdout = f
@@ -91,7 +91,7 @@ class DynestySolver(ABC):
 
     @staticmethod
     def quantile(res: dyutils.Results):
-        samples = res['samples'].T
+        samples = res["samples"].T
         weights = res.importance_weights().T
         ql = np.zeros(len(samples))
         qm = np.zeros(len(samples))

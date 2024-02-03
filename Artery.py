@@ -22,21 +22,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from DynestyModel import DynestyModel
-from DynestySolver import DynestySolver
+from abc import ABC
+from PETModel import PETModel
+from dynesty import utils as dyutils
 
 # general & system functions
 import re
 import time, sys, os
-from datetime import datetime
 
 # basic numeric setup
 import numpy as np
 import pandas as pd
-
-# NIfTI support
-import json
-import nibabel as nib
 
 # plotting
 from matplotlib import pyplot as plt
@@ -45,55 +41,43 @@ from matplotlib import cm
 # re-defining plotting defaults
 from matplotlib import rcParams
 
-rcParams.update({'xtick.major.pad': '7.0'})
-rcParams.update({'xtick.major.size': '7.5'})
-rcParams.update({'xtick.major.width': '1.5'})
-rcParams.update({'xtick.minor.pad': '7.0'})
-rcParams.update({'xtick.minor.size': '3.5'})
-rcParams.update({'xtick.minor.width': '1.0'})
-rcParams.update({'ytick.major.pad': '7.0'})
-rcParams.update({'ytick.major.size': '7.5'})
-rcParams.update({'ytick.major.width': '1.5'})
-rcParams.update({'ytick.minor.pad': '7.0'})
-rcParams.update({'ytick.minor.size': '3.5'})
-rcParams.update({'ytick.minor.width': '1.0'})
-rcParams.update({'font.size': 30})
-
-# dynesty
-from dynesty import utils as dyutils
-from dynesty import plotting as dyplot
+rcParams.update({"xtick.major.pad": "7.0"})
+rcParams.update({"xtick.major.size": "7.5"})
+rcParams.update({"xtick.major.width": "1.5"})
+rcParams.update({"xtick.minor.pad": "7.0"})
+rcParams.update({"xtick.minor.size": "3.5"})
+rcParams.update({"xtick.minor.width": "1.0"})
+rcParams.update({"ytick.major.pad": "7.0"})
+rcParams.update({"ytick.major.size": "7.5"})
+rcParams.update({"ytick.major.width": "1.5"})
+rcParams.update({"ytick.minor.pad": "7.0"})
+rcParams.update({"ytick.minor.size": "3.5"})
+rcParams.update({"ytick.minor.width": "1.0"})
+rcParams.update({"font.size": 30})
 
 SIGMA = 0.001
 
 __all__ = ["Artery"]
 
 
-def _trim_input_func_measurement(ifm):
-    assert isinstance(ifm, dict), f"{ifm} is a {type(ifm)}, but should be a dict."
-    img = ifm['img']
-    timesMid = ifm['timesMid']
-    taus = ifm['taus']
-    viable = ~np.isnan(timesMid)
-    early = timesMid <= 180
-    selected = viable * early
-    ifm.update({'img': img[selected], 'timesMid': timesMid[selected], 'taus': taus[selected]})
-    return ifm
-
-
-class Artery(DynestyModel):
+class Artery(PETModel, ABC):
 
     def __init__(self,
                  input_func_measurement,
                  remove_baseline=False,
                  tracer=None,
                  home=os.getcwd(),
-                 sample='rslice',
+                 sample="rslice",
                  nlive=1000,
                  rstate=np.random.default_rng(916301)):
+        super().__init__(home=home,
+                         sample=sample,
+                         nlive=nlive,
+                         rstate=rstate)
+
         self.__input_func_measurement = input_func_measurement
         self.__remove_baseline = remove_baseline
         self.tracer = tracer
-        self.home = home
 
         if not self.tracer:
             regex = r"_trc-(.*?)_"
@@ -102,14 +86,9 @@ class Artery(DynestyModel):
             self.tracer = matches[0]
             print(f"{self.__class__.__name__}: found data for tracer {self.tracer}")
 
-        self.solver = DynestySolver(model=self,
-                                    sample=sample,
-                                    nlive=nlive,
-                                    rstate=rstate)
-
     @property
     def fqfp(self):
-        return self.input_func_measurement['fqfp']
+        return self.input_func_measurement["fqfp"]
 
     @property
     def input_func_measurement(self):
@@ -126,27 +105,7 @@ class Artery(DynestyModel):
         if "MipIdif" in fqfn:
             SIGMA = 0.001
 
-        # load img
-        nii = nib.load(fqfn)
-        img = nii.get_fdata()
-        if self.__remove_baseline:
-            img = img - img[0, 0]
-            img = img.clip(min=0)
-
-        # find json fields of interest
-        base, ext = os.path.splitext(fqfn)
-        fqfp = os.path.splitext(base)[0]
-        jfile = fqfp + ".json"
-        with open(jfile, 'r') as f:
-            j = json.load(f)
-
-        # assemble dict
-        ifm = {
-            'fqfp': fqfp,
-            'img': np.array(img, dtype=float).reshape(1, -1),
-            'timesMid': np.array(j['timesMid'], dtype=float).reshape(1, -1),
-            'taus': np.array(j['taus'], dtype=float).reshape(1, -1)}
-        self.__input_func_measurement = _trim_input_func_measurement(ifm)
+        self.__input_func_measurement = self.load_nii(fqfn)
         return self.__input_func_measurement
 
     @property
@@ -154,10 +113,10 @@ class Artery(DynestyModel):
         """"""
 
         return [
-            r'$t_0$', r'$\tau_2$', r'$\tau_3$',
-            r'$\alpha - 1$', r'$1/\beta$', r'$p$', r'$\delta p_2$', r'$\delta p_3$', r'$1/\gamma$',
-            r'$f_2$', r'$f_3$', r'$f_{ss}$',
-            r'$A$', r'$\sigma$']
+            r"$t_0$", r"$\tau_2$", r"$\tau_3$",
+            r"$\alpha - 1$", r"$1/\beta$", r"$p$", r"$\delta p_2$", r"$\delta p_3$", r"$1/\gamma$",
+            r"$f_2$", r"$f_3$", r"$f_{ss}$",
+            r"$A$", r"$\sigma$"]
 
     @property
     def ndims(self):
@@ -173,27 +132,6 @@ class Artery(DynestyModel):
                 0.49, 0.19, 0.084,
                 2.56, 0.001]
 
-    def plot_results(self, res: dyutils.Results):
-        class_name = self.__class__.__name__
-
-        qm, _, _ = self.quantile(res)
-        self.plot_truths(qm)
-        plt.savefig(self.fqfp + "_dynesty-" + class_name + "-results.png")
-
-        dyplot.runplot(res)
-        plt.tight_layout()
-        plt.savefig(self.fqfp + "_dynesty-" + class_name + "-runplot.png")
-
-        fig, axes = dyplot.traceplot(res, labels=self.labels, truths=qm,
-                                     fig=plt.subplots(14, 2, figsize=(16, 50)))
-        fig.tight_layout()
-        plt.savefig(self.fqfp + "_dynesty-" + class_name + "-traceplot.png")
-
-        dyplot.cornerplot(res, truths=qm, show_titles=True,
-                          title_kwargs={'y': 1.04}, labels=self.labels,
-                          fig=plt.subplots(14, 14, figsize=(100, 100)))
-        plt.savefig(self.fqfp + "_dynesty-" + class_name + "-cornerplot.png")
-
     def plot_truths(self, truths=None):
         if truths is None:
             truths = self.truths
@@ -201,18 +139,18 @@ class Artery(DynestyModel):
         rho_pred, rho_ideal, t_ideal = self.signalmodel(data)
 
         ifm = self.input_func_measurement
-        tM = ifm['timesMid']
-        rho = ifm['img']
+        tM = ifm["timesMid"]
+        rho = ifm["img"]
         M0 = np.max(rho)
 
-        plt.figure(figsize=(12, 5))
-        plt.plot(tM, rho, color='black', marker='+',
-                 ls='none', alpha=0.9, markersize=12)
-        plt.plot(tM, M0 * rho_pred, marker='o', color='red', ls='none', alpha=0.8)
-        plt.plot(t_ideal, M0 * rho_ideal, color='dodgerblue', linewidth=2, alpha=0.7)
+        plt.figure(figsize=(12, 8))
+        plt.plot(tM, rho, color="black", marker="+",
+                 ls="none", alpha=0.9, markersize=16)
+        plt.plot(tM, M0 * rho_pred, marker="o", color="red", ls="none", alpha=0.8)
+        plt.plot(t_ideal, M0 * rho_ideal, color="dodgerblue", linewidth=2, alpha=0.7)
         plt.xlim([-0.1, 1.1 * np.max(tM)])
-        plt.xlabel('time of mid-frame (s)')
-        plt.ylabel('activity (Bq/mL)')
+        plt.xlabel("time of mid-frame (s)")
+        plt.ylabel("activity (Bq/mL)")
         plt.tight_layout()
 
     def plot_variations(self, tindex=0, tmin=None, tmax=None, truths=None):
@@ -222,7 +160,7 @@ class Artery(DynestyModel):
         plt.figure(figsize=(12, 7.4))
 
         ncolors: int = 75
-        viridis = cm.get_cmap('viridis', ncolors)
+        viridis = cm.get_cmap("viridis", ncolors)
         dt = (tmax - tmin) / ncolors
         trange = np.arange(tmin, tmax, dt)
         for tidx, t in enumerate(trange):
@@ -232,8 +170,8 @@ class Artery(DynestyModel):
             plt.plot(t_ideal, rho_ideal, color=viridis(tidx))
 
         # plt.xlim([-0.1,])
-        plt.xlabel('time of mid-frame (s)')
-        plt.ylabel('activity (arbitrary)')
+        plt.xlabel("time of mid-frame (s)")
+        plt.ylabel("activity (arbitrary)")
 
         # Add a colorbar to understand colors
         # First create a mappable object with the same colormap
@@ -245,55 +183,48 @@ class Artery(DynestyModel):
 
     def prior_transform(self, tracer):
         return {
-            'co': self.prior_transform_co,
-            'oc': self.prior_transform_co,
-            'oo': self.prior_transform_oo
+            "co": self.prior_transform_co,
+            "oc": self.prior_transform_co,
+            "oo": self.prior_transform_oo
         }.get(tracer, self.prior_transform_default)
-
-    def run_nested(self, checkpoint_file=None):
-        """ checkpoint_file=self.fqfp+"_dynesty-RadialArtery.save") """
-
-        return self.solver.run_nested(prior_tag=self.tracer,
-                                      ndim=14,
-                                      checkpoint_file=checkpoint_file)
 
     def save_results(self, res: dyutils.Results):
         """"""
 
         ifm = self.input_func_measurement
-        timesMid = ifm['timesMid']
-        M0 = np.max(ifm['img'])
-        qm, ql, qh = self.quantile(res)
+        fqfp = ifm["fqfp"]
+        nii = ifm["nii"]
+        timesMid = ifm["timesMid"]
+        taus = ifm["taus"]
+        M0 = np.max(ifm["img"])
+        qm, ql, qh = self.solver.quantile(res)
         data = self.data(qm)
-        rho_signal, rho_ideal, times = self.signalmodel(data)
+        rho_signal, rho_ideal, timesUnif = self.signalmodel(data)
+        fqfp1 = self.fqfp + "_dynesty-" + self.__class__.__name__
 
-        class_name = self.__class__.__name__
-        d_signal = {
-            "timesMid": timesMid,
-            "signal": M0 * rho_signal}
-        df = pd.DataFrame(d_signal)
-        df.to_csv(self.fqfp + "_dynesty-" + class_name + "-signal.csv")
-        d_ideal = {
-            "times": times,
-            "ideal": M0 * rho_ideal}
-        df = pd.DataFrame(d_ideal)
-        df.to_csv(self.fqfp + "_dynesty-" + class_name + "-ideal.csv")
+        self.save_csv(
+            {"timesMid": timesMid, "img": M0*rho_signal},
+            fqfp1 + "-signal.csv")
+
+        self.save_csv(
+            {"timesMid": timesUnif, "img": M0*rho_ideal},
+            fqfp1 + "-ideal.csv")
+
+        self.save_nii(
+            {"timesMid": timesMid, "taus": taus, "img": M0*rho_signal, "nii": nii, "fqfp": fqfp},
+            fqfp1 + "-signal.nii.gz")
+
+        self.save_nii(
+            {"times": timesUnif, "taus": np.ones(timesUnif.shape), "img": M0*rho_ideal, "nii": nii, "fqfp": fqfp},
+            fqfp1 + "-ideal.nii.gz")
+
         d_quantiles = {
             "label": self.labels,
             "qm": qm,
             "ql": ql,
             "qh": qh}
         df = pd.DataFrame(d_quantiles)
-        df.to_csv(self.fqfp + "_dynesty-" + class_name + "-quantiles.csv")
-
-    @staticmethod
-    def data2t(data: dict):
-        timesMid = data['timesMid']
-        taus = data['taus']
-        t0 = timesMid[0] - taus[0] / 2
-        tF = timesMid[-1] + taus[-1] / 2
-        t = np.arange(t0, tF)
-        return t
+        df.to_csv(fqfp1 + "-quantiles.csv")
 
     @staticmethod
     def prior_transform_co(u):
@@ -351,24 +282,6 @@ class Artery(DynestyModel):
         v[12] = u[12] * 4 + 0.5  # A is amplitude adjustment
         v[13] = u[13] * SIGMA  # sigma ~ fraction of M0
         return v
-
-    @staticmethod
-    def quantile(res: dyutils.Results):
-        samples = res['samples'].T
-        weights = res.importance_weights().T
-        ql = np.zeros(len(samples))
-        qm = np.zeros(len(samples))
-        qh = np.zeros(len(samples))
-        for i, x in enumerate(samples):
-            ql[i], qm[i], qh[i] = dyutils.quantile(x, [0.025, 0.5, 0.975], weights=weights)
-            print(f"Parameter {i}: {qm[i]:.3f} [{ql[i]:.3f}, {qh[i]:.3f}]")
-        return qm, ql, qh
-
-    @staticmethod
-    def slide(rho, t, dt):
-        if dt < 0.1:
-            return rho
-        return np.interp(t - dt, t, rho)
 
     @staticmethod
     def solution_1bolus(t, t_0, a, b, p):

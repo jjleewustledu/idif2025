@@ -1,8 +1,6 @@
 # The MIT License (MIT)
 #
 # Copyright (c) 2024 - Present: John J. Lee.
-# Copyright (c) 2017 - Present: Josh Speagle and contributors.
-# Copyright (c) 2014 - 2017: Kyle Barbary and contributors.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -39,7 +37,7 @@ class Boxcar(Artery):
     def __init__(self, input_func_measurement,
                  remove_baseline=False,
                  tracer=None,
-                 sample='rslice',
+                 sample="rslice",
                  nlive=1000,
                  rstate=np.random.default_rng(916301)):
         super().__init__(input_func_measurement,
@@ -51,13 +49,13 @@ class Boxcar(Artery):
 
         global RHO, TAUS, TIMES_MID
         ifm = self.input_func_measurement
-        RHO = ifm['img'] / np.max(ifm['img'])
-        TAUS = ifm['taus']
-        TIMES_MID = ifm['timesMid']
+        RHO = ifm["img"] / np.max(ifm["img"])
+        TAUS = ifm["taus"]
+        TIMES_MID = ifm["timesMid"]
 
     @staticmethod
     def data(v):
-        return {'timesMid': TIMES_MID, 'taus': TAUS, 'v': v}
+        return {"timesMid": TIMES_MID, "taus": TAUS, "v": v}
 
     @staticmethod
     def loglike(v):
@@ -75,7 +73,7 @@ class Boxcar(Artery):
     @staticmethod
     def signalmodel(data: dict):
         t_ideal = Boxcar.data2t(data)
-        v = data['v']
+        v = data["v"]
         t_0 = v[0]
         tau_2 = v[1]
         tau_3 = v[2]
@@ -102,8 +100,8 @@ class Boxcar(Artery):
 
     @staticmethod
     def apply_boxcar(vec, data: dict):
-        times0 = data['timesMid'] - data['taus'] / 2
-        timesF = data['timesMid'] + data['taus'] / 2
+        times0 = data["timesMid"] - data["taus"] / 2
+        timesF = data["timesMid"] + data["taus"] / 2
 
         vec_sampled = np.full(times0.shape, np.nan)
         for idx, (t0, tF) in enumerate(zip(times0, timesF)):

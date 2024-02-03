@@ -1,8 +1,6 @@
 # The MIT License (MIT)
 #
 # Copyright (c) 2024 - Present: John J. Lee.
-# Copyright (c) 2017 - Present: Josh Speagle and contributors.
-# Copyright (c) 2014 - 2017: Kyle Barbary and contributors.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -47,7 +45,7 @@ class RadialArtery(Artery):
                  kernel_measurement,
                  remove_baseline=True,
                  tracer=None,
-                 sample='rslice',
+                 sample="rslice",
                  nlive=1000,
                  rstate=np.random.default_rng(916301)):
         super().__init__(input_func_measurement,
@@ -61,11 +59,11 @@ class RadialArtery(Artery):
 
         global KERNEL, RHO, TAUS, TIMES_MID
         km = self.kernel_measurement
-        KERNEL = km['img']
+        KERNEL = km["img"]
         ifm = self.input_func_measurement
-        RHO = ifm['img'] / np.max(ifm['img'])
-        TAUS = ifm['taus']
-        TIMES_MID = ifm['timesMid']
+        RHO = ifm["img"] / np.max(ifm["img"])
+        TAUS = ifm["taus"]
+        TIMES_MID = ifm["timesMid"]
 
     @property
     def kernel_measurement(self):
@@ -83,13 +81,13 @@ class RadialArtery(Artery):
 
         # assemble dict
         self.__input_func_measurement = {
-            'fqfp': fqfp,
-            'img': np.array(img, dtype=float).reshape(-1)}
+            "fqfp": fqfp,
+            "img": np.array(img, dtype=float).reshape(-1)}
         return self.__input_func_measurement
 
     @staticmethod
     def data(v):
-        return {'timesMid': TIMES_MID, 'taus': TAUS, 'v': v, 'kernel': KERNEL}
+        return {"timesMid": TIMES_MID, "taus": TAUS, "v": v, "kernel": KERNEL}
 
     @staticmethod
     def loglike(v):
@@ -107,7 +105,7 @@ class RadialArtery(Artery):
     @staticmethod
     def signalmodel(data: dict):
         t_ideal = np.arange(RHO.size)
-        v = data['v']
+        v = data["v"]
         t_0 = v[0]
         tau_2 = v[1]
         tau_3 = v[2]
@@ -134,7 +132,7 @@ class RadialArtery(Artery):
 
     @staticmethod
     def apply_dispersion(vec, data: dict):
-        k = data['kernel']
+        k = data["kernel"]
         k = k.T
-        vec_sampled = np.convolve(vec, k, mode='full')
+        vec_sampled = np.convolve(vec, k, mode="full")
         return vec_sampled[:vec.size]

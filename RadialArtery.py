@@ -20,6 +20,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from Artery import Artery
+
 # system functions
 import time, sys, os
 
@@ -29,14 +31,10 @@ import numpy as np
 # NIfTI support
 import nibabel as nib
 
-from Artery import Artery
-
 KERNEL = None
 RHO = None
 TAUS = None
 TIMES_MID = None
-
-__all__ = ["RadialArtery"]
 
 
 class RadialArtery(Artery):

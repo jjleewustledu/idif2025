@@ -74,7 +74,7 @@ class PETModel(DynestyModel):
 
     @property
     @abstractmethod
-    def ndims(self):
+    def ndim(self):
         pass
 
     def load_nii(self, fqfn):
@@ -90,14 +90,21 @@ class PETModel(DynestyModel):
             j = json.load(f)
 
         # assemble dict
+        if img.shape[0] == 1:
+            img = np.array(img, dtype=float).ravel()
         niid = {
             "fqfp": fqfp,
             "nii": nii,
-            "img": np.array(img, dtype=float).ravel(),
+            "img": img,
             "timesMid": np.array(j["timesMid"], dtype=float).ravel(),
             "taus": np.array(j["taus"], dtype=float).ravel(),
-            "times": np.array(j["times"], dtype=float).ravel()}
-        niid = _trim_nii_dict(niid)
+            "times": np.array(j["times"], dtype=float).ravel(),
+            "halflife": self.parse_halflife(fqfp)}
+        if "martinv1" in j:
+            niid["martinv1"] = j["martinv1"]
+        if "raichleks" in j:
+            niid["raichleks"] = j["raichleks"]
+        niid = self._trim_nii_dict(niid)
         return niid
 
     def plot_results(self, res: dyutils.Results):
@@ -112,27 +119,22 @@ class PETModel(DynestyModel):
         plt.savefig(self.fqfp + "_dynesty-" + class_name + "-runplot.png")
 
         fig, axes = dyplot.traceplot(res, labels=self.labels, truths=qm,
-                                     fig=plt.subplots(self.ndims, 2, figsize=(16, 50)))
+                                     fig=plt.subplots(self.ndim, 2, figsize=(16, 25)))
         fig.tight_layout()
         plt.savefig(self.fqfp + "_dynesty-" + class_name + "-traceplot.png")
 
         dyplot.cornerplot(res, truths=qm, show_titles=True,
                           title_kwargs={"y": 1.04}, labels=self.labels,
-                          fig=plt.subplots(self.ndims, self.ndims, figsize=(100, 100)))
+                          fig=plt.subplots(self.ndim, self.ndim, figsize=(100, 100)))
         plt.savefig(self.fqfp + "_dynesty-" + class_name + "-cornerplot.png")
-
-    def run_nested(self, checkpoint_file=None):
-        """ checkpoint_file=self.fqfp+"_dynesty-RadialArtery.save") """
-
-        return self.solver.run_nested(prior_tag=self.tracer,
-                                      ndim=self.ndims,
-                                      checkpoint_file=checkpoint_file)
 
     def save_csv(self, data: dict, fqfn=None):
         if not fqfn:
             fqfn = self.fqfp + "_dynesty-" + self.__class__.__name__ + ".csv"
         d_nii = {
+            "taus": data["taus"],
             "timesMid": data["timesMid"],
+            "times": data["times"],
             "img": data["img"]}
         df = pd.DataFrame(d_nii)
         df.to_csv(fqfn)
@@ -190,6 +192,23 @@ class PETModel(DynestyModel):
         return times + taus / 2
 
     @staticmethod
+    def parse_halflife(fqfp):
+        iso = PETModel.parse_isotope(fqfp)
+        if iso == "15O":
+            return 122.2416  # sec
+        if iso == "18F":
+            return 1.82951 * 3600  # sec
+        raise ValueError(f"tracer and halflife not identifiable from fqfp {fqfp}")
+
+    @staticmethod
+    def parse_isotope(name: str):
+        if "trc-co" in name or "trc-oc" in name or "trc-oo" in name or "trc-ho" in name:
+            return "15O"
+        if "trc-fdg" in name:
+            return "18F"
+        raise ValueError(f"tracer and halflife not identifiable from name {name}")
+
+    @staticmethod
     def slide(rho, t, dt):
         if dt < 0.1:
             return rho
@@ -206,5 +225,9 @@ class PETModel(DynestyModel):
         viable = ~np.isnan(timesMid)
         early = timesMid <= 180
         selected = viable * early
-        niid.update({"img": img[selected], "timesMid": timesMid[selected], "taus": taus[selected], "times": times[selected]})
+        if img.ndim == 1:
+            niid.update({"img": img[selected], "timesMid": timesMid[selected], "taus": taus[selected],
+                         "times": times[selected]})
+        else:
+            niid.update({"img": img[:, selected], "timesMid": timesMid[selected], "taus": taus[selected], "times": times[selected]})
         return niid

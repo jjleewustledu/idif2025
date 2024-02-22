@@ -57,8 +57,6 @@ rcParams.update({"font.size": 30})
 
 SIGMA = 0.001
 
-__all__ = ["Artery"]
-
 
 class Artery(PETModel, ABC):
 
@@ -110,8 +108,6 @@ class Artery(PETModel, ABC):
 
     @property
     def labels(self):
-        """"""
-
         return [
             r"$t_0$", r"$\tau_2$", r"$\tau_3$",
             r"$\alpha - 1$", r"$1/\beta$", r"$p$", r"$\delta p_2$", r"$\delta p_3$", r"$1/\gamma$",
@@ -119,7 +115,7 @@ class Artery(PETModel, ABC):
             r"$A$", r"$\sigma$"]
 
     @property
-    def ndims(self):
+    def ndim(self):
         return 14
 
     @property
@@ -187,6 +183,14 @@ class Artery(PETModel, ABC):
             "oc": self.prior_transform_co,
             "oo": self.prior_transform_oo
         }.get(tracer, self.prior_transform_default)
+
+    def run_nested(self, checkpoint_file=None, print_progress=False):
+        """ checkpoint_file=self.fqfp+"_dynesty-RadialArtery.save") """
+
+        return self.solver.run_nested(prior_tag=self.tracer,
+                                      ndim=self.ndim,
+                                      checkpoint_file=checkpoint_file,
+                                      print_progress=print_progress)
 
     def save_results(self, res: dyutils.Results):
         """"""

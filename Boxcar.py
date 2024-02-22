@@ -20,16 +20,14 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from Artery import Artery
+
 # basic numeric setup
 import numpy as np
-
-from Artery import Artery
 
 RHO = None
 TAUS = None
 TIMES_MID = None
-
-__all__ = ["Boxcar"]
 
 
 class Boxcar(Artery):

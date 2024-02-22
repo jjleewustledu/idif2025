@@ -56,7 +56,45 @@ class DynestySolver(ABC):
     def run_nested(self,
                    prior_tag=None,
                    ndim=None,
-                   checkpoint_file=None):
+                   checkpoint_file=None,
+                   print_progress=False):
+        """ checkpoint_file=self.fqfp+"_dynesty-RadialArtery.save") """
+
+        mdl = self.model
+
+        if not ndim:
+            ndim = mdl.ndim
+        # if checkpoint_file is None:
+        #     class_name = self.__class__.__name__
+        #     now = datetime.now()
+        #     checkpoint_file = mdl.fqfp+"_dynesty-"+class_name+"-"+now.strftime("%Y%m%d%H%M%S")+".save"
+
+        __prior_transform = mdl.prior_transform(prior_tag)
+        sampler = dynesty.DynamicNestedSampler(mdl.loglike, __prior_transform, ndim,
+                                               sample=self.sample, nlive=self.nlive,
+                                               rstate=self.rstate)
+        sampler.run_nested(checkpoint_file=checkpoint_file, print_progress=print_progress)
+        # for posterior > evidence, use wt_kwargs={"pfrac": 1.0}
+        res = sampler.results
+        class_name = self.__class__.__name__
+        fqfn = mdl.fqfp+"_dynesty-"+class_name+"-summary.txt"
+        with open(fqfn, "w") as f:
+            old_stdout = sys.stdout
+            old_stderr = sys.stderr
+            sys.stdout = f
+            sys.stderr = f
+            res.summary()
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+        mdl.save_results(res)
+        mdl.plot_results(res)
+        return res
+
+    def run_nested_for_list(self,
+                            prior_tag=None,
+                            ndim=None,
+                            checkpoint_file=None,
+                            print_progress=False):
         """ checkpoint_file=self.fqfp+"_dynesty-RadialArtery.save") """
 
         mdl = self.model
@@ -72,21 +110,9 @@ class DynestySolver(ABC):
         sampler = dynesty.DynamicNestedSampler(mdl.loglike, __prior_transform, ndim,
                                                sample=self.sample, nlive=self.nlive,
                                                rstate=self.rstate)
-        sampler.run_nested(checkpoint_file=checkpoint_file)
+        sampler.run_nested(checkpoint_file=checkpoint_file, print_progress=print_progress)
         # for posterior > evidence, use wt_kwargs={"pfrac": 1.0}
         res = sampler.results
-        class_name = self.__class__.__name__
-        fqfn = mdl.fqfp+"_dynesty-"+class_name+"-summary.txt"
-        with open(fqfn, "w") as f:
-            old_stdout = sys.stdout
-            old_stderr = sys.stderr
-            sys.stdout = f
-            sys.stderr = f
-            res.summary()
-            sys.stdout = old_stdout
-            sys.stderr = old_stderr
-        mdl.save_results(res)
-        mdl.plot_results(res)
         return res
 
     @staticmethod

@@ -40,7 +40,6 @@ import nibabel as nib
 
 # plotting
 from matplotlib import pyplot as plt
-from matplotlib import cm
 
 # re-defining plotting defaults
 from matplotlib import rcParams
@@ -119,7 +118,7 @@ class PETModel(DynestyModel):
         plt.savefig(self.fqfp + "_dynesty-" + class_name + "-runplot.png")
 
         fig, axes = dyplot.traceplot(res, labels=self.labels, truths=qm,
-                                     fig=plt.subplots(self.ndim, 2, figsize=(16, 25)))
+                                     fig=plt.subplots(self.ndim, 2, figsize=(16, 50)))
         fig.tight_layout()
         plt.savefig(self.fqfp + "_dynesty-" + class_name + "-traceplot.png")
 
@@ -129,6 +128,7 @@ class PETModel(DynestyModel):
         plt.savefig(self.fqfp + "_dynesty-" + class_name + "-cornerplot.png")
 
     def save_csv(self, data: dict, fqfn=None):
+        """ """
         if not fqfn:
             fqfn = self.fqfp + "_dynesty-" + self.__class__.__name__ + ".csv"
         d_nii = {
@@ -210,7 +210,7 @@ class PETModel(DynestyModel):
 
     @staticmethod
     def slide(rho, t, dt):
-        if dt < 0.1:
+        if abs(dt) < 0.1:
             return rho
         return np.interp(t - dt, t, rho)
 
@@ -229,5 +229,6 @@ class PETModel(DynestyModel):
             niid.update({"img": img[selected], "timesMid": timesMid[selected], "taus": taus[selected],
                          "times": times[selected]})
         else:
-            niid.update({"img": img[:, selected], "timesMid": timesMid[selected], "taus": taus[selected], "times": times[selected]})
+            niid.update({"img": img[:, selected], "timesMid": timesMid[selected], "taus": taus[selected],
+                         "times": times[selected]})
         return niid

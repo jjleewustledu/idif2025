@@ -25,48 +25,23 @@ from Artery import Artery
 # basic numeric setup
 import numpy as np
 
-RHO = None
-TAUS = None
-TIMES_MID = None
-
 
 class Boxcar(Artery):
 
     def __init__(self, input_func_measurement,
-                 remove_baseline=False,
                  tracer=None,
+                 truths=None,
                  sample="rslice",
                  nlive=1000,
                  rstate=np.random.default_rng(916301)):
         super().__init__(input_func_measurement,
-                         remove_baseline=remove_baseline,
                          tracer=tracer,
+                         truths=truths,
                          sample=sample,
                          nlive=nlive,
                          rstate=rstate)
 
-        global RHO, TAUS, TIMES_MID
-        ifm = self.input_func_measurement
-        RHO = ifm["img"] / np.max(ifm["img"])
-        TAUS = ifm["taus"]
-        TIMES_MID = ifm["timesMid"]
-
-    @staticmethod
-    def data(v):
-        return {"timesMid": TIMES_MID, "taus": TAUS, "v": v}
-
-    @staticmethod
-    def loglike(v):
-        data = Boxcar.data(v)
-        rho_pred, _, _ = Boxcar.signalmodel(data)
-        sigma = v[-1]
-        residsq = (rho_pred - RHO) ** 2 / sigma ** 2
-        loglike = -0.5 * np.sum(residsq + np.log(2 * np.pi * sigma ** 2))
-
-        if not np.isfinite(loglike):
-            loglike = -1e300
-
-        return loglike
+        self.SIGMA = 0.01
 
     @staticmethod
     def signalmodel(data: dict):
@@ -86,9 +61,9 @@ class Boxcar(Artery):
         f_ss = v[11]
         A = v[12]
 
-        #rho_ = A * Boxcar.solution_1bolus(t_ideal, t_0, a, b, p)
-        #rho_ = A * Boxcar.solution_2bolus(t_ideal, t_0, a, b, p, g, f_ss)
-        #rho_ = A * Boxcar.solution_3bolus(t_ideal, t_0, tau_2, a, b, p, dp_2, g, f_2, f_ss)
+        # rho_ = A * Boxcar.solution_1bolus(t_ideal, t_0, a, b, p)
+        # rho_ = A * Boxcar.solution_2bolus(t_ideal, t_0, a, b, p, g, f_ss)
+        # rho_ = A * Boxcar.solution_3bolus(t_ideal, t_0, tau_2, a, b, p, dp_2, g, f_2, f_ss)
         rho_ = A * Boxcar.solution_4bolus(t_ideal, t_0, tau_2, tau_3, a, b, p, dp_2, dp_3, g, f_2, f_3, f_ss)
         rho = Boxcar.apply_boxcar(rho_, data)
         A_qs = 1 / max(rho)

@@ -22,19 +22,12 @@
 
 from Artery import Artery
 
-# system functions
-import time, sys, os
+# general & system functions
+import os
 
 # basic numeric setup
 import numpy as np
-
-# NIfTI support
 import nibabel as nib
-
-KERNEL = None
-RHO = None
-TAUS = None
-TIMES_MID = None
 
 
 class RadialArtery(Artery):
@@ -43,28 +36,26 @@ class RadialArtery(Artery):
                  kernel_measurement,
                  remove_baseline=True,
                  tracer=None,
+                 truths=None,
                  sample="rslice",
                  nlive=1000,
                  rstate=np.random.default_rng(916301)):
         super().__init__(input_func_measurement,
-                         remove_baseline=remove_baseline,
                          tracer=tracer,
+                         truths=truths,
                          sample=sample,
                          nlive=nlive,
                          rstate=rstate)
 
         self.__kernel_measurement = kernel_measurement
-
-        global KERNEL, RHO, TAUS, TIMES_MID
-        km = self.kernel_measurement
-        KERNEL = km["img"]
-        ifm = self.input_func_measurement
-        RHO = ifm["img"] / np.max(ifm["img"])
-        TAUS = ifm["taus"]
-        TIMES_MID = ifm["timesMid"]
+        self.KERNEL = self.kernel_measurement["img"]
+        self.__remove_baseline = remove_baseline
+        self.SIGMA = 0.1
 
     @property
     def kernel_measurement(self):
+        if self.__kernel_measurement is None:
+            return None
         if isinstance(self.__kernel_measurement, dict):
             return self.__kernel_measurement
 
@@ -78,31 +69,14 @@ class RadialArtery(Artery):
         img = nii.get_fdata()
 
         # assemble dict
-        self.__input_func_measurement = {
+        self.__kernel_measurement = {
             "fqfp": fqfp,
             "img": np.array(img, dtype=float).reshape(-1)}
-        return self.__input_func_measurement
-
-    @staticmethod
-    def data(v):
-        return {"timesMid": TIMES_MID, "taus": TAUS, "v": v, "kernel": KERNEL}
-
-    @staticmethod
-    def loglike(v):
-        data = RadialArtery.data(v)
-        rho_pred, _, _ = RadialArtery.signalmodel(data)
-        sigma = v[-1]
-        residsq = (rho_pred - RHO) ** 2 / sigma ** 2
-        loglike = -0.5 * np.sum(residsq + np.log(2 * np.pi * sigma ** 2))
-
-        if not np.isfinite(loglike):
-            loglike = -1e300
-
-        return loglike
+        return self.__kernel_measurement
 
     @staticmethod
     def signalmodel(data: dict):
-        t_ideal = np.arange(RHO.size)
+        t_ideal = np.arange(data["rho"].size)
         v = data["v"]
         t_0 = v[0]
         tau_2 = v[1]
@@ -118,9 +92,9 @@ class RadialArtery(Artery):
         f_ss = v[11]
         A = v[12]
 
-        #rho_ = A * RadialArtery.solution_1bolus(t_ideal, t_0, a, b, p)
-        #rho_ = A * RadialArtery.solution_2bolus(t_ideal, t_0, a, b, p, g, f_ss)
-        #rho_ = A * RadialArtery.solution_3bolus(t_ideal, t_0, tau_2, a, b, p, dp_2, g, f_2, f_ss)
+        # rho_ = A * RadialArtery.solution_1bolus(t_ideal, t_0, a, b, p)
+        # rho_ = A * RadialArtery.solution_2bolus(t_ideal, t_0, a, b, p, g, f_ss)
+        # rho_ = A * RadialArtery.solution_3bolus(t_ideal, t_0, tau_2, a, b, p, dp_2, g, f_2, f_ss)
         rho_ = A * RadialArtery.solution_4bolus(t_ideal, t_0, tau_2, tau_3, a, b, p, dp_2, dp_3, g, f_2, f_3, f_ss)
         rho = RadialArtery.apply_dispersion(rho_, data)
         A_qs = 1 / max(rho)

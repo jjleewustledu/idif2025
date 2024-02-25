@@ -23,8 +23,8 @@
 # SOFTWARE.
 
 # general & system functions
-from abc import ABC, abstractmethod
-import time, sys, os
+from abc import ABC
+import sys
 from datetime import datetime
 
 # basic numeric setup
@@ -57,8 +57,9 @@ class DynestySolver(ABC):
                    prior_tag=None,
                    ndim=None,
                    checkpoint_file=None,
-                   print_progress=False):
-        """ checkpoint_file=self.fqfp+"_dynesty-RadialArtery.save") """
+                   print_progress=False,
+                   resume=False):
+        """ checkpoint_file=self.fqfp+"_dynesty-ModelClass-yyyyMMddHHmmss.save") """
 
         mdl = self.model
 
@@ -67,17 +68,20 @@ class DynestySolver(ABC):
         # if checkpoint_file is None:
         #     class_name = self.__class__.__name__
         #     now = datetime.now()
-        #     checkpoint_file = mdl.fqfp+"_dynesty-"+class_name+"-"+now.strftime("%Y%m%d%H%M%S")+".save"
+        #     checkpoint_file = mdl.fqfp+"-dynesty-"+class_name+"-"+now.strftime("%Y%m%d%H%M%S")+".save"
 
-        __prior_transform = mdl.prior_transform(prior_tag)
-        sampler = dynesty.DynamicNestedSampler(mdl.loglike, __prior_transform, ndim,
-                                               sample=self.sample, nlive=self.nlive,
-                                               rstate=self.rstate)
-        sampler.run_nested(checkpoint_file=checkpoint_file, print_progress=print_progress)
+        if resume:
+            sampler = dynesty.DynamicNestedSampler.restore(checkpoint_file)
+        else:
+            __prior_transform = mdl.prior_transform()
+            sampler = dynesty.DynamicNestedSampler(mdl.loglike, __prior_transform, ndim,
+                                                   sample=self.sample, nlive=self.nlive,
+                                                   rstate=self.rstate)
+        sampler.run_nested(checkpoint_file=checkpoint_file, print_progress=print_progress, resume=resume)
         # for posterior > evidence, use wt_kwargs={"pfrac": 1.0}
         res = sampler.results
         class_name = self.__class__.__name__
-        fqfn = mdl.fqfp+"_dynesty-"+class_name+"-summary.txt"
+        fqfn = mdl.fqfp+"_dynesty-"+class_name+"-"+prior_tag+"-summary.txt"
         with open(fqfn, "w") as f:
             old_stdout = sys.stdout
             old_stderr = sys.stderr
@@ -86,16 +90,15 @@ class DynestySolver(ABC):
             res.summary()
             sys.stdout = old_stdout
             sys.stderr = old_stderr
-        mdl.save_results(res)
-        mdl.plot_results(res)
         return res
 
     def run_nested_for_list(self,
                             prior_tag=None,
                             ndim=None,
                             checkpoint_file=None,
-                            print_progress=False):
-        """ checkpoint_file=self.fqfp+"_dynesty-RadialArtery.save") """
+                            print_progress=False,
+                            resume=False):
+        """ default: checkpoint_file=self.fqfp+"_dynesty-ModelClass-yyyyMMddHHmmss.save") """
 
         mdl = self.model
 
@@ -104,13 +107,16 @@ class DynestySolver(ABC):
         if checkpoint_file is None:
             class_name = self.__class__.__name__
             now = datetime.now()
-            checkpoint_file = mdl.fqfp+"_dynesty-"+class_name+"-"+now.strftime("%Y%m%d%H%M%S")+".save"
+            checkpoint_file = mdl.fqfp+"-dynesty-"+class_name+"-"+prior_tag+"-"+now.strftime("%Y%m%d%H%M%S")+".save"
 
-        __prior_transform = mdl.prior_transform(prior_tag)
-        sampler = dynesty.DynamicNestedSampler(mdl.loglike, __prior_transform, ndim,
-                                               sample=self.sample, nlive=self.nlive,
-                                               rstate=self.rstate)
-        sampler.run_nested(checkpoint_file=checkpoint_file, print_progress=print_progress)
+        if resume:
+            sampler = dynesty.DynamicNestedSampler.restore(checkpoint_file)
+        else:
+            __prior_transform = mdl.prior_transform()
+            sampler = dynesty.DynamicNestedSampler(mdl.loglike, __prior_transform, ndim,
+                                                   sample=self.sample, nlive=self.nlive,
+                                                   rstate=self.rstate)
+        sampler.run_nested(checkpoint_file=checkpoint_file, print_progress=print_progress, resume=resume)
         # for posterior > evidence, use wt_kwargs={"pfrac": 1.0}
         res = sampler.results
         return res
@@ -126,4 +132,3 @@ class DynestySolver(ABC):
             ql[i], qm[i], qh[i] = dyutils.quantile(x, [0.025, 0.5, 0.975], weights=weights)
             print(f"Parameter {i}: {qm[i]:.3f} [{ql[i]:.3f}, {qh[i]:.3f}]")
         return qm, ql, qh
-

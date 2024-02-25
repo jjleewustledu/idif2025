@@ -20,22 +20,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from abc import ABC
 from PETModel import PETModel
-from dynesty import utils as dyutils
-from dynesty import plotting as dyplot
 
 # general & system functions
-import re
 import os
+import pickle
 from copy import deepcopy
 
 # basic numeric setup
 import numpy as np
-import pandas as pd
-
-# NIfTI support
-import json
-import nibabel as nib
 
 # plotting
 from matplotlib import pyplot as plt
@@ -58,14 +52,13 @@ rcParams.update({"ytick.minor.size": "3.5"})
 rcParams.update({"ytick.minor.width": "1.0"})
 rcParams.update({"font.size": 30})
 
-SIGMA = 0.05
 
-
-class TCModel(PETModel):
+class TCModel(PETModel, ABC):
 
     def __init__(self,
                  input_function,
                  pet_measurement,
+                 truths=None,
                  home=os.getcwd(),
                  sample="rslice",
                  nlive=1000,
@@ -74,32 +67,39 @@ class TCModel(PETModel):
                          sample=sample,
                          nlive=nlive,
                          rstate=rstate)
-        self.__input_function = input_function
-        self.__pet_measurement = pet_measurement
+
+        self.__input_function = input_function  # fqfn to be converted to dict by property
+        self.__pet_measurement = pet_measurement  # fqfn to be converted to dict by property
+        self.__truths_internal = truths
+
+        petm = self.pet_measurement
+        self.INPUTF_INTERP = self.input_function()["img"] / np.max(petm["img"])
+        self.RHOS = petm["img"] / np.max(petm["img"])
+        if self.RHOS.ndim == 1:
+            self.RHO = self.RHOS
+        elif self.RHOS.ndim == 2:
+            self.RHO = self.RHOS[0]
+        else:
+            raise RuntimeError(self.__class__.__name__ + ": self.RHOS.ndim -> " + self.RHOS.ndim)
+        self.SIGMA = 0.05
+        self.TAUS = petm["taus"]
+        self.TIMES_MID = petm["timesMid"]
+        try:
+            self.MARTIN_V1 = self.pet_measurement["martinv1"]
+        except KeyError:
+            self.MARTIN_V1 = None
+        try:
+            self.RAICHLE_KS = self.pet_measurement["raichleks"]
+        except KeyError:
+            self.RAICHLE_KS = None
 
     @property
     def fqfp(self):
         return self.pet_measurement["fqfp"]
 
     @property
-    def input_function(self):
-        if isinstance(self.__input_function, dict):
-            return self.__input_function
-
-        assert os.path.isfile(self.__input_function), f"{self.__input_function} was not found."
-        fqfn = self.__input_function
-        if self.parse_isotope(fqfn) == "15O":
-            niid = self.decay_uncorrect(self.load_nii(fqfn))
-        else:
-            niid = self.load_nii(fqfn)
-
-        # interpolate to timing domain of pet_measurements
-        petm = self.pet_measurement
-        tMI = np.arange(0, round(petm["timesMid"][-1]))
-        niid["img"] = np.interp(tMI, niid["timesMid"], niid["img"])
-        niid["timesMid"] = tMI
-        self.__input_function = niid
-        return self.__input_function
+    def ndim(self):
+        return len(self.labels)
 
     @property
     def pet_measurement(self):
@@ -114,6 +114,49 @@ class TCModel(PETModel):
             self.__pet_measurement = self.load_nii(fqfn)
         return self.__pet_measurement
 
+    @property
+    def truths(self):
+        return self.__truths_internal
+
+    def data(self, v):
+        return {
+            "rho": self.RHO, "rhos": self.RHOS, "timesMid": self.TIMES_MID, "taus": self.TAUS,
+            "times": (self.TIMES_MID - self.TAUS / 2), "inputFuncInterp": self.INPUTF_INTERP,
+            "martinv1": self.MARTIN_V1, "raichleks": self.RAICHLE_KS,
+            "v": v}
+
+    def input_function(self):
+        if isinstance(self.__input_function, dict):
+            return self.__input_function
+
+        assert os.path.isfile(self.__input_function), f"{self.__input_function} was not found."
+        fqfn = self.__input_function
+
+        if self.parse_isotope(fqfn) == "15O":
+            niid = self.decay_uncorrect(self.load_nii(fqfn))
+        else:
+            niid = self.load_nii(fqfn)
+
+        # interpolate to timing domain of pet_measurements
+        petm = self.pet_measurement
+        tMI = np.arange(0, round(petm["timesMid"][-1]))
+        niid["img"] = np.interp(tMI, niid["timesMid"], niid["img"])
+        niid["timesMid"] = tMI
+        self.__input_function = niid
+        return self.__input_function
+
+    def loglike(self, v):
+        data = self.data(v)
+        rho_pred, _, _, _ = self.signalmodel(data)
+        sigma = v[-1]
+        residsq = (rho_pred - data["rho"]) ** 2 / sigma ** 2
+        loglike = -0.5 * np.sum(residsq + np.log(2 * np.pi * sigma ** 2))
+
+        if not np.isfinite(loglike):
+            loglike = -1e300
+
+        return loglike
+
     def plot_truths(self, truths=None):
         if truths is None:
             truths = self.truths
@@ -122,21 +165,22 @@ class TCModel(PETModel):
 
         petm = self.pet_measurement
         t_petm = petm["timesMid"]
-        rho_petm = np.mean(petm["img"], axis=0)
+        selected_axes = tuple(np.arange(petm["img"].ndim - 1))
+        rho_petm = np.mean(petm["img"], axis=selected_axes)  # evaluates mean of petm["img"] for spatial dimensions only
         M0 = np.max(rho_petm)
 
-        inputf = self.input_function
-        t_inputf = inputf["timesMid"]
+        inputf = self.input_function()
+        t_inputf = self.input_function()["timesMid"]
         rho_inputf = inputf["img"]
         I0 = M0 / np.max(rho_inputf)
 
         plt.figure(figsize=(12, 8))
         p1, = plt.plot(t_inputf, I0 * rho_inputf, color="black", linewidth=2, alpha=0.7,
-                 label=f"input function x {I0:.3}")
+                       label=f"input function x {I0:.3}")
         p2, = plt.plot(t_petm, rho_petm, color="black", marker="+", ls="none", alpha=0.9, markersize=16,
-                 label="measured TAC")
+                       label="measured TAC")
         p3, = plt.plot(t_pred, M0 * rho_pred, marker="o", color="red", ls="none", alpha=0.8,
-                 label="predicted TAC")
+                       label="predicted TAC")
         plt.xlim([-0.1, 1.1 * np.max(t_petm)])
         plt.xlabel("time of mid-frame (s)")
         plt.ylabel("activity (Bq/mL)")
@@ -149,7 +193,7 @@ class TCModel(PETModel):
 
         plt.figure(figsize=(12, 7.4))
 
-        ncolors: int = 100
+        ncolors: int = 75
         viridis = cm.get_cmap("viridis", ncolors)
         dt = (tmax - tmin) / ncolors
         trange = np.arange(tmin, tmax, dt)
@@ -171,55 +215,148 @@ class TCModel(PETModel):
 
         plt.tight_layout()
 
-    def prior_transform(self, prior_tag):
+    def prior_transform(self):
         return {
-            "Raichle1983Model": self.prior_transform_raichle,
-            "Mintun1984Model": self.prior_transform_mintun,
-            "Huang1980Model": self.prior_transform_huang
-        }.get(prior_tag, self.prior_transform_ichise)
+            "Martin1987Model": TCModel.prior_transform_martin,
+            "Raichle1983Model": TCModel.prior_transform_raichle,
+            "Mintun1984Model": TCModel.prior_transform_mintun,
+            "Huang1980Model": TCModel.prior_transform_huang
+        }.get(self.__class__.__name__, TCModel.prior_transform_ichise)
 
-    def run_nested(self, checkpoint_file=None):
-        """ checkpoint_file=self.fqfp+"_dynesty-RadialArtery.save");
-        default implementation expects vector for RHO """
+    def run_nested(self, checkpoint_file=None, print_progress=False, resume=False):
+        """ default: checkpoint_file=self.fqfp+"_dynesty-ModelClass-yyyyMMddHHmmss.save") """
 
-        class_name = self.__class__.__name__
-        return self.solver.run_nested(prior_tag=class_name,
-                                      ndim=self.ndim,
-                                      checkpoint_file=checkpoint_file)
+        res = []
+        logz = []
+        information = []
+        qm = []
+        ql = []
+        qh = []
+        rho_pred = []
+        resid = []
 
-    def save_results(self, res: dyutils.Results):
-        """ default implementation expects vector for RHO """
+        if self.RHOS.ndim == 1:
+            self.RHO = self.RHOS
+            tac = self.RHO
+            res__ = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
+                                                    ndim=self.ndim,
+                                                    checkpoint_file=checkpoint_file,
+                                                    print_progress=print_progress,
+                                                    resume=resume)
+            if print_progress:
+                self.plot_results(res__)
+            res.append(res__)
+            rd = res__.asdict()
+            logz.append(rd["logz"][-1])
+            information.append(rd["information"][-1])
+            qm__, ql__, qh__ = self.solver.quantile(res__)
+            qm.append(qm__)
+            ql.append(ql__)
+            qh.append(qh__)
+            rho_pred__, _, _, _ = self.signalmodel(self.data(qm__))
+            rho_pred.append(rho_pred__)
+            resid.append(np.sum(rho_pred__ - tac) / np.sum(tac))
 
+            package = {"res": res,
+                       "logz": np.array(logz),
+                       "information": np.array(information),
+                       "qm": np.array(qm),
+                       "ql": np.array(ql),
+                       "qh": np.array(qh),
+                       "rho_pred": np.array(rho_pred),
+                       "resid": np.array(resid)}
+
+        elif self.RHOS.ndim == 2:
+            for tac in self.RHOS:
+                self.RHO = tac
+                res__ = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
+                                                        ndim=self.ndim,
+                                                        checkpoint_file=checkpoint_file,
+                                                        print_progress=print_progress,
+                                                        resume=resume)
+                if print_progress:
+                    self.plot_results(res__)
+                res.append(res__)
+                rd = res__.asdict()
+                logz.append(rd["logz"][-1])
+                information.append(rd["information"][-1])
+                qm__, ql__, qh__ = self.solver.quantile(res__)
+                qm.append(qm__)
+                ql.append(ql__)
+                qh.append(qh__)
+                rho_pred__, _, _, _ = self.signalmodel(self.data(qm__))
+                rho_pred.append(rho_pred__)
+                resid.append(np.sum(rho_pred__ - tac) / np.sum(tac))
+
+            package = {"res": res,
+                       "logz": np.array(logz),
+                       "information": np.array(information),
+                       "qm": np.vstack(qm),
+                       "ql": np.vstack(ql),
+                       "qh": np.vstack(qh),
+                       "rho_pred": np.vstack(rho_pred),
+                       "resid": np.array(resid)}
+
+        else:
+            raise RuntimeError(self.__class__.__name__ + ": self.RHOS.ndim -> " + self.RHOS.ndim)
+
+        self.save_results(package)
+        return package
+
+    def save_results(self, res_dict: dict):
+        """"""
+
+        fqfp1 = self.fqfp + "_dynesty-" + self.__class__.__name__
         petm = self.pet_measurement
         M0 = np.max(petm["img"])
-        qm, ql, qh = self.solver.quantile(res)
-        data = self.data(qm)
-        rho_pred, _, _, _ = self.signalmodel(data)
 
         product = deepcopy(petm)
-        product["img"] = M0*rho_pred
-        fqfp1 = self.fqfp + "_dynesty-" + self.__class__.__name__
-        self.save_nii(product, fqfp1 + "-signal.nii.gz")
+        product["img"] = res_dict["logz"]
+        self.save_nii(product, fqfp1 + "-logz.nii.gz")
 
-        d_quantiles = {
-            "label": self.labels,
-            "qm": qm,
-            "ql": ql,
-            "qh": qh}
-        df = pd.DataFrame(d_quantiles)
-        df.to_csv(fqfp1 + "-quantiles.csv")
+        product = deepcopy(petm)
+        product["img"] = res_dict["information"]
+        self.save_nii(product, fqfp1 + "-information.nii.gz")
+
+        product = deepcopy(petm)
+        product["img"] = res_dict["qm"]
+        self.save_nii(product, fqfp1 + "-qm.nii.gz")
+
+        product = deepcopy(petm)
+        product["img"] = res_dict["ql"]
+        self.save_nii(product, fqfp1 + "-ql.nii.gz")
+
+        product = deepcopy(petm)
+        product["img"] = res_dict["qh"]
+        self.save_nii(product, fqfp1 + "-qh.nii.gz")
+
+        product = deepcopy(petm)
+        product["img"] = M0 * res_dict["rho_pred"]
+        self.save_nii(product, fqfp1 + "-rho-pred.nii.gz")
+
+        product = deepcopy(petm)
+        product["img"] = res_dict["resid"]
+        self.save_nii(product, fqfp1 + "-resid.nii.gz")
+
+        with open(fqfp1 + "-res.pickle", 'wb') as f:
+            pickle.dump(res_dict["res"], f, pickle.HIGHEST_PROTOCOL)
 
     @staticmethod
     def decay_correct(tac: dict):
-        img = tac["img"] * np.power(2, tac["timesMid"]/tac["halflife"])
+        img = tac["img"] * np.power(2, tac["timesMid"] / tac["halflife"])
         tac["img"] = img
         return tac
 
     @staticmethod
     def decay_uncorrect(tac: dict):
-        img = tac["img"] * np.power(2, -tac["timesMid"]/tac["halflife"])
+        img = tac["img"] * np.power(2, -tac["timesMid"] / tac["halflife"])
         tac["img"] = img
         return tac
+
+    @staticmethod
+    def prior_transform_martin(u):
+        v = u
+        return v
 
     @staticmethod
     def prior_transform_raichle(u):
@@ -228,7 +365,8 @@ class TCModel(PETModel):
         v[1] = u[1] + 0.5  # \lambda (cm^3/mL)
         v[2] = u[2] * 0.0212 + 0.0081  # ps (mL cm^{-3}s^{-1})
         v[3] = u[3] * 20  # t_0 (s)
-        v[4] = u[4] * SIGMA  # sigma ~ fraction of M0
+        v[4] = u[4] * (-60) + 20  # \tau_a (s)
+        v[5] = u[5] * TCModel.sigma()  # sigma ~ fraction of M0
         return v
 
     @staticmethod
@@ -238,7 +376,8 @@ class TCModel(PETModel):
         v[1] = u[1] * 0.6 + 0.2  # frac. water of metab. at 90 s
         v[2] = u[2] * 0.5 + 0.5  # v_{post} + 0.5 v_{cap}
         v[3] = u[3] * 20  # t_0 (s)
-        v[4] = u[4] * SIGMA  # sigma ~ fraction of M0
+        v[4] = u[4] * (-60) + 20  # \tau_a (s)
+        v[5] = u[5] * TCModel.sigma()  # sigma ~ fraction of M0
         return v
 
     @staticmethod
@@ -249,7 +388,8 @@ class TCModel(PETModel):
         v[2] = u[2] * 0.01  # k_3 (1/s)
         v[3] = u[3] * 0.001  # k_4 (1/s)
         v[4] = u[4] * 20  # t_0 (s)
-        v[5] = u[5] * SIGMA  # sigma ~ fraction of M0
+        v[5] = u[5] * (-60) + 20  # \tau_a (s)
+        v[6] = u[6] * TCModel.sigma()  # sigma ~ fraction of M0
         return v
 
     @staticmethod
@@ -262,5 +402,10 @@ class TCModel(PETModel):
         v[4] = v[4] * 9.9 + 0.1  # V_P (mL/cm^{-3})
         v[5] = v[5] * 49 + 1  # V_N + V_S (mL/cm^{-3})
         v[6] = u[6] * 20  # t_0 (s)
-        v[7] = u[7] * SIGMA  # sigma ~ fraction of M0
+        v[7] = u[7] * (-60) + 20  # \tau_a (s)
+        v[8] = u[8] * TCModel.sigma()  # sigma ~ fraction of M0
         return v
+
+    @staticmethod
+    def sigma():
+        return 0.05

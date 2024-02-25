@@ -1,8 +1,6 @@
 # The MIT License (MIT)
 #
 # Copyright (c) 2024 - Present: John J. Lee.
-# Copyright (c) 2017 - Present: Josh Speagle and contributors.
-# Copyright (c) 2014 - 2017: Kyle Barbary and contributors.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -28,7 +26,7 @@ from dynesty import utils as dyutils
 
 # general & system functions
 import re
-import time, sys, os
+import os
 
 # basic numeric setup
 import numpy as np
@@ -55,15 +53,13 @@ rcParams.update({"ytick.minor.size": "3.5"})
 rcParams.update({"ytick.minor.width": "1.0"})
 rcParams.update({"font.size": 30})
 
-SIGMA = 0.001
-
 
 class Artery(PETModel, ABC):
 
     def __init__(self,
                  input_func_measurement,
-                 remove_baseline=False,
                  tracer=None,
+                 truths=None,
                  home=os.getcwd(),
                  sample="rslice",
                  nlive=1000,
@@ -73,14 +69,21 @@ class Artery(PETModel, ABC):
                          nlive=nlive,
                          rstate=rstate)
 
-        self.__input_func_measurement = input_func_measurement
-        self.__remove_baseline = remove_baseline
-        self.tracer = tracer
+        self.__truths_internal = truths
 
+        self.KERNEL = None
+        self.__input_func_measurement = input_func_measurement  # fqfn to be converted to dict by property
+        ifm = self.input_func_measurement
+        self.RHO = ifm["img"] / np.max(ifm["img"])
+        self.SIGMA = 0.1
+        self.TAUS = ifm["taus"]
+        self.TIMES_MID = ifm["timesMid"]
+
+        self.tracer = tracer
         if not self.tracer:
             regex = r"_trc-(.*?)_"
             matches = re.findall(regex, input_func_measurement)
-            assert matches, "no tracer information in input_funct_measurement"
+            assert matches, "no tracer information in input_func_measurement"
             self.tracer = matches[0]
             print(f"{self.__class__.__name__}: found data for tracer {self.tracer}")
 
@@ -95,14 +98,6 @@ class Artery(PETModel, ABC):
 
         assert os.path.isfile(self.__input_func_measurement), f"{self.__input_func_measurement} was not found."
         fqfn = self.__input_func_measurement
-
-        # manage SIGMA
-        global SIGMA
-        if "TwiliteKit" in fqfn:
-            SIGMA = 0.1
-        if "MipIdif" in fqfn:
-            SIGMA = 0.001
-
         self.__input_func_measurement = self.load_nii(fqfn)
         return self.__input_func_measurement
 
@@ -116,17 +111,29 @@ class Artery(PETModel, ABC):
 
     @property
     def ndim(self):
-        return 14
+        return len(self.labels)
 
     @property
     def truths(self):
-        """/Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-108293/ses-20210421150523/pet for mipidif"""
-        """/Volumes/PrecunealSSD/Singularity/CCIR_01211/sourcedata/sub-108293/ses-20210421/pet for twilite nomodel"""
+        return self.__truths_internal
 
-        return [8.95, 2.34, 6.05,
-                4.43, 4.23, 4.24, -2.00, -0.36, 8.69,
-                0.49, 0.19, 0.084,
-                2.56, 0.001]
+    def data(self, v):
+        return {
+            "rho": self.RHO, "timesMid": self.TIMES_MID, "taus": self.TAUS, "times": (self.TIMES_MID - self.TAUS / 2),
+            "kernel": self.KERNEL,
+            "v": v}
+
+    def loglike(self, v):
+        data = self.data(v)
+        rho_pred, _, _ = self.signalmodel(data)
+        sigma = v[-1]
+        residsq = (rho_pred - data["rho"]) ** 2 / sigma ** 2
+        loglike = -0.5 * np.sum(residsq + np.log(2 * np.pi * sigma ** 2))
+
+        if not np.isfinite(loglike):
+            loglike = -1e300
+
+        return loglike
 
     def plot_truths(self, truths=None):
         if truths is None:
@@ -177,20 +184,24 @@ class Artery(PETModel, ABC):
 
         plt.tight_layout()
 
-    def prior_transform(self, tracer):
+    def prior_transform(self):
         return {
-            "co": self.prior_transform_co,
-            "oc": self.prior_transform_co,
-            "oo": self.prior_transform_oo
-        }.get(tracer, self.prior_transform_default)
+            "co": Artery.prior_transform_co,
+            "oc": Artery.prior_transform_co,
+            "oo": Artery.prior_transform_oo
+        }.get(self.tracer, Artery.prior_transform_default)
 
-    def run_nested(self, checkpoint_file=None, print_progress=False):
-        """ checkpoint_file=self.fqfp+"_dynesty-RadialArtery.save") """
+    def run_nested(self, checkpoint_file=None, print_progress=False, resume=False):
+        """ default: checkpoint_file=self.fqfp+"_dynesty-ModelClass-yyyyMMddHHmmss.save") """
 
-        return self.solver.run_nested(prior_tag=self.tracer,
-                                      ndim=self.ndim,
-                                      checkpoint_file=checkpoint_file,
-                                      print_progress=print_progress)
+        res = self.solver.run_nested(prior_tag=self.tracer,
+                                     ndim=self.ndim,
+                                     checkpoint_file=checkpoint_file,
+                                     print_progress=print_progress,
+                                     resume=resume)
+        self.plot_results(res)
+        self.save_results(res)
+        return res
 
     def save_results(self, res: dyutils.Results):
         """"""
@@ -206,20 +217,20 @@ class Artery(PETModel, ABC):
         rho_signal, rho_ideal, timesUnif = self.signalmodel(data)
         fqfp1 = self.fqfp + "_dynesty-" + self.__class__.__name__
 
-        self.save_csv(
-            {"timesMid": timesMid, "img": M0*rho_signal},
-            fqfp1 + "-signal.csv")
-
-        self.save_csv(
-            {"timesMid": timesUnif, "img": M0*rho_ideal},
-            fqfp1 + "-ideal.csv")
+        # self.save_csv(
+        #     {"timesMid": timesMid, "img": M0*rho_signal},
+        #     fqfp1 + "-signal.csv")
+        #
+        # self.save_csv(
+        #     {"timesMid": timesUnif, "img": M0*rho_ideal},
+        #     fqfp1 + "-ideal.csv")
 
         self.save_nii(
-            {"timesMid": timesMid, "taus": taus, "img": M0*rho_signal, "nii": nii, "fqfp": fqfp},
+            {"timesMid": timesMid, "taus": taus, "img": M0 * rho_signal, "nii": nii, "fqfp": fqfp},
             fqfp1 + "-signal.nii.gz")
 
         self.save_nii(
-            {"times": timesUnif, "taus": np.ones(timesUnif.shape), "img": M0*rho_ideal, "nii": nii, "fqfp": fqfp},
+            {"times": timesUnif, "taus": np.ones(timesUnif.shape), "img": M0 * rho_ideal, "nii": nii, "fqfp": fqfp},
             fqfp1 + "-ideal.nii.gz")
 
         d_quantiles = {
@@ -246,7 +257,7 @@ class Artery(PETModel, ABC):
         v[10] = u[10] * 0.75  # f_3
         v[11] = u[11] * 0.75  # f_{ss}
         v[12] = u[12] * 4 + 0.5  # A is amplitude adjustment
-        v[13] = u[13] * SIGMA  # sigma ~ fraction of M0
+        v[13] = u[13] * Artery.sigma()  # sigma ~ fraction of M0
         return v
 
     @staticmethod
@@ -265,7 +276,7 @@ class Artery(PETModel, ABC):
         v[10] = u[10] * 0.5  # f_3
         v[11] = u[11] * 0.25  # f_{ss}
         v[12] = u[12] * 4 + 0.5  # A is amplitude adjustment
-        v[13] = u[13] * SIGMA  # sigma ~ fraction of M0
+        v[13] = u[13] * Artery.sigma()  # sigma ~ fraction of M0
         return v
 
     @staticmethod
@@ -284,8 +295,12 @@ class Artery(PETModel, ABC):
         v[10] = u[10] * 0.25  # f_3
         v[11] = u[11] * 0.25  # f_{ss}
         v[12] = u[12] * 4 + 0.5  # A is amplitude adjustment
-        v[13] = u[13] * SIGMA  # sigma ~ fraction of M0
+        v[13] = u[13] * Artery.sigma()  # sigma ~ fraction of M0
         return v
+
+    @staticmethod
+    def sigma():
+        return 0.1
 
     @staticmethod
     def solution_1bolus(t, t_0, a, b, p):

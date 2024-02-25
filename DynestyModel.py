@@ -54,10 +54,6 @@ class DynestyModel(ABC):
         pass
 
     @abstractmethod
-    def prior_transform(self, tag):
-        pass
-
-    @abstractmethod
     def run_nested(self, checkpoint_file):
         pass
 
@@ -73,6 +69,11 @@ class DynestyModel(ABC):
     @staticmethod
     @abstractmethod
     def loglike(v):
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def prior_transform(tag):
         pass
 
     @staticmethod

@@ -73,7 +73,10 @@ class TCModel(PETModel, ABC):
         self.__truths_internal = truths
 
         petm = self.pet_measurement
+        inputf_timesMid = self.input_function()["timesMid"]
+        inputf_timesMidInterp = np.arange(petm["timesMid"][-1])
         self.INPUTF_INTERP = self.input_function()["img"] / np.max(petm["img"])
+        self.INPUTF_INTERP = np.interp(inputf_timesMid, inputf_timesMidInterp, self.INPUTF_INTERP)
         self.RHOS = petm["img"] / np.max(petm["img"])
         if self.RHOS.ndim == 1:
             self.RHO = self.RHOS
@@ -104,7 +107,7 @@ class TCModel(PETModel, ABC):
     @property
     def pet_measurement(self):
         if isinstance(self.__pet_measurement, dict):
-            return self.__pet_measurement
+            return deepcopy(self.__pet_measurement)
 
         assert os.path.isfile(self.__pet_measurement), f"{self.__pet_measurement} was not found."
         fqfn = self.__pet_measurement
@@ -112,22 +115,24 @@ class TCModel(PETModel, ABC):
             self.__pet_measurement = self.decay_uncorrect(self.load_nii(fqfn))
         else:
             self.__pet_measurement = self.load_nii(fqfn)
-        return self.__pet_measurement
+        return deepcopy(self.__pet_measurement)
 
     @property
     def truths(self):
-        return self.__truths_internal
+        return self.__truths_internal.copy()
 
     def data(self, v):
-        return {
+        return deepcopy({
             "rho": self.RHO, "rhos": self.RHOS, "timesMid": self.TIMES_MID, "taus": self.TAUS,
             "times": (self.TIMES_MID - self.TAUS / 2), "inputFuncInterp": self.INPUTF_INTERP,
             "martinv1": self.MARTIN_V1, "raichleks": self.RAICHLE_KS,
-            "v": v}
+            "v": v})
 
     def input_function(self):
+        """input function read from filesystem, never updated during dynesty operations"""
+
         if isinstance(self.__input_function, dict):
-            return self.__input_function
+            return deepcopy(self.__input_function)
 
         assert os.path.isfile(self.__input_function), f"{self.__input_function} was not found."
         fqfn = self.__input_function
@@ -143,7 +148,7 @@ class TCModel(PETModel, ABC):
         niid["img"] = np.interp(tMI, niid["timesMid"], niid["img"])
         niid["timesMid"] = tMI
         self.__input_function = niid
-        return self.__input_function
+        return deepcopy(self.__input_function)
 
     def loglike(self, v):
         data = self.data(v)
@@ -190,6 +195,7 @@ class TCModel(PETModel, ABC):
     def plot_variations(self, tindex=0, tmin=None, tmax=None, truths=None):
         if truths is None:
             truths = self.truths
+        _truths = truths.copy()
 
         plt.figure(figsize=(12, 7.4))
 
@@ -198,8 +204,8 @@ class TCModel(PETModel, ABC):
         dt = (tmax - tmin) / ncolors
         trange = np.arange(tmin, tmax, dt)
         for tidx, t in enumerate(trange):
-            truths[tindex] = t
-            data = self.data(truths)
+            _truths[tindex] = t
+            data = self.data(_truths)
             rho, timesMid, _, _ = self.signalmodel(data)
             plt.plot(timesMid, rho, color=viridis(tidx))
 
@@ -217,11 +223,11 @@ class TCModel(PETModel, ABC):
 
     def prior_transform(self):
         return {
-            "Martin1987Model": TCModel.prior_transform_martin,
-            "Raichle1983Model": TCModel.prior_transform_raichle,
-            "Mintun1984Model": TCModel.prior_transform_mintun,
-            "Huang1980Model": TCModel.prior_transform_huang
-        }.get(self.__class__.__name__, TCModel.prior_transform_ichise)
+            "Martin1987Model": self.prior_transform_martin,
+            "Raichle1983Model": self.prior_transform_raichle,
+            "Mintun1984Model": self.prior_transform_mintun,
+            "Huang1980Model": self.prior_transform_huang
+        }.get(self.__class__.__name__, self.prior_transform_ichise)
 
     def run_nested(self, checkpoint_file=None, print_progress=False, resume=False):
         """ default: checkpoint_file=self.fqfp+"_dynesty-ModelClass-yyyyMMddHHmmss.save") """
@@ -343,15 +349,17 @@ class TCModel(PETModel, ABC):
 
     @staticmethod
     def decay_correct(tac: dict):
-        img = tac["img"] * np.power(2, tac["timesMid"] / tac["halflife"])
-        tac["img"] = img
-        return tac
+        _tac = deepcopy(tac)
+        img = _tac["img"] * np.power(2, _tac["timesMid"] / _tac["halflife"])
+        _tac["img"] = img
+        return _tac
 
     @staticmethod
     def decay_uncorrect(tac: dict):
-        img = tac["img"] * np.power(2, -tac["timesMid"] / tac["halflife"])
-        tac["img"] = img
-        return tac
+        _tac = deepcopy(tac)
+        img = _tac["img"] * np.power(2, -_tac["timesMid"] / _tac["halflife"])
+        _tac["img"] = img
+        return _tac
 
     @staticmethod
     def prior_transform_martin(u):
@@ -384,9 +392,9 @@ class TCModel(PETModel, ABC):
     def prior_transform_huang(u):
         v = u
         v[0] = u[0] * 0.5  # K_1 (mL cm^{-3}s^{-1})
-        v[1] = u[1] * 0.02  # k_2 (1/s)
-        v[2] = u[2] * 0.01  # k_3 (1/s)
-        v[3] = u[3] * 0.001  # k_4 (1/s)
+        v[1] = u[1] * 0.5  # k_2 (1/s)
+        v[2] = u[2] * 0.05  # k_3 (1/s)
+        v[3] = u[3] * 0.05  # k_4 (1/s)
         v[4] = u[4] * 20  # t_0 (s)
         v[5] = u[5] * (-60) + 20  # \tau_a (s)
         v[6] = u[6] * TCModel.sigma()  # sigma ~ fraction of M0
@@ -395,12 +403,12 @@ class TCModel(PETModel, ABC):
     @staticmethod
     def prior_transform_ichise(u):
         v = u
-        v[0] = u[0] * 0.5  # K_1 (mL/cm^{-3}s^{-1})
-        v[1] = v[1] * 0.02  # k_2 (1/s)
-        v[2] = v[2] * 0.01  # k_3 (1/s)
-        v[3] = v[3] * 0.001  # k_4 (1/s)
-        v[4] = v[4] * 9.9 + 0.1  # V_P (mL/cm^{-3})
-        v[5] = v[5] * 49 + 1  # V_N + V_S (mL/cm^{-3})
+        v[0] = u[0] * 1.5  # K_1 (mL/cm^{-3}s^{-1})
+        v[1] = v[1] * 0.5  # k_2 (1/s)
+        v[2] = v[2] * 0.05  # k_3 (1/s)
+        v[3] = v[3] * 0.05  # k_4 (1/s)
+        v[4] = v[4] * 0.999 + 0.001  # V_P (mL/cm^{-3})
+        v[5] = v[5] * 99.9 + 0.1  # V_N + V_S (mL/cm^{-3})
         v[6] = u[6] * 20  # t_0 (s)
         v[7] = u[7] * (-60) + 20  # \tau_a (s)
         v[8] = u[8] * TCModel.sigma()  # sigma ~ fraction of M0

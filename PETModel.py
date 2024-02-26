@@ -28,7 +28,7 @@ from dynesty import plotting as dyplot
 # general & system functions
 from abc import abstractmethod
 import os
-import copy
+from copy import deepcopy
 
 # basic numeric setup
 import numpy as np
@@ -70,6 +70,8 @@ class PETModel(DynestyModel):
                                     sample=sample,
                                     nlive=nlive,
                                     rstate=rstate)
+        self.NLIVE = nlive
+        self.TIME_LAST = None
 
     @property
     @abstractmethod
@@ -100,11 +102,11 @@ class PETModel(DynestyModel):
             "times": np.array(j["times"], dtype=float).ravel(),
             "halflife": self.parse_halflife(fqfp)}
         if "martinv1" in j:
-            niid["martinv1"] = j["martinv1"]
+            niid["martinv1"] = np.array(j["martinv1"])
         if "raichleks" in j:
-            niid["raichleks"] = j["raichleks"]
-        niid = self._trim_nii_dict(niid)
-        return niid
+            niid["raichleks"] = np.array(j["raichleks"])
+        niid = self._trim_nii_dict(niid, self.TIME_LAST)
+        return deepcopy(niid)
 
     def plot_results(self, res: dyutils.Results):
         class_name = self.__class__.__name__
@@ -113,19 +115,28 @@ class PETModel(DynestyModel):
         self.plot_truths(qm)
         plt.savefig(self.fqfp + "_dynesty-" + class_name + "-results.png")
 
-        dyplot.runplot(res)
-        plt.tight_layout()
-        plt.savefig(self.fqfp + "_dynesty-" + class_name + "-runplot.png")
+        try:
+            dyplot.runplot(res)
+            plt.tight_layout()
+            plt.savefig(self.fqfp + "_dynesty-" + class_name + "-runplot.png")
+        except RuntimeError as e:
+            print(f"PETModel.plot_results.dyplot.runplot: caught a RuntimeError: {e}")
 
-        fig, axes = dyplot.traceplot(res, labels=self.labels, truths=qm,
-                                     fig=plt.subplots(self.ndim, 2, figsize=(16, 50)))
-        fig.tight_layout()
-        plt.savefig(self.fqfp + "_dynesty-" + class_name + "-traceplot.png")
+        try:
+            fig, axes = dyplot.traceplot(res, labels=self.labels, truths=qm,
+                                         fig=plt.subplots(self.ndim, 2, figsize=(16, 50)))
+            fig.tight_layout()
+            plt.savefig(self.fqfp + "_dynesty-" + class_name + "-traceplot.png")
+        except RuntimeError as e:
+            print(f"PETModel.plot_results.dyplot.traceplot: caught a RuntimeError: {e}")
 
-        dyplot.cornerplot(res, truths=qm, show_titles=True,
-                          title_kwargs={"y": 1.04}, labels=self.labels,
-                          fig=plt.subplots(self.ndim, self.ndim, figsize=(100, 100)))
-        plt.savefig(self.fqfp + "_dynesty-" + class_name + "-cornerplot.png")
+        try:
+            dyplot.cornerplot(res, truths=qm, show_titles=True,
+                              title_kwargs={"y": 1.04}, labels=self.labels,
+                              fig=plt.subplots(self.ndim, self.ndim, figsize=(100, 100)))
+            plt.savefig(self.fqfp + "_dynesty-" + class_name + "-cornerplot.png")
+        except RuntimeError as e:
+            print(f"PETModel.plot_results.dyplot.cornerplot: caught a RuntimeError: {e}")
 
     def save_csv(self, data: dict, fqfn=None):
         """ """
@@ -144,26 +155,27 @@ class PETModel(DynestyModel):
             fqfn = self.fqfp + "_dynesty-" + self.__class__.__name__ + ".nii.gz"
 
         # load img
-        nii = copy.deepcopy(data["nii"])  # paranoia
-        nii = nib.Nifti1Image(data["img"], nii.affine, nii.header)
+        _data = deepcopy(data)
+        nii = _data["nii"]  # paranoia
+        nii = nib.Nifti1Image(_data["img"], nii.affine, nii.header)
         nib.save(nii, fqfn)
 
         # find json fields of interest
-        jfile = data["fqfp"] + ".json"  # from previously loaded data
+        jfile = _data["fqfp"] + ".json"  # from previously loaded data
         with open(jfile, "r") as f:
             j = json.load(f)
-        if "timesMid" in data:
-            j["timesMid"] = data["timesMid"].tolist()
+        if "timesMid" in _data:
+            j["timesMid"] = _data["timesMid"].tolist()
         else:
-            j["timesMid"] = self.data2timesMid(data).tolist()
-        if "taus" in data:
-            j["taus"] = data["taus"].tolist()
+            j["timesMid"] = self.data2timesMid(_data).tolist()
+        if "taus" in _data:
+            j["taus"] = _data["taus"].tolist()
         else:
-            j["taus"] = self.data2taus(data).tolist()
-        if "times" in data:
-            j["times"] = data["times"].tolist()
+            j["taus"] = self.data2taus(_data).tolist()
+        if "times" in _data:
+            j["times"] = _data["times"].tolist()
         else:
-            j["times"] = self.data2t(data).tolist()
+            j["times"] = self.data2t(_data).tolist()
         base, _ = os.path.splitext(fqfn)  # remove .nii.gz
         fqfp, _ = os.path.splitext(base)
         jfile1 = fqfp + ".json"
@@ -215,20 +227,24 @@ class PETModel(DynestyModel):
         return np.interp(t - dt, t, rho)
 
     @staticmethod
-    def _trim_nii_dict(niid: dict):
+    def _trim_nii_dict(niid: dict, time_last=None):
         if not isinstance(niid, dict):
             raise TypeError(f"niid must be a dict but had type {type(niid)}.")
-        img = niid["img"]
-        timesMid = niid["timesMid"]
-        taus = niid["taus"]
-        times = niid["times"]
+
+        _niid = deepcopy(niid)
+        img = _niid["img"]
+        timesMid = _niid["timesMid"]
+        taus = _niid["taus"]
+        times = _niid["times"]
         viable = ~np.isnan(timesMid)
-        early = timesMid <= 180
-        selected = viable * early
+        if time_last is not None:
+            selected = viable * (timesMid <= time_last)
+        else:
+            selected = viable
         if img.ndim == 1:
-            niid.update({"img": img[selected], "timesMid": timesMid[selected], "taus": taus[selected],
+            _niid.update({"img": img[selected], "timesMid": timesMid[selected], "taus": taus[selected],
                          "times": times[selected]})
         else:
-            niid.update({"img": img[:, selected], "timesMid": timesMid[selected], "taus": taus[selected],
+            _niid.update({"img": img[:, selected], "timesMid": timesMid[selected], "taus": taus[selected],
                          "times": times[selected]})
-        return niid
+        return _niid

@@ -27,6 +27,7 @@ from dynesty import utils as dyutils
 # general & system functions
 import re
 import os
+from copy import deepcopy
 
 # basic numeric setup
 import numpy as np
@@ -71,6 +72,7 @@ class Artery(PETModel, ABC):
 
         self.__truths_internal = truths
 
+        self.TIME_LAST = 180
         self.KERNEL = None
         self.__input_func_measurement = input_func_measurement  # fqfn to be converted to dict by property
         ifm = self.input_func_measurement
@@ -94,12 +96,12 @@ class Artery(PETModel, ABC):
     @property
     def input_func_measurement(self):
         if isinstance(self.__input_func_measurement, dict):
-            return self.__input_func_measurement
+            return deepcopy(self.__input_func_measurement)
 
         assert os.path.isfile(self.__input_func_measurement), f"{self.__input_func_measurement} was not found."
         fqfn = self.__input_func_measurement
         self.__input_func_measurement = self.load_nii(fqfn)
-        return self.__input_func_measurement
+        return deepcopy(self.__input_func_measurement)
 
     @property
     def labels(self):
@@ -115,13 +117,13 @@ class Artery(PETModel, ABC):
 
     @property
     def truths(self):
-        return self.__truths_internal
+        return self.__truths_internal.copy()
 
     def data(self, v):
-        return {
+        return deepcopy({
             "rho": self.RHO, "timesMid": self.TIMES_MID, "taus": self.TAUS, "times": (self.TIMES_MID - self.TAUS / 2),
             "kernel": self.KERNEL,
-            "v": v}
+            "v": v})
 
     def loglike(self, v):
         data = self.data(v)
@@ -159,6 +161,7 @@ class Artery(PETModel, ABC):
     def plot_variations(self, tindex=0, tmin=None, tmax=None, truths=None):
         if truths is None:
             truths = self.truths
+        _truths = truths.copy()
 
         plt.figure(figsize=(12, 7.4))
 
@@ -167,8 +170,8 @@ class Artery(PETModel, ABC):
         dt = (tmax - tmin) / ncolors
         trange = np.arange(tmin, tmax, dt)
         for tidx, t in enumerate(trange):
-            truths[tindex] = t
-            data = self.data(truths)
+            _truths[tindex] = t
+            data = self.data(_truths)
             _, rho_ideal, t_ideal = self.signalmodel(data)
             plt.plot(t_ideal, rho_ideal, color=viridis(tidx))
 

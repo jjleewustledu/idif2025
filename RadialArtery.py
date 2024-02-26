@@ -24,6 +24,7 @@ from Artery import Artery
 
 # general & system functions
 import os
+from copy import deepcopy
 
 # basic numeric setup
 import numpy as np
@@ -48,7 +49,7 @@ class RadialArtery(Artery):
                          rstate=rstate)
 
         self.__kernel_measurement = kernel_measurement
-        self.KERNEL = self.kernel_measurement["img"]
+        self.KERNEL = self.kernel_measurement["img"].copy()
         self.__remove_baseline = remove_baseline
         self.SIGMA = 0.1
 
@@ -57,7 +58,7 @@ class RadialArtery(Artery):
         if self.__kernel_measurement is None:
             return None
         if isinstance(self.__kernel_measurement, dict):
-            return self.__kernel_measurement
+            return deepcopy(self.__kernel_measurement)
 
         assert os.path.isfile(self.__kernel_measurement), f"{self.__kernel_measurement} was not found."
         fqfn = self.__kernel_measurement
@@ -72,7 +73,7 @@ class RadialArtery(Artery):
         self.__kernel_measurement = {
             "fqfp": fqfp,
             "img": np.array(img, dtype=float).reshape(-1)}
-        return self.__kernel_measurement
+        return deepcopy(self.__kernel_measurement)
 
     @staticmethod
     def signalmodel(data: dict):
@@ -104,7 +105,7 @@ class RadialArtery(Artery):
 
     @staticmethod
     def apply_dispersion(vec, data: dict):
-        k = data["kernel"]
+        k = data["kernel"].copy()
         k = k.T
         vec_sampled = np.convolve(vec, k, mode="full")
         return vec_sampled[:vec.size]

@@ -68,11 +68,11 @@ class Artery(PETModel, ABC):
         super().__init__(home=home,
                          sample=sample,
                          nlive=nlive,
-                         rstate=rstate)
+                         rstate=rstate,
+                         time_last=180)
 
-        self.__truths_internal = truths
+        self._truths_internal = truths
 
-        self.TIME_LAST = 180
         self.KERNEL = None
         self.__input_func_measurement = input_func_measurement  # fqfn to be converted to dict by property
         ifm = self.input_func_measurement
@@ -117,7 +117,7 @@ class Artery(PETModel, ABC):
 
     @property
     def truths(self):
-        return self.__truths_internal.copy()
+        return self._truths_internal.copy()
 
     def data(self, v):
         return deepcopy({

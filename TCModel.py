@@ -22,8 +22,11 @@
 
 from abc import ABC
 from PETModel import PETModel
+from Boxcar import Boxcar
+from RadialArtery import RadialArtery
 
 # general & system functions
+import glob
 import os
 import pickle
 from copy import deepcopy
@@ -66,39 +69,59 @@ class TCModel(PETModel, ABC):
         super().__init__(home=home,
                          sample=sample,
                          nlive=nlive,
-                         rstate=rstate)
+                         rstate=rstate,
+                         time_last=None)
 
-        self.__input_function = input_function  # fqfn to be converted to dict by property
-        self.__pet_measurement = pet_measurement  # fqfn to be converted to dict by property
-        self.__truths_internal = truths
+        self._input_function = input_function  # fqfn to be converted to dict by property
+        self._pet_measurement = pet_measurement  # fqfn to be converted to dict by property
+        self._truths_internal = truths
 
+        self.ARTERY = None
         petm = self.pet_measurement
         inputf_timesMid = self.input_function()["timesMid"]
         inputf_timesMidInterp = np.arange(petm["timesMid"][-1])
         self.INPUTF_INTERP = self.input_function()["img"] / np.max(petm["img"])
         self.INPUTF_INTERP = np.interp(inputf_timesMid, inputf_timesMidInterp, self.INPUTF_INTERP)
         self.RHOS = petm["img"] / np.max(petm["img"])
-        if self.RHOS.ndim == 1:
-            self.RHO = self.RHOS
-        elif self.RHOS.ndim == 2:
-            self.RHO = self.RHOS[0]
-        else:
-            raise RuntimeError(self.__class__.__name__ + ": self.RHOS.ndim -> " + self.RHOS.ndim)
+        self.RHO = self.__slice_parc(self.RHOS, 0)
         self.SIGMA = 0.05
         self.TAUS = petm["taus"]
         self.TIMES_MID = petm["timesMid"]
         try:
-            self.MARTIN_V1 = self.pet_measurement["martinv1"]
+            self.MARTIN_V1 = self.__slice_parc(self.martin_v1_measurement["img"], 0)
         except KeyError:
-            self.MARTIN_V1 = None
+            self.MARTIN_V1 = 0.05
         try:
-            self.RAICHLE_KS = self.pet_measurement["raichleks"]
+            self.RAICHLE_KS = self.__slice_parc(self.raichle_ks_measurement["img"], 0)
         except KeyError:
-            self.RAICHLE_KS = None
+            self.RAICHLE_KS = 0.0083
 
     @property
     def fqfp(self):
         return self.pet_measurement["fqfp"]
+
+    @property
+    def martin_v1_measurement(self):
+        subject_path = os.path.dirname(
+            os.path.dirname(
+                os.path.dirname(self._pet_measurement["fqfp"])))
+        subject_path = subject_path.replace("sourcedata", "derivatives")
+
+        if isinstance(self.ARTERY, Boxcar):
+            matches = glob.glob(
+                subject_path + "/**/*-ParcSchaeffer-reshape-to-schaeffer-schaeffer-idif_martinv1.nii.gz",
+                recursive=True)
+            if matches and matches[0]:
+                niid = self.load_nii(matches[0])
+                niid["img"] = niid["img"] / self.RECOVERY_COEFFICIENT
+                return niid
+        elif isinstance(self.ARTERY, RadialArtery):
+            matches = glob.glob(
+                subject_path + "/**/*-ParcSchaeffer-reshape-to-schaeffer-schaeffer-twilite_martinv1.nii.gz",
+                recursive=True)
+            if matches and matches[0]:
+                return self.load_nii(matches[0])
+        return {}
 
     @property
     def ndim(self):
@@ -106,20 +129,50 @@ class TCModel(PETModel, ABC):
 
     @property
     def pet_measurement(self):
-        if isinstance(self.__pet_measurement, dict):
-            return deepcopy(self.__pet_measurement)
+        if isinstance(self._pet_measurement, dict):
+            return deepcopy(self._pet_measurement)
 
-        assert os.path.isfile(self.__pet_measurement), f"{self.__pet_measurement} was not found."
-        fqfn = self.__pet_measurement
+        assert os.path.isfile(self._pet_measurement), f"{self._pet_measurement} was not found."
+        fqfn = self._pet_measurement
         if self.parse_isotope(fqfn) == "15O":
-            self.__pet_measurement = self.decay_uncorrect(self.load_nii(fqfn))
+            self._pet_measurement = self.decay_uncorrect(self.load_nii(fqfn))
         else:
-            self.__pet_measurement = self.load_nii(fqfn)
-        return deepcopy(self.__pet_measurement)
+            self._pet_measurement = self.load_nii(fqfn)
+        return deepcopy(self._pet_measurement)
+
+    @property
+    def raichle_ks_measurement(self):
+        subject_path = os.path.dirname(
+            os.path.dirname(
+                os.path.dirname(self._pet_measurement["fqfp"])))
+        subject_path = subject_path.replace("sourcedata", "derivatives")
+
+        if isinstance(self.ARTERY, Boxcar):
+            matches = glob.glob(
+                subject_path + "/**/*-ParcSchaeffer-reshape-to-schaeffer-schaeffer-idif_raichleks.nii.gz",
+                recursive=True)
+            if matches and matches[0]:
+                return self.load_nii(matches[0])
+        elif isinstance(self.ARTERY, RadialArtery):
+            matches = glob.glob(
+                subject_path + "/**/*-ParcSchaeffer-reshape-to-schaeffer-schaeffer-twilite_raichleks.nii.gz",
+                recursive=True)
+            if matches and matches[0]:
+                return self.load_nii(matches[0])
+        return {}
 
     @property
     def truths(self):
-        return self.__truths_internal.copy()
+        return self._truths_internal.copy()
+
+    def __slice_parc(self, img: np.array, xindex: int):
+        img1 = img.copy()
+        if img1.ndim == 1:
+            return img1
+        elif img1.ndim == 2:
+            return img1[xindex]
+        else:
+            raise RuntimeError(self.__class__.__name__ + "__slice_parc: img1.ndim -> " + img1.ndim)
 
     def data(self, v):
         return deepcopy({
@@ -131,24 +184,26 @@ class TCModel(PETModel, ABC):
     def input_function(self):
         """input function read from filesystem, never updated during dynesty operations"""
 
-        if isinstance(self.__input_function, dict):
-            return deepcopy(self.__input_function)
+        if isinstance(self._input_function, dict):
+            return deepcopy(self._input_function)
 
-        assert os.path.isfile(self.__input_function), f"{self.__input_function} was not found."
-        fqfn = self.__input_function
+        assert os.path.isfile(self._input_function), f"{self._input_function} was not found."
+        fqfn = self._input_function
 
         if self.parse_isotope(fqfn) == "15O":
             niid = self.decay_uncorrect(self.load_nii(fqfn))
         else:
             niid = self.load_nii(fqfn)
 
+        niid["img"] = self.RECOVERY_COEFFICIENT * niid["img"]
+
         # interpolate to timing domain of pet_measurements
         petm = self.pet_measurement
         tMI = np.arange(0, round(petm["timesMid"][-1]))
         niid["img"] = np.interp(tMI, niid["timesMid"], niid["img"])
         niid["timesMid"] = tMI
-        self.__input_function = niid
-        return deepcopy(self.__input_function)
+        self._input_function = niid
+        return deepcopy(self._input_function)
 
     def loglike(self, v):
         data = self.data(v)
@@ -244,24 +299,27 @@ class TCModel(PETModel, ABC):
         if self.RHOS.ndim == 1:
             self.RHO = self.RHOS
             tac = self.RHO
-            res__ = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
-                                                    ndim=self.ndim,
-                                                    checkpoint_file=checkpoint_file,
-                                                    print_progress=print_progress,
-                                                    resume=resume)
+            self.MARTIN_V1 = 0.05
+            self.RAICHLE_KS = 0.0083
+
+            _res = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
+                                                   ndim=self.ndim,
+                                                   checkpoint_file=checkpoint_file,
+                                                   print_progress=print_progress,
+                                                   resume=resume)
             if print_progress:
-                self.plot_results(res__)
-            res.append(res__)
-            rd = res__.asdict()
+                self.plot_results(_res)
+            res.append(_res)
+            rd = _res.asdict()
             logz.append(rd["logz"][-1])
             information.append(rd["information"][-1])
-            qm__, ql__, qh__ = self.solver.quantile(res__)
-            qm.append(qm__)
-            ql.append(ql__)
-            qh.append(qh__)
-            rho_pred__, _, _, _ = self.signalmodel(self.data(qm__))
-            rho_pred.append(rho_pred__)
-            resid.append(np.sum(rho_pred__ - tac) / np.sum(tac))
+            _qm, _ql, _qh = self.solver.quantile(_res)
+            qm.append(_qm)
+            ql.append(_ql)
+            qh.append(_qh)
+            _rho_pred, _, _, _ = self.signalmodel(self.data(_qm))
+            rho_pred.append(_rho_pred)
+            resid.append(np.sum(_rho_pred - tac) / np.sum(tac))
 
             package = {"res": res,
                        "logz": np.array(logz),
@@ -273,26 +331,35 @@ class TCModel(PETModel, ABC):
                        "resid": np.array(resid)}
 
         elif self.RHOS.ndim == 2:
-            for tac in self.RHOS:
+            for tidx, tac in enumerate(self.RHOS):
                 self.RHO = tac
-                res__ = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
-                                                        ndim=self.ndim,
-                                                        checkpoint_file=checkpoint_file,
-                                                        print_progress=print_progress,
-                                                        resume=resume)
+                try:
+                    self.MARTIN_V1 = self.__slice_parc(self.martin_v1_measurement["img"], tidx)
+                except KeyError:
+                    self.MARTIN_V1 = 0.05
+                try:
+                    self.RAICHLE_KS = self.__slice_parc(self.raichle_ks_measurement["img"], tidx)
+                except KeyError:
+                    self.RAICHLE_KS = 0.0083
+
+                _res = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
+                                                       ndim=self.ndim,
+                                                       checkpoint_file=checkpoint_file,
+                                                       print_progress=print_progress,
+                                                       resume=resume)
                 if print_progress:
-                    self.plot_results(res__)
-                res.append(res__)
-                rd = res__.asdict()
+                    self.plot_results(_res, tag=str(tidx))
+                res.append(_res)
+                rd = _res.asdict()
                 logz.append(rd["logz"][-1])
                 information.append(rd["information"][-1])
-                qm__, ql__, qh__ = self.solver.quantile(res__)
-                qm.append(qm__)
-                ql.append(ql__)
-                qh.append(qh__)
-                rho_pred__, _, _, _ = self.signalmodel(self.data(qm__))
-                rho_pred.append(rho_pred__)
-                resid.append(np.sum(rho_pred__ - tac) / np.sum(tac))
+                _qm, _ql, _qh = self.solver.quantile(_res)
+                qm.append(_qm)
+                ql.append(_ql)
+                qh.append(_qh)
+                _rho_pred, _, _, _ = self.signalmodel(self.data(_qm))
+                rho_pred.append(_rho_pred)
+                resid.append(np.sum(_rho_pred - tac) / np.sum(tac))
 
             package = {"res": res,
                        "logz": np.array(logz),
@@ -306,13 +373,46 @@ class TCModel(PETModel, ABC):
         else:
             raise RuntimeError(self.__class__.__name__ + ": self.RHOS.ndim -> " + self.RHOS.ndim)
 
-        self.save_results(package)
+        self.save_results(package, tag="matrix")
         return package
 
-    def save_results(self, res_dict: dict):
+    def run_nested_for_indexed_tac(self, tidx: int):
+
+        self.RHO = self.RHOS[tidx]
+        try:
+            self.MARTIN_V1 = self.__slice_parc(self.martin_v1_measurement["img"], tidx)
+        except KeyError:
+            self.MARTIN_V1 = 0.05
+        try:
+            self.RAICHLE_KS = self.__slice_parc(self.raichle_ks_measurement["img"], tidx)
+        except KeyError:
+            self.RAICHLE_KS = 0.0083
+
+        _res = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__, ndim=self.ndim)
+        _rd = _res.asdict()
+        _qm, _ql, _qh = self.solver.quantile(_res)
+        _rho_pred, _, _, _ = self.signalmodel(self.data(_qm))
+        _resid = np.sum(_rho_pred - self.RHO) / np.sum(self.RHO)
+
+        package = {"res": _res,
+                   "logz": np.array(_rd["logz"][-1]),
+                   "information": np.array(_rd["information"][-1]),
+                   "qm": np.array(_qm),
+                   "ql": np.array(_ql),
+                   "qh": np.array(_qh),
+                   "rho_pred": np.array(_rho_pred),
+                   "resid": np.array(_resid)}
+
+        # self.save_results(package, tag=str(tidx))
+        return package
+
+    def save_results(self, res_dict: dict, tag=""):
         """"""
 
-        fqfp1 = self.fqfp + "_dynesty-" + self.__class__.__name__
+        if tag:
+            tag = "-" + tag
+        fqfp1 = self.fqfp + "_dynesty-" + self.__class__.__name__ + "-" + self.ARTERY.__class__.__name__ + "-" + tag
+
         petm = self.pet_measurement
         M0 = np.max(petm["img"])
 

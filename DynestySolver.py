@@ -104,10 +104,10 @@ class DynestySolver(ABC):
 
         if not ndim:
             ndim = mdl.ndim
-        if checkpoint_file is None:
-            class_name = self.__class__.__name__
-            now = datetime.now()
-            checkpoint_file = mdl.fqfp+"-dynesty-"+class_name+"-"+prior_tag+"-"+now.strftime("%Y%m%d%H%M%S")+".save"
+        # if checkpoint_file is None:
+        #     class_name = self.__class__.__name__
+        #     now = datetime.now()
+        #     checkpoint_file = mdl.fqfp+"-dynesty-"+class_name+"-"+prior_tag+"-"+now.strftime("%Y%m%d%H%M%S")+".save"
 
         if resume:
             sampler = dynesty.DynamicNestedSampler.restore(checkpoint_file)

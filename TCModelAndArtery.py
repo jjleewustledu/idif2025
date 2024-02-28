@@ -71,29 +71,16 @@ class TCModelAndArtery(TCModel, ABC):
                          nlive=nlive,
                          rstate=rstate)
 
-        if "Mipidif_idif" in input_function:
-            self.ARTERY = Boxcar(
-                input_function,
-                truths=self.truths[:14],
-                nlive=self.NLIVE)
-        elif "TwliiteKit-do-make-input-func-nomodel_inputfunc" in input_function:
-            self.ARTERY = RadialArtery(
-                input_function,
-                kernel_fqfn(input_function),
-                truths=self.truths[:14],
-                nlive=self.NLIVE)
-        else:
-            raise RuntimeError(self.__class__.__name__ + ": does not yet support " + input_function)
-
-    @property
-    def truths(self):
-        return np.concatenate((self.ARTERY.truths, super().truths[14:]))
-
     def data(self, v):
         artery_data = self.ARTERY.data(v[:14])
-        artery_signal = self.ARTERY.signalmodel(artery_data)
+        _, ARTERY_ideal, t_ideal = self.ARTERY.signalmodel(artery_data)
+        artery_ideal = (ARTERY_ideal.copy() *
+                        np.max(self.ARTERY.input_func_measurement["img"]) /
+                        np.max(self.pet_measurement["img"]))
         inputf_interp = self.INPUTF_INTERP.copy()
-        inputf_interp[:len(artery_signal)] = artery_signal
+        artery_timesMid = self.TIMES_MID[self.TIMES_MID <= t_ideal[-1]]
+        inputf_interp[:len(artery_timesMid)] = np.interp(artery_timesMid, t_ideal, artery_ideal)
+
         return deepcopy({
             "rho": self.RHO, "rhos": self.RHOS, "timesMid": self.TIMES_MID, "taus": self.TAUS,
             "times": (self.TIMES_MID - self.TAUS / 2), "inputFuncInterp": inputf_interp,
@@ -103,11 +90,25 @@ class TCModelAndArtery(TCModel, ABC):
     def input_function(self):
         """input function read from filesystem, never updated during dynesty operations"""
         
-        if isinstance(self.__input_function, dict):
-            return deepcopy(self.__input_function)
+        if isinstance(self._input_function, dict):
+            return deepcopy(self._input_function)
 
-        assert os.path.isfile(self.__input_function), f"{self.__input_function} was not found."
-        fqfn = self.__input_function
+        assert os.path.isfile(self._input_function), f"{self._input_function} was not found."
+        fqfn = self._input_function
+
+        if "MipIdif_idif" in fqfn:
+            self.ARTERY = Boxcar(
+                fqfn,
+                truths=self.truths[:14],
+                nlive=self.NLIVE)
+        elif "TwiliteKit-do-make-input-func-nomodel" in fqfn:
+            self.ARTERY = RadialArtery(
+                fqfn,
+                kernel_fqfn(fqfn),
+                truths=self.truths[:14],
+                nlive=self.NLIVE)
+        else:
+            raise RuntimeError(self.__class__.__name__ + ": does not yet support " + fqfn)
 
         nii = self.ARTERY.input_func_measurement
         if self.parse_isotope(fqfn) == "15O":
@@ -120,19 +121,19 @@ class TCModelAndArtery(TCModel, ABC):
         tMI = np.arange(0, round(petm["timesMid"][-1]))
         niid["img"] = np.interp(tMI, niid["timesMid"], niid["img"])
         niid["timesMid"] = tMI
-        self.__input_function = niid
-        return deepcopy(self.__input_function)
+        self._input_function = niid
+        return deepcopy(self._input_function)
 
     def loglike(self, v: np.array):
-        return super().loglike(v[14:]) + self.ARTERY.loglike(v[:14])
+        return super().loglike(v) + self.ARTERY.loglike(v[:14])
 
-    def plot_truths(self, truths=None):
-        if truths is None:
-            super().plot_truths()
-            self.ARTERY.plot_truths()
-        else:
-            super().plot_truths(truths=truths[14:])
-            self.ARTERY.plot_truths(truths=truths[:14])
+    # def plot_truths(self, truths=None):
+    #     if truths is None:
+    #         super().plot_truths()
+    #         self.ARTERY.plot_truths()
+    #     else:
+    #         super().plot_truths(truths=truths[14:])
+    #         self.ARTERY.plot_truths(truths=truths[:14])
 
     def prior_transform(self):
         return {
@@ -142,9 +143,9 @@ class TCModelAndArtery(TCModel, ABC):
             "Huang1980ModelAndArtery": self.prior_transform_huang
         }.get(self.__class__.__name__, self.prior_transform_ichise)
 
-    def save_results(self, res_dict: dict):
-        super().save_results(res_dict)
-        self.ARTERY.save_results(res_dict["res"][:14])
+    # def save_results(self, res_dict: dict):
+    #     super().save_results(res_dict)
+    #     self.ARTERY.save_results(res_dict["res"][:14])
 
     @staticmethod
     def prior_transform_martin(u):

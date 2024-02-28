@@ -38,7 +38,7 @@ class TestPETModel(unittest.TestCase):
     @property
     def petdir(self):
         return os.path.join(
-            os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2024", "data", "ses-20210421152358", "pet")
+            os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2024", "tindices", "ses-20210421152358", "pet")
 
     def setUp(self):
         os.chdir(self.petdir)

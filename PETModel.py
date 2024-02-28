@@ -19,6 +19,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+import traceback
 
 from DynestyModel import DynestyModel
 from DynestySolver import DynestySolver
@@ -29,6 +30,7 @@ from dynesty import plotting as dyplot
 from abc import abstractmethod
 import os
 from copy import deepcopy
+import traceback
 
 # basic numeric setup
 import numpy as np
@@ -64,14 +66,16 @@ class PETModel(DynestyModel):
                  home=os.getcwd(),
                  sample="rslice",
                  nlive=1000,
-                 rstate=np.random.default_rng(916301)):
+                 rstate=np.random.default_rng(916301),
+                 time_last=None):
         self.home = home
         self.solver = DynestySolver(model=self,
                                     sample=sample,
                                     nlive=nlive,
                                     rstate=rstate)
         self.NLIVE = nlive
-        self.TIME_LAST = None
+        self.TIME_LAST = time_last
+        self.RECOVERY_COEFFICIENT = 1.8509
 
     @property
     @abstractmethod
@@ -79,6 +83,9 @@ class PETModel(DynestyModel):
         pass
 
     def load_nii(self, fqfn):
+        if not os.path.isfile(fqfn):
+            return {}
+
         # load img
         nii = nib.load(fqfn)
         img = nii.get_fdata()
@@ -97,28 +104,39 @@ class PETModel(DynestyModel):
             "fqfp": fqfp,
             "nii": nii,
             "img": img,
-            "timesMid": np.array(j["timesMid"], dtype=float).ravel(),
-            "taus": np.array(j["taus"], dtype=float).ravel(),
-            "times": np.array(j["times"], dtype=float).ravel(),
             "halflife": self.parse_halflife(fqfp)}
+        if "timesMid" in j:
+            niid["timesMid"] = np.array(j["timesMid"], dtype=float).ravel()
+        if "taus" in j:
+            niid["taus"] = np.array(j["taus"], dtype=float).ravel()
+        if "times" in j:
+            niid["times"] = np.array(j["times"], dtype=float).ravel()
         if "martinv1" in j:
             niid["martinv1"] = np.array(j["martinv1"])
         if "raichleks" in j:
             niid["raichleks"] = np.array(j["raichleks"])
-        niid = self._trim_nii_dict(niid, self.TIME_LAST)
+        if self.TIME_LAST:
+            niid = self.trim_nii_dict(niid, self.TIME_LAST)
         return deepcopy(niid)
 
-    def plot_results(self, res: dyutils.Results):
-        class_name = self.__class__.__name__
+    def plot_results(self, res: dyutils.Results, tag=""):
 
-        qm, _, _ = self.solver.quantile(res)
-        self.plot_truths(qm)
-        plt.savefig(self.fqfp + "_dynesty-" + class_name + "-results.png")
+        if tag:
+            tag = "-" + tag
+        fqfp1 = self.fqfp + "_dynesty-" + self.__class__.__name__ + tag
+
+        try:
+            qm, _, _ = self.solver.quantile(res)
+            self.plot_truths(qm)
+            plt.savefig(fqfp1 + "-results.png")
+        except Exception as e:
+            print("PETModel.plot_results: caught an Exception: ", str(e))
+            traceback.print_exc()
 
         try:
             dyplot.runplot(res)
             plt.tight_layout()
-            plt.savefig(self.fqfp + "_dynesty-" + class_name + "-runplot.png")
+            plt.savefig(fqfp1 + "-runplot.png")
         except RuntimeError as e:
             print(f"PETModel.plot_results.dyplot.runplot: caught a RuntimeError: {e}")
 
@@ -126,7 +144,7 @@ class PETModel(DynestyModel):
             fig, axes = dyplot.traceplot(res, labels=self.labels, truths=qm,
                                          fig=plt.subplots(self.ndim, 2, figsize=(16, 50)))
             fig.tight_layout()
-            plt.savefig(self.fqfp + "_dynesty-" + class_name + "-traceplot.png")
+            plt.savefig(fqfp1 + "-traceplot.png")
         except RuntimeError as e:
             print(f"PETModel.plot_results.dyplot.traceplot: caught a RuntimeError: {e}")
 
@@ -134,7 +152,7 @@ class PETModel(DynestyModel):
             dyplot.cornerplot(res, truths=qm, show_titles=True,
                               title_kwargs={"y": 1.04}, labels=self.labels,
                               fig=plt.subplots(self.ndim, self.ndim, figsize=(100, 100)))
-            plt.savefig(self.fqfp + "_dynesty-" + class_name + "-cornerplot.png")
+            plt.savefig(fqfp1 + "-cornerplot.png")
         except RuntimeError as e:
             print(f"PETModel.plot_results.dyplot.cornerplot: caught a RuntimeError: {e}")
 
@@ -161,7 +179,7 @@ class PETModel(DynestyModel):
         nib.save(nii, fqfn)
 
         # find json fields of interest
-        jfile = _data["fqfp"] + ".json"  # from previously loaded data
+        jfile = _data["fqfp"] + ".json"  # from previously loaded tindices
         with open(jfile, "r") as f:
             j = json.load(f)
         if "timesMid" in _data:
@@ -227,7 +245,7 @@ class PETModel(DynestyModel):
         return np.interp(t - dt, t, rho)
 
     @staticmethod
-    def _trim_nii_dict(niid: dict, time_last=None):
+    def trim_nii_dict(niid: dict, time_last=None):
         if not isinstance(niid, dict):
             raise TypeError(f"niid must be a dict but had type {type(niid)}.")
 

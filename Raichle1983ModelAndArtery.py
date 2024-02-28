@@ -50,7 +50,7 @@ class Raichle1983ModelAndArtery(TCModelAndArtery):
     @property
     def labels(self):
         return (self.ARTERY.labels +
-                [r"$f$", r"$\lambda$", r"ps", r"$t_0$", r"$\sigma$"])
+                [r"$f$", r"$\lambda$", r"ps", r"$t_0$", r"$\tau_a$", r"$\sigma$"])
 
     @staticmethod
     def signalmodel(data: dict):

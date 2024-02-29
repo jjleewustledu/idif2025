@@ -1,0 +1,12 @@
+name: dynesty
+channels:
+  - defaults
+dependencies:
+  - python==3.8.18
+  - jupyter
+  - numpy[version='>=1.17.0']
+  - scipy[version='>=1.4.0']
+  - matplotlib
+  - pandas
+  - coverage
+prefix: /Users/jjlee/anaconda3/envs/dynesty

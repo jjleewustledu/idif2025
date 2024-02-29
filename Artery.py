@@ -76,6 +76,7 @@ class Artery(PETModel, ABC):
         self.KERNEL = None
         self.__input_func_measurement = input_func_measurement  # fqfn to be converted to dict by property
         ifm = self.input_func_measurement
+        self.HALFLIFE = ifm["halflife"]
         self.RHO = ifm["img"] / np.max(ifm["img"])
         self.SIGMA = 0.1
         self.TAUS = ifm["taus"]
@@ -121,6 +122,7 @@ class Artery(PETModel, ABC):
 
     def data(self, v):
         return deepcopy({
+            "halflife": self.HALFLIFE,
             "rho": self.RHO, "timesMid": self.TIMES_MID, "taus": self.TAUS, "times": (self.TIMES_MID - self.TAUS / 2),
             "kernel": self.KERNEL,
             "v": v})

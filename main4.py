@@ -54,17 +54,17 @@ if __name__ == '__main__':
 
     # data objects for work
 
-    # petdir = os.path.join(
-    #     os.getenv("HOME"),
-    #     "PycharmProjects", "dynesty", "idif2024", "data", "ses-20210421152358", "pet")
-    # idif = os.path.join(petdir, "sub-108293_ses-20210421152358_trc-ho_proc-MipIdif_idif.nii.gz")
-    # pet = os.path.join(
-    #     petdir,
-    #     "sub-108293_ses-20210421152358_trc-ho_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames"
-    #     "-ParcSchaeffer-reshape-to-schaeffer-schaeffer.nii.gz")
+    petdir = os.path.join(
+        os.getenv("HOME"),
+        "PycharmProjects", "dynesty", "idif2024", "data", "ses-20210421152358", "pet")
+    idif = os.path.join(petdir, "sub-108293_ses-20210421152358_trc-ho_proc-MipIdif_idif.nii.gz")
+    pet = os.path.join(
+        petdir,
+        "sub-108293_ses-20210421152358_trc-ho_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames"
+        "-ParcSchaeffer-reshape-to-schaeffer-schaeffer.nii.gz")
 
-    idif = sys.argv[1]
-    pet = sys.argv[2]
+    # idif = sys.argv[1]
+    # pet = sys.argv[2]
     data = {
         "input_function": idif,
         "pet_measurement": pet}

@@ -236,13 +236,17 @@ class PETModel(DynestyModel):
             return "15O"
         if "trc-fdg" in name:
             return "18F"
-        raise ValueError(f"tracer and halflife not identifiable from name {name}")
+        raise ValueError(f"tracer and isotope not identifiable from name {name}")
 
     @staticmethod
-    def slide(rho, t, dt):
+    def slide(rho, t, dt, halflife=None):
         if abs(dt) < 0.1:
             return rho
-        return np.interp(t - dt, t, rho)
+        rho = np.interp(t - dt, t, rho)
+        if halflife:
+            return rho * np.power(2, -dt / halflife)
+        else:
+            return rho
 
     @staticmethod
     def trim_nii_dict(niid: dict, time_last=None):

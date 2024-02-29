@@ -67,7 +67,7 @@ class Huang1980ModelAndArtery(TCModelAndArtery):
         tau_a = v[5]
         n = len(input_func_interp)
         times = np.arange(n)
-        input_func_interp = Huang1980ModelAndArtery.slide(input_func_interp, times, tau_a)
+        input_func_interp = Huang1980ModelAndArtery.slide(input_func_interp, times, tau_a, None)
 
         # use k1:k4
         k234 = k2 + k3 + k4
@@ -84,6 +84,6 @@ class Huang1980ModelAndArtery(TCModelAndArtery):
         q3 = (k3 * k1 / bminusa) * conv3
 
         rho_t = v1 * (input_func_interp + q2 + q3)
-        rho_t = Huang1980ModelAndArtery.slide(rho_t, times, t_0)
+        rho_t = Huang1980ModelAndArtery.slide(rho_t, times, t_0, None)
         rho = np.interp(timesMid, times, rho_t)
         return rho, timesMid, rho_t, times

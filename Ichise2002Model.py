@@ -79,7 +79,7 @@ class Ichise2002Model(TCModel):
         _rho = np.zeros(len(timesMid))
         timesMid1 = timesMid[1:]
         _rho_p = input_func_interp * min(VP / v1, 1)
-        _rho_p = Ichise2002Model.slide(_rho_p, times, tau_a)
+        _rho_p = Ichise2002Model.slide(_rho_p, times, tau_a, None)
         for tidx, tMid in enumerate(timesMid1):
             _m = rho[:tidx]
             _t = timesMid[:tidx]
@@ -98,7 +98,7 @@ class Ichise2002Model(TCModel):
             _rho[tidx] = g1 * int1 + g2 * int2 + g3 * int3 + g4star * int4 + g5 * _rho_p[_times_int[-1]]
 
         _rho[_rho < 0] = 0
-        _rho = Ichise2002Model.slide(_rho, timesMid, t_0)
+        _rho = Ichise2002Model.slide(_rho, timesMid, t_0, None)
         rho = _rho
         rho_t = np.interp(times, timesMid, _rho)
         return rho, timesMid, rho_t, times

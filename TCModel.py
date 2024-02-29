@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 from abc import ABC
+
 from PETModel import PETModel
 from Boxcar import Boxcar
 from RadialArtery import RadialArtery
@@ -30,6 +31,7 @@ import glob
 import os
 import pickle
 from copy import deepcopy
+from pprint import pprint
 
 # basic numeric setup
 import numpy as np
@@ -78,8 +80,10 @@ class TCModel(PETModel, ABC):
 
         self.ARTERY = None
         petm = self.pet_measurement
+        pprint(self.input_function())
         inputf_timesMid = self.input_function()["timesMid"]
         inputf_timesMidInterp = np.arange(petm["timesMid"][-1])
+        self.HALFLIFE = self.input_function()["halflife"]
         self.INPUTF_INTERP = self.input_function()["img"] / np.max(petm["img"])
         self.INPUTF_INTERP = np.interp(inputf_timesMid, inputf_timesMidInterp, self.INPUTF_INTERP)
         self.RHOS = petm["img"] / np.max(petm["img"])
@@ -90,11 +94,11 @@ class TCModel(PETModel, ABC):
         try:
             self.MARTIN_V1 = self.__slice_parc(self.martin_v1_measurement["img"], 0)
         except KeyError:
-            self.MARTIN_V1 = 0.05
+            self.MARTIN_V1 = np.array(0.05)
         try:
             self.RAICHLE_KS = self.__slice_parc(self.raichle_ks_measurement["img"], 0)
         except KeyError:
-            self.RAICHLE_KS = 0.0083
+            self.RAICHLE_KS = np.array([0.00790, 0.898, 0.0218, 0, 0, 0.05])
 
     @property
     def fqfp(self):
@@ -149,13 +153,9 @@ class TCModel(PETModel, ABC):
 
         if isinstance(self.ARTERY, Boxcar):
             matches = glob.glob(
-                subject_path + "/**/*-ParcSchaeffer-reshape-to-schaeffer-schaeffer-idif_raichleks.nii.gz",
-                recursive=True)
-            if matches and matches[0]:
-                return self.load_nii(matches[0])
-        elif isinstance(self.ARTERY, RadialArtery):
-            matches = glob.glob(
-                subject_path + "/**/*-ParcSchaeffer-reshape-to-schaeffer-schaeffer-twilite_raichleks.nii.gz",
+                subject_path +
+                "/**/*-ParcSchaeffer-reshape-to-schaeffer-schaeffer-dynesty-Raichle1983ModelAndArtery-" +
+                self.ARTERY.__class__.__name__ + "-main4-qm.nii.gz",
                 recursive=True)
             if matches and matches[0]:
                 return self.load_nii(matches[0])
@@ -176,6 +176,7 @@ class TCModel(PETModel, ABC):
 
     def data(self, v):
         return deepcopy({
+            "halflife": self.HALFLIFE,
             "rho": self.RHO, "rhos": self.RHOS, "timesMid": self.TIMES_MID, "taus": self.TAUS,
             "times": (self.TIMES_MID - self.TAUS / 2), "inputFuncInterp": self.INPUTF_INTERP,
             "martinv1": self.MARTIN_V1, "raichleks": self.RAICHLE_KS,
@@ -241,7 +242,7 @@ class TCModel(PETModel, ABC):
                        label="measured TAC")
         p3, = plt.plot(t_pred, M0 * rho_pred, marker="o", color="red", ls="none", alpha=0.8,
                        label="predicted TAC")
-        plt.xlim([-0.1, 1.1 * np.max(t_petm)])
+        plt.xlim([-0.1, 1.1 * np.max([np.max(t_petm), np.max(t_inputf)])])
         plt.xlabel("time of mid-frame (s)")
         plt.ylabel("activity (Bq/mL)")
         plt.legend(handles=[p1, p2, p3], loc="right", fontsize=12)
@@ -299,8 +300,8 @@ class TCModel(PETModel, ABC):
         if self.RHOS.ndim == 1:
             self.RHO = self.RHOS
             tac = self.RHO
-            self.MARTIN_V1 = 0.05
-            self.RAICHLE_KS = 0.0083
+            self.MARTIN_V1 = np.array(0.05)
+            self.RAICHLE_KS = np.array([0.00790, 0.898, 0.0218, 0, 0, 0.05])
 
             _res = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
                                                    ndim=self.ndim,
@@ -336,11 +337,11 @@ class TCModel(PETModel, ABC):
                 try:
                     self.MARTIN_V1 = self.__slice_parc(self.martin_v1_measurement["img"], tidx)
                 except KeyError:
-                    self.MARTIN_V1 = 0.05
+                    self.MARTIN_V1 = np.array(0.05)
                 try:
                     self.RAICHLE_KS = self.__slice_parc(self.raichle_ks_measurement["img"], tidx)
                 except KeyError:
-                    self.RAICHLE_KS = 0.0083
+                    self.RAICHLE_KS = np.array([0.00790, 0.898, 0.0218, 0, 0, 0.05])
 
                 _res = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
                                                        ndim=self.ndim,
@@ -382,11 +383,11 @@ class TCModel(PETModel, ABC):
         try:
             self.MARTIN_V1 = self.__slice_parc(self.martin_v1_measurement["img"], tidx)
         except KeyError:
-            self.MARTIN_V1 = 0.05
+            self.MARTIN_V1 = np.array(0.05)
         try:
             self.RAICHLE_KS = self.__slice_parc(self.raichle_ks_measurement["img"], tidx)
         except KeyError:
-            self.RAICHLE_KS = 0.0083
+            self.RAICHLE_KS = np.array([0.00790, 0.898, 0.0218, 0, 0, 0.05])
 
         _res = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__, ndim=self.ndim)
         _rd = _res.asdict()
@@ -411,7 +412,7 @@ class TCModel(PETModel, ABC):
 
         if tag:
             tag = "-" + tag
-        fqfp1 = self.fqfp + "_dynesty-" + self.__class__.__name__ + "-" + self.ARTERY.__class__.__name__ + "-" + tag
+        fqfp1 = self.fqfp + "_dynesty-" + self.__class__.__name__ + "-" + self.ARTERY.__class__.__name__ + tag
 
         petm = self.pet_measurement
         M0 = np.max(petm["img"])

@@ -35,11 +35,21 @@ def work(tidx, data: dict):
         _tcm = Mintun1984ModelAndArtery(
             data["input_function"],
             data["pet_measurement"],
+            truths=[
+               13.8, 12.3, 53.9,
+               0.668, 7.66, 1.96, -1.38, -0.023, 60.0,
+               0.074, 0.027, 0.014,
+               2.427,
+               0.008,
+               0.511, 0.245, 0.775, 5, -5, 0.029],
             nlive=100)
     elif "trc-fdg" in data["pet_measurement"]:
         _tcm = Huang1980ModelAndArtery(
             data["input_function"],
             data["pet_measurement"],
+            truths=[
+                13.2, 20.8, 59.5, 0.272, 6.25, 2.56, -1.21, -0.654, 11.7, 0.0678, 0.0466, 0.0389, 2.44, 0.0222,
+                0.069, 0.003, 0.002, 0.000, 12.468, -9.492, 0.020],
             nlive=100)
     else:
         raise RuntimeError(__name__ + ".work: data['pet_measurement'] -> " + data["pet_measurement"])
@@ -55,8 +65,8 @@ if __name__ == '__main__':
     # data objects for work
 
     petdir = os.path.join(
-        os.getenv("HOME"),
-        "PycharmProjects", "dynesty", "idif2024", "data", "ses-20210421152358", "pet")
+        os.getenv("SINGULARITY_HOME"),
+        "CCIR_01211", "derivatives", "sub-108293", "ses-20210421152358", "pet")
     idif = os.path.join(petdir, "sub-108293_ses-20210421152358_trc-ho_proc-MipIdif_idif.nii.gz")
     pet = os.path.join(
         petdir,
@@ -68,7 +78,7 @@ if __name__ == '__main__':
     data = {
         "input_function": idif,
         "pet_measurement": pet}
-    tindices = list(range(4))  # parcs & segs in Nick Metcalf's Schaeffer parcellations
+    tindices = list(range(309))  # parcs & segs in Nick Metcalf's Schaeffer parcellations
 
     # do multi-processing
 

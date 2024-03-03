@@ -38,14 +38,16 @@ class Mintun1984Model(TCModel):
                  home=os.getcwd(),
                  sample="rslice",
                  nlive=1000,
-                 rstate=np.random.default_rng(916301)):
+                 rstate=np.random.default_rng(916301),
+                 tag=""):
         super().__init__(input_function,
                          pet_measurement,
                          truths=truths,
                          home=home,
                          sample=sample,
                          nlive=nlive,
-                         rstate=rstate)
+                         rstate=rstate,
+                         tag=tag)
 
     @property
     def labels(self):
@@ -86,7 +88,10 @@ class Mintun1984Model(TCModel):
         times = np.arange(n)
         input_func_interp = Mintun1984Model.slide(input_func_interp, times, tau_a, hl)
         indices = np.where(input_func_interp > 0.05 * max(input_func_interp))
-        idx0 = max([indices[0][0], 1])
+        try:
+            idx0 = max([indices[0][0], 1])
+        except IndexError:
+            idx0 = 1
         idxU = min([idx0 + 90, n - 1])  # cf. Mintun1984
 
         # estimate shape of water of metabolism

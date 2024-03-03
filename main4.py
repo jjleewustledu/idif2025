@@ -14,6 +14,15 @@ from Mintun1984ModelAndArtery import Mintun1984ModelAndArtery
 from Huang1980ModelAndArtery import Huang1980ModelAndArtery
 
 
+def the_tag():
+
+    # __file__ gives the relative path of the script
+    file_path = __file__
+    file_name = os.path.basename(file_path)
+    tag, _ = os.path.splitext(file_name)
+    return tag
+
+
 def work(tidx, data: dict):
     """"""
 
@@ -30,7 +39,8 @@ def work(tidx, data: dict):
                 2.427,
                 0.008,
                 0.014, 0.866, 0.013, 17.6, -8.6, 0.049],
-            nlive=100)
+            nlive=100,
+            tag=the_tag())
     elif "trc-oo" in data["pet_measurement"]:
         _tcm = Mintun1984ModelAndArtery(
             data["input_function"],
@@ -42,7 +52,8 @@ def work(tidx, data: dict):
                2.427,
                0.008,
                0.511, 0.245, 0.775, 5, -5, 0.029],
-            nlive=100)
+            nlive=100,
+            tag=the_tag())
     elif "trc-fdg" in data["pet_measurement"]:
         _tcm = Huang1980ModelAndArtery(
             data["input_function"],
@@ -50,7 +61,8 @@ def work(tidx, data: dict):
             truths=[
                 13.2, 20.8, 59.5, 0.272, 6.25, 2.56, -1.21, -0.654, 11.7, 0.0678, 0.0466, 0.0389, 2.44, 0.0222,
                 0.069, 0.003, 0.002, 0.000, 12.468, -9.492, 0.020],
-            nlive=100)
+            nlive=100,
+            tag=the_tag())
     else:
         raise RuntimeError(__name__ + ".work: data['pet_measurement'] -> " + data["pet_measurement"])
 
@@ -120,6 +132,6 @@ if __name__ == '__main__':
         "rho_pred": np.vstack(rhos_pred),
         "resid": np.array(resids)}
 
-    packages[0]["tcm"].save_results(package1, tag="main4")
+    packages[0]["tcm"].save_results(package1, tag=the_tag())
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

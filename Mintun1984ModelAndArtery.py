@@ -39,14 +39,16 @@ class Mintun1984ModelAndArtery(TCModelAndArtery, ABC):
                  home=os.getcwd(),
                  sample="rslice",
                  nlive=1000,
-                 rstate=np.random.default_rng(916301)):
+                 rstate=np.random.default_rng(916301),
+                 tag=""):
         super().__init__(input_function,
                          pet_measurement,
                          truths=truths,
                          home=home,
                          sample=sample,
                          nlive=nlive,
-                         rstate=rstate)
+                         rstate=rstate,
+                         tag=tag)
 
     @property
     def labels(self):

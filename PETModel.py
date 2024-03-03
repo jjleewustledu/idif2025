@@ -67,7 +67,8 @@ class PETModel(DynestyModel):
                  sample="rslice",
                  nlive=1000,
                  rstate=np.random.default_rng(916301),
-                 time_last=None):
+                 time_last=None,
+                 tag=""):
         self.home = home
         self.solver = DynestySolver(model=self,
                                     sample=sample,
@@ -76,6 +77,7 @@ class PETModel(DynestyModel):
         self.NLIVE = nlive
         self.TIME_LAST = time_last
         self.RECOVERY_COEFFICIENT = 1.8509
+        self.TAG = tag
 
     @property
     @abstractmethod

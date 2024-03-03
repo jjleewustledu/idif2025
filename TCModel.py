@@ -67,12 +67,14 @@ class TCModel(PETModel, ABC):
                  home=os.getcwd(),
                  sample="rslice",
                  nlive=1000,
-                 rstate=np.random.default_rng(916301)):
+                 rstate=np.random.default_rng(916301),
+                 tag=""):
         super().__init__(home=home,
                          sample=sample,
                          nlive=nlive,
                          rstate=rstate,
-                         time_last=None)
+                         time_last=None,
+                         tag=tag)
 
         self._input_function = input_function  # fqfn to be converted to dict by property
         self._pet_measurement = pet_measurement  # fqfn to be converted to dict by property
@@ -97,7 +99,7 @@ class TCModel(PETModel, ABC):
             self.MARTIN_V1 = np.array(0.05)
         try:
             self.RAICHLE_KS = self.__slice_parc(self.raichle_ks_measurement["img"], 0)
-        except KeyError:
+        except (KeyError, TypeError):
             self.RAICHLE_KS = np.array([0.00790, 0.898, 0.0218, 0, 0, 0.05])
 
     @property
@@ -151,15 +153,13 @@ class TCModel(PETModel, ABC):
                 os.path.dirname(self._pet_measurement["fqfp"])))
         subject_path = subject_path.replace("sourcedata", "derivatives")
 
-        if isinstance(self.ARTERY, Boxcar):
-            matches = glob.glob(
-                subject_path +
-                "/**/*-ParcSchaeffer-reshape-to-schaeffer-schaeffer-dynesty-Raichle1983ModelAndArtery-" +
-                self.ARTERY.__class__.__name__ + "-main4-qm.nii.gz",
-                recursive=True)
-            if matches and matches[0]:
-                return self.load_nii(matches[0])
-        return {}
+        matches = glob.glob(
+            subject_path +
+            "/**/*-ParcSchaeffer-reshape-to-schaeffer-schaeffer-dynesty-Raichle1983ModelAndArtery-" +
+            self.ARTERY.__class__.__name__ + "-" + self.TAG + "-qm.nii.gz",
+            recursive=True)
+        if matches and matches[0]:
+            return self.load_nii(matches[0])
 
     @property
     def truths(self):
@@ -382,11 +382,11 @@ class TCModel(PETModel, ABC):
         self.RHO = self.RHOS[tidx]
         try:
             self.MARTIN_V1 = self.__slice_parc(self.martin_v1_measurement["img"], tidx)
-        except KeyError:
+        except (KeyError, TypeError):
             self.MARTIN_V1 = np.array(0.05)
         try:
             self.RAICHLE_KS = self.__slice_parc(self.raichle_ks_measurement["img"], tidx)
-        except KeyError:
+        except (KeyError, TypeError):
             self.RAICHLE_KS = np.array([0.00790, 0.898, 0.0218, 0, 0, 0.05])
 
         _res = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__, ndim=self.ndim)

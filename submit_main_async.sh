@@ -17,7 +17,7 @@
 #SBATCH --priority=0
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=30
-#SBATCH --mem-per-cpu=2G
+#SBATCH --mem-per-cpu=1G
 #SBATCH --time=48:00:00
 #SBATCH --reservation=Aris_group
 #SBATCH --account=aristeidis_sotiras
@@ -69,7 +69,7 @@ the_main="main6.py"
 input_func_kind=$1
 pet=$2
 Nparcels=$3
-nlive=300
+nlive=1000
 filepath="${pet%/*}"
 base="${pet##*/}"
 fileprefix="${base%.*}"

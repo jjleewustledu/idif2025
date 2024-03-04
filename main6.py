@@ -28,28 +28,30 @@ def work(tidx, data: dict):
     """"""
 
     pprint(data)
+    _nlive = data["nlive"]
+    _tag = the_tag() + "-" + str(_nlive)
 
     if "trc-ho" in data["pet_measurement"]:
         _tcm = Raichle1983Model(
             data["input_function"],
             data["pet_measurement"],
             truths=[0.014, 0.866, 0.013, 17.6, -8.6, 0.049],
-            nlive=data["nlive"],
-            tag=the_tag())
+            nlive=_nlive,
+            tag=_tag)
     elif "trc-oo" in data["pet_measurement"]:
         _tcm = Mintun1984Model(
             data["input_function"],
             data["pet_measurement"],
             truths=[0.511, 0.245, 0.775, 5, -5, 0.029],
-            nlive=data["nlive"],
-            tag=the_tag())
+            nlive=_nlive,
+            tag=_tag)
     elif "trc-fdg" in data["pet_measurement"]:
         _tcm = Huang1980Model(
             data["input_function"],
             data["pet_measurement"],
             truths=[0.069, 0.003, 0.002, 0.000, 12.468, -9.492, 0.020],
-            nlive=data["nlive"],
-            tag=the_tag())
+            nlive=_nlive,
+            tag=_tag)
     else:
         return {}
         # raise RuntimeError(__name__ + ".work: data['pet_measurement'] -> " + data["pet_measurement"])
@@ -64,21 +66,28 @@ if __name__ == '__main__':
 
     # the_data objects for work
 
-    input_func_kind = "twil"
-    petdir = os.path.join(
-        os.getenv("SINGULARITY_HOME"),
-        "CCIR_01211", "derivatives", "sub-108293", "ses-20210421150523", "pet")
-    pet = os.path.join(
-        petdir,
-        "sub-108293_ses-20210421150523_trc-oo_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames_timeAppend-4"
-        "-ParcSchaeffer-reshape-to-schaeffer-select-4.nii.gz")
-    Nparcels = 4
-    Nlive = 300
+    # ============ SPOT TESTING ============
+    # input_func_kind = "twil"
+    # petdir = os.path.join(
+    #     os.getenv("SINGULARITY_HOME"),
+    #     "CCIR_01211", "derivatives", "sub-108293", "ses-20210421150523", "pet")
+    # pet = os.path.join(
+    #     petdir,
+    #     "sub-108293_ses-20210421150523_trc-oo_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames_timeAppend-4"
+    #     "-ParcSchaeffer-reshape-to-schaeffer-select-4.nii.gz")
+    # Nparcels = 4
+    # Nlive = 300
 
-    # input_func_kind = sys.argv[1]
-    # pet = sys.argv[2]
-    # Nparcels = int(sys.argv[3])
-    # Nlive = int(sys.argv[4])
+    input_func_kind = sys.argv[1]
+    pet = sys.argv[2]
+    try:
+        Nparcels = int(sys.argv[3])
+    except ValueError:
+        sys.exit(1)
+    try:
+        Nlive = int(sys.argv[4])
+    except ValueError:
+        Nlive = 300
 
     fqfp, _ = os.path.splitext(pet)
     fqfp, _ = os.path.splitext(fqfp)
@@ -158,6 +167,6 @@ if __name__ == '__main__':
         "rho_pred": np.vstack(rhos_pred),
         "resid": np.array(resids)}
 
-    packages[0]["tcm"].save_results(package1, tag=the_tag())
+    packages[0]["tcm"].save_results(package1, tag=the_tag() + "-" + str(Nlive))
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

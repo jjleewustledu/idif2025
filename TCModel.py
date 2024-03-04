@@ -444,7 +444,11 @@ class TCModel(PETModel, ABC):
 
         if tag:
             tag = "-" + tag
-        fqfp1 = self.fqfp + "_dynesty-" + self.__class__.__name__ + "-" + self.ARTERY.__class__.__name__ + tag
+        fqfp1 = self.fqfp + "-" + self.__class__.__name__ + self.ARTERY.__class__.__name__ + tag
+        fqfp1 = fqfp1.replace("ParcSchaeffer-reshape-to-schaeffer-", "")
+        fqfp1 = fqfp1.replace("ModelAndArtery", "")
+        fqfp1 = fqfp1.replace("Model", "")
+        fqfp1 = fqfp1.replace("Radial", "")
 
         petm = self.pet_measurement
         M0 = np.max(petm["img"])

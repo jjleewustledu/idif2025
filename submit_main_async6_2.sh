@@ -17,7 +17,7 @@
 #SBATCH --priority=0
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=5
-#SBATCH --mem-per-cpu=2G
+#SBATCH --mem-per-cpu=1G
 #SBATCH --time=8:00:00
 #SBATCH --reservation=Aris_group
 #SBATCH --account=aristeidis_sotiras
@@ -80,4 +80,4 @@ date2save=$(date +"%m-%d-%y")
 
 export CCHOME=/ceph/chpc/home/jjlee && \
 export PATH="${CCHOME}/miniconda/envs/dynesty/bin:${PATH}" && \
-python ${CCHOME}/PycharmProjects/dynesty/idif2024/${the_main} "${input_func_kind}" "${pet}" "${Nparcels}" "${nlive}}" > "${filepath}/${fileprefix}_submit-main-async-${date2save}.log"
+python ${CCHOME}/PycharmProjects/dynesty/idif2024/${the_main} "${input_func_kind}" "${pet}" "${Nparcels}" "${nlive}" > "${filepath}/${fileprefix}_submit-main-async-${date2save}.log"

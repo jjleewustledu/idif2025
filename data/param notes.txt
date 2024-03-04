@@ -332,3 +332,23 @@ Do you confirm generation? (yes/no) [yes]
 (dynesty) jjlee@twistor dynesty % rsync -a pyproject.toml login3.chpc.wustl.edu:~/PycharmProjects/dynesty         
 (dynesty) jjlee@twistor dynesty % 
 
+# playground for Mintun1984Model, twil
+Parameter 0: 0.639 [0.617, 0.660]
+Parameter 1: 0.269 [0.203, 0.541]
+Parameter 2: 0.997 [0.986, 1.000]
+Parameter 3: 14.515 [14.244, 14.800]
+Parameter 4: -28.524 [-28.742, -28.318]
+Parameter 5: 0.050 [0.049, 0.050]
+
+# playground for Huang1980Model, idif
+Parameter 0: 0.069 [0.068, 0.070]
+Parameter 1: 0.003 [0.003, 0.003]
+Parameter 2: 0.002 [0.002, 0.002]
+Parameter 3: 0.000 [0.000, 0.001]
+Parameter 4: 12.468 [4.434, 12.692]
+Parameter 5: -9.492 [-9.688, -1.497]
+Parameter 6: 0.020 [0.019, 0.021]
+
+
+
+

@@ -58,6 +58,25 @@ rcParams.update({"ytick.minor.width": "1.0"})
 rcParams.update({"font.size": 30})
 
 
+def kernel_fqfn(artery_fqfn: str):
+    sourcedata = os.path.join(os.getenv("SINGULARITY_HOME"), "CCIR_01211", "sourcedata",)
+    if "sub-108293" in artery_fqfn:
+        return os.path.join(sourcedata, "kernel_hct=46.8.nii.gz")
+    if "sub-108237" in artery_fqfn:
+        return os.path.join(sourcedata, "kernel_hct=43.9.nii.gz")
+    if "sub-108254" in artery_fqfn:
+        return os.path.join(sourcedata, "kernel_hct=37.9.nii.gz")
+    if "sub-108250" in artery_fqfn:
+        return os.path.join(sourcedata, "kernel_hct=42.8.nii.gz")
+    if "sub-108284" in artery_fqfn:
+        return os.path.join(sourcedata, "kernel_hct=39.7.nii.gz")
+    if "sub-108306" in artery_fqfn:
+        return os.path.join(sourcedata, "kernel_hct=41.1.nii.gz")
+
+    # mean hct for females and males
+    return os.path.join(sourcedata, "kernel_hct=44.5.nii.gz")
+
+
 class TCModel(PETModel, ABC):
 
     def __init__(self,
@@ -90,7 +109,7 @@ class TCModel(PETModel, ABC):
         self.INPUTF_INTERP = np.interp(inputf_timesMid, inputf_timesMidInterp, self.INPUTF_INTERP)
         self.RHOS = petm["img"] / np.max(petm["img"])
         self.RHO = self.__slice_parc(self.RHOS, 0)
-        self.SIGMA = 0.05
+        self.SIGMA = 0.2
         self.TAUS = petm["taus"]
         self.TIMES_MID = petm["timesMid"]
         try:
@@ -191,12 +210,25 @@ class TCModel(PETModel, ABC):
         assert os.path.isfile(self._input_function), f"{self._input_function} was not found."
         fqfn = self._input_function
 
-        if self.parse_isotope(fqfn) == "15O":
-            niid = self.decay_uncorrect(self.load_nii(fqfn))
+        if "MipIdif_idif" in fqfn:
+            self.ARTERY = Boxcar(
+                fqfn,
+                truths=self.truths[:14],
+                nlive=self.NLIVE)
+        elif "TwiliteKit-do-make-input-func-nomodel" in fqfn:
+            self.ARTERY = RadialArtery(
+                fqfn,
+                kernel_fqfn(fqfn),
+                truths=self.truths[:14],
+                nlive=self.NLIVE)
         else:
-            niid = self.load_nii(fqfn)
+            raise RuntimeError(self.__class__.__name__ + ": does not yet support " + fqfn)
 
-        niid["img"] = self.RECOVERY_COEFFICIENT * niid["img"]
+        niid = self.ARTERY.input_func_measurement
+        if self.parse_isotope(fqfn) == "15O":
+            niid = self.decay_uncorrect(niid)
+        if "MipIdif_idif" in fqfn:
+            niid["img"] = self.RECOVERY_COEFFICIENT * niid["img"]
 
         # interpolate to timing domain of pet_measurements
         petm = self.pet_measurement
@@ -474,7 +506,7 @@ class TCModel(PETModel, ABC):
         v[1] = u[1] + 0.5  # \lambda (cm^3/mL)
         v[2] = u[2] * 0.0212 + 0.0081  # ps (mL cm^{-3}s^{-1})
         v[3] = u[3] * 20  # t_0 (s)
-        v[4] = u[4] * (-60) + 20  # \tau_a (s)
+        v[4] = u[4] * (-20) - 15  # \tau_a (s)
         v[5] = u[5] * TCModel.sigma()  # sigma ~ fraction of M0
         return v
 
@@ -483,9 +515,9 @@ class TCModel(PETModel, ABC):
         v = u
         v[0] = u[0] * 0.6 + 0.14  # OEF
         v[1] = u[1] * 0.6 + 0.2  # frac. water of metab. at 90 s
-        v[2] = u[2] * 0.5 + 0.5  # v_{post} + 0.5 v_{cap}
+        v[2] = u[2] * 0.75 + 0.25  # v_{post} + 0.5 v_{cap}
         v[3] = u[3] * 20  # t_0 (s)
-        v[4] = u[4] * (-60) + 20  # \tau_a (s)
+        v[4] = u[4] * (-30)  # \tau_a (s)
         v[5] = u[5] * TCModel.sigma()  # sigma ~ fraction of M0
         return v
 
@@ -497,7 +529,7 @@ class TCModel(PETModel, ABC):
         v[2] = u[2] * 0.05  # k_3 (1/s)
         v[3] = u[3] * 0.05  # k_4 (1/s)
         v[4] = u[4] * 20  # t_0 (s)
-        v[5] = u[5] * (-60) + 20  # \tau_a (s)
+        v[5] = u[5] * (-35) - 15  # \tau_a (s)
         v[6] = u[6] * TCModel.sigma()  # sigma ~ fraction of M0
         return v
 
@@ -511,10 +543,10 @@ class TCModel(PETModel, ABC):
         v[4] = v[4] * 0.999 + 0.001  # V_P (mL/cm^{-3})
         v[5] = v[5] * 99.9 + 0.1  # V_N + V_S (mL/cm^{-3})
         v[6] = u[6] * 20  # t_0 (s)
-        v[7] = u[7] * (-60) + 20  # \tau_a (s)
+        v[7] = u[7] * (-35) - 15  # \tau_a (s)
         v[8] = u[8] * TCModel.sigma()  # sigma ~ fraction of M0
         return v
 
     @staticmethod
     def sigma():
-        return 0.05
+        return 0.2

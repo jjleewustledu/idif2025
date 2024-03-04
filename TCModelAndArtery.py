@@ -24,8 +24,6 @@ from abc import ABC
 
 from TCModel import TCModel
 from Artery import Artery
-from Boxcar import Boxcar
-from RadialArtery import RadialArtery
 
 # general & system functions
 import os
@@ -37,25 +35,6 @@ import numpy as np
 
 # plotting
 from matplotlib import pyplot as plt
-
-
-def kernel_fqfn(artery_fqfn: str):
-    sourcedata = os.path.join(os.getenv("SINGULARITY_HOME"), "CCIR_01211", "sourcedata",)
-    if "sub-108293" in artery_fqfn:
-        return os.path.join(sourcedata, "kernel_hct=46.8.nii.gz")
-    if "sub-108237" in artery_fqfn:
-        return os.path.join(sourcedata, "kernel_hct=43.9.nii.gz")
-    if "sub-108254" in artery_fqfn:
-        return os.path.join(sourcedata, "kernel_hct=37.9.nii.gz")
-    if "sub-108250" in artery_fqfn:
-        return os.path.join(sourcedata, "kernel_hct=42.8.nii.gz")
-    if "sub-108284" in artery_fqfn:
-        return os.path.join(sourcedata, "kernel_hct=39.7.nii.gz")
-    if "sub-108306" in artery_fqfn:
-        return os.path.join(sourcedata, "kernel_hct=41.1.nii.gz")
-
-    # mean hct for females and males
-    return os.path.join(sourcedata, "kernel_hct=44.5.nii.gz")
 
 
 class TCModelAndArtery(TCModel, ABC):
@@ -97,43 +76,6 @@ class TCModelAndArtery(TCModel, ABC):
             "times": (self.TIMES_MID - self.TAUS / 2), "inputFuncInterp": inputf_interp,
             "martinv1": self.MARTIN_V1, "raichleks": self.RAICHLE_KS,
             "v": v})
-
-    def input_function(self):
-        """input function read from filesystem, never updated during dynesty operations"""
-        
-        if isinstance(self._input_function, dict):
-            return deepcopy(self._input_function)
-
-        assert os.path.isfile(self._input_function), f"{self._input_function} was not found."
-        fqfn = self._input_function
-
-        if "MipIdif_idif" in fqfn:
-            self.ARTERY = Boxcar(
-                fqfn,
-                truths=self.truths[:14],
-                nlive=self.NLIVE)
-        elif "TwiliteKit-do-make-input-func-nomodel" in fqfn:
-            self.ARTERY = RadialArtery(
-                fqfn,
-                kernel_fqfn(fqfn),
-                truths=self.truths[:14],
-                nlive=self.NLIVE)
-        else:
-            raise RuntimeError(self.__class__.__name__ + ": does not yet support " + fqfn)
-
-        nii = self.ARTERY.input_func_measurement
-        if self.parse_isotope(fqfn) == "15O":
-            niid = self.decay_uncorrect(nii)
-        else:
-            niid = nii
-
-        # interpolate to timing domain of pet_measurements
-        petm = self.pet_measurement
-        tMI = np.arange(0, round(petm["timesMid"][-1]))
-        niid["img"] = np.interp(tMI, niid["timesMid"], niid["img"])
-        niid["timesMid"] = tMI
-        self._input_function = niid
-        return deepcopy(self._input_function)
 
     def loglike(self, v: np.array):
         return super().loglike(v) + self.ARTERY.loglike(v[:14])

@@ -72,7 +72,7 @@ class Raichle1983ModelAndArtery(TCModelAndArtery):
         kernel = np.exp(-E * f * times / lamb - 0.005670305 * times)
         input_func_interp = Raichle1983ModelAndArtery.slide(input_func_interp, times, tau_a, hl)
         rho_t = E * f * np.convolve(kernel, input_func_interp, mode="full")
-        rho_t = rho_t[:input_func_interp.size] + v1 * input_func_interp
+        rho_t = rho_t[:input_func_interp.size]  # + v1 * input_func_interp
         rho_t = Raichle1983ModelAndArtery.slide(rho_t, times, t_0, hl)
         rho = np.interp(timesMid, times, rho_t)
         return rho, timesMid, rho_t, times

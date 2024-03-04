@@ -7,7 +7,8 @@ derivatives="${SINGULARITY_HOME}/CCIR_01211/derivatives"
 subs=("sub-108293" "sub-108237" "sub-108254" "sub-108250" "sub-108284" "sub-108306")
 if_types=("twil" "idif")
 proc="proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames*-ParcSchaeffer-reshape-to-schaeffer-schaeffer.nii.gz"
-submit_main=${HOME}/PycharmProjects/dynesty/idif2024/submit_main_async.sh
+submit_main="${HOME}/PycharmProjects/dynesty/idif2024/submit_main_async.sh"
+Nparcels=309
 
 for sub in "${subs[@]}"; do
   containing_folder="$derivatives/$sub"
@@ -20,7 +21,7 @@ for sub in "${subs[@]}"; do
 
   for afile in "${files[@]}"; do
     for type in "${if_types[@]}"; do
-      sbatch ${submit_main} ${type} ${afile}
+      sbatch "${submit_main}" "${type}" "${afile}" ${Nparcels}
     done
   done
 done

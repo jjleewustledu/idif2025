@@ -76,7 +76,7 @@ class PETModel(DynestyModel):
                                     rstate=rstate)
         self.NLIVE = nlive
         self.TIME_LAST = time_last
-        self.RECOVERY_COEFFICIENT = 1  # 1.8509
+        self.RECOVERY_COEFFICIENT = 1.8509
         self.TAG = tag
 
     @property

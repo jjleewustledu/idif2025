@@ -292,7 +292,7 @@ class Artery(PETModel, ABC):
         v[2] = u[2] * 60  # \tau_3 ~ t_3 - t_2
         v[3] = u[3] * 20  # \alpha - 1
         v[4] = u[4] * 30 + 1  # 1/\beta
-        v[5] = u[5] * 10 + 0.25  # p
+        v[5] = u[5] * 9.75 + 0.25  # p
         v[6] = u[6] * 10 - 10  # \delta p_2 ~ p_2 - p
         v[7] = u[7] * 10 - 10  # \delta p_3 ~ p_3 - p_2
         v[8] = u[8] * 300 + 0.01  # 1/\gamma for s.s.

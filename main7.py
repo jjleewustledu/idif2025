@@ -13,7 +13,7 @@ import numpy as np
 
 from Raichle1983Model import Raichle1983Model
 from Mintun1984Model import Mintun1984Model
-from Huang1980Model import Huang1980Model
+from Huang1980ModelVenous import Huang1980ModelVenous
 
 
 def the_tag():
@@ -46,12 +46,13 @@ def work(tidx, data: dict):
             nlive=_nlive,
             tag=_tag)
     elif "trc-fdg" in data["pet_measurement"]:
-        _tcm = Huang1980Model(
+        _tcm = Huang1980ModelVenous(
             data["input_function"],
             data["pet_measurement"],
             truths=[0.069, 0.003, 0.002, 0.000, 12.468, -9.492, 0.020],
             nlive=_nlive,
-            tag=_tag)
+            tag=_tag,
+            venous_recovery_coefficient=data["venous_recovery_coefficient"])
     else:
         return {}
         # raise RuntimeError(__name__ + ".work: data['pet_measurement'] -> " + data["pet_measurement"])
@@ -88,6 +89,10 @@ if __name__ == '__main__':
         Nlive = int(sys.argv[4])
     except ValueError:
         Nlive = 300
+    try:
+        vrc = int(sys.argv[5])
+    except ValueError:
+        vrc = 1
 
     fqfp, _ = os.path.splitext(pet)
     fqfp, _ = os.path.splitext(fqfp)
@@ -121,7 +126,8 @@ if __name__ == '__main__':
     the_data = {
         "input_function": input_func,
         "pet_measurement": pet,
-        "nlive": Nlive}
+        "nlive": Nlive,
+        "venous_recovery_coefficient": vrc}
     tindices = list(range(Nparcels))  # parcs & segs in Nick Metcalf's Schaeffer parcellations
 
     # do multi-processing

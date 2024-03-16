@@ -406,7 +406,7 @@ class TCModel(PETModel, ABC):
         else:
             raise RuntimeError(self.__class__.__name__ + ": self.RHOS.ndim -> " + self.RHOS.ndim)
 
-        self.save_results(package, tag="matrix")
+        self.save_results(package, tag=self.TAG)
         return package
 
     def run_nested_for_indexed_tac(self, tidx: int):

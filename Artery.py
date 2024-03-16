@@ -28,6 +28,7 @@ from dynesty import utils as dyutils
 import re
 import os
 from copy import deepcopy
+import pickle
 
 # basic numeric setup
 import numpy as np
@@ -64,18 +65,20 @@ class Artery(PETModel, ABC):
                  home=os.getcwd(),
                  sample="rslice",
                  nlive=1000,
-                 rstate=np.random.default_rng(916301)):
+                 rstate=np.random.default_rng(916301),
+                 tag=""):
         super().__init__(home=home,
                          sample=sample,
                          nlive=nlive,
                          rstate=rstate,
-                         time_last=180)
+                         time_last=180,
+                         tag=tag)
 
         self._truths_internal = truths
 
         self.KERNEL = None
-        self.__input_func_measurement = input_func_measurement  # fqfn to be converted to dict by property
-        ifm = self.input_func_measurement
+        self.__input_func_measurement = input_func_measurement  # set with fqfn
+        ifm = self.input_func_measurement  # get dict conforming to nibabel
         self.HALFLIFE = ifm["halflife"]
         self.RHO = ifm["img"] / np.max(ifm["img"])
         self.SIGMA = 0.1
@@ -197,38 +200,100 @@ class Artery(PETModel, ABC):
         }.get(self.tracer, Artery.prior_transform_default)
 
     def run_nested(self, checkpoint_file=None, print_progress=False, resume=False):
-        """ default: checkpoint_file=self.fqfp+"_dynesty-ModelClass-yyyyMMddHHmmss.save") """
+        """ conforms with behaviors and interfaces of TCModel.py """
 
-        res = self.solver.run_nested(prior_tag=self.tracer,
-                                     ndim=self.ndim,
-                                     checkpoint_file=checkpoint_file,
-                                     print_progress=print_progress,
-                                     resume=resume)
-        self.plot_results(res)
-        self.save_results(res)
-        return res
+        res = []
+        logz = []
+        information = []
+        qm = []
+        ql = []
+        qh = []
+        rho_pred = []
+        resid = []
+        tac = self.RHO
 
-    def save_results(self, res: dyutils.Results):
-        """"""
+        _res = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
+                                               ndim=self.ndim,
+                                               checkpoint_file=checkpoint_file,
+                                               print_progress=print_progress,
+                                               resume=resume)
+        if print_progress:
+            self.plot_results(_res)
+        res.append(_res)
+        rd = _res.asdict()
+        logz.append(rd["logz"][-1])
+        information.append(rd["information"][-1])
+        _qm, _ql, _qh = self.solver.quantile(_res)
+        qm.append(_qm)
+        ql.append(_ql)
+        qh.append(_qh)
+        _rho_pred, _, _ = self.signalmodel(self.data(_qm))
+        rho_pred.append(_rho_pred)
+        resid.append(np.sum(_rho_pred - tac) / np.sum(tac))
+
+        package = {"res": res,
+                   "logz": np.array(logz),
+                   "information": np.array(information),
+                   "qm": np.squeeze(np.array(qm)),
+                   "ql": np.squeeze(np.array(ql)),
+                   "qh": np.squeeze(np.array(qh)),
+                   "rho_pred": np.squeeze(np.array(rho_pred)),
+                   "resid": np.array(resid)}
+
+        self.save_results(package, tag=self.TAG)
+        return package
+
+    def save_results(self, res_dict: dict, tag=""):
+        """ conforms with behaviors and interfaces of TCModel.py """
+
+        if not tag:
+            tag = self.TAG
+        if tag:
+            tag = "-" + tag
+        fqfp1 = self.fqfp + "-" + self.__class__.__name__ + tag
 
         ifm = self.input_func_measurement
+        M0 = np.max(ifm["img"])
+
+        product = deepcopy(ifm)
+        product["img"] = res_dict["logz"]
+        self.save_nii(product, fqfp1 + "-logz.nii.gz")
+
+        product = deepcopy(ifm)
+        product["img"] = res_dict["information"]
+        self.save_nii(product, fqfp1 + "-information.nii.gz")
+
+        product = deepcopy(ifm)
+        product["img"] = res_dict["qm"]
+        self.save_nii(product, fqfp1 + "-qm.nii.gz")
+
+        product = deepcopy(ifm)
+        product["img"] = res_dict["ql"]
+        self.save_nii(product, fqfp1 + "-ql.nii.gz")
+
+        product = deepcopy(ifm)
+        product["img"] = res_dict["qh"]
+        self.save_nii(product, fqfp1 + "-qh.nii.gz")
+
+        product = deepcopy(ifm)
+        product["img"] = M0 * res_dict["rho_pred"]
+        self.save_nii(product, fqfp1 + "-rho-pred.nii.gz")
+
+        product = deepcopy(ifm)
+        product["img"] = res_dict["resid"]
+        self.save_nii(product, fqfp1 + "-resid.nii.gz")
+
+        with open(fqfp1 + "-res.pickle", 'wb') as f:
+            pickle.dump(res_dict["res"], f, pickle.HIGHEST_PROTOCOL)
+
+        # from save_results_legacy()
+
         fqfp = ifm["fqfp"]
         nii = ifm["nii"]
         timesMid = ifm["timesMid"]
         taus = ifm["taus"]
-        M0 = np.max(ifm["img"])
-        qm, ql, qh = self.solver.quantile(res)
-        data = self.data(qm)
+        data = self.data(res_dict["qm"])
         rho_signal, rho_ideal, timesUnif = self.signalmodel(data)
-        fqfp1 = self.fqfp + "_dynesty-" + self.__class__.__name__
-
-        # self.save_csv(
-        #     {"timesMid": timesMid, "img": M0*rho_signal},
-        #     fqfp1 + "-signal.csv")
-        #
-        # self.save_csv(
-        #     {"timesMid": timesUnif, "img": M0*rho_ideal},
-        #     fqfp1 + "-ideal.csv")
 
         self.save_nii(
             {"timesMid": timesMid, "taus": taus, "img": M0 * rho_signal, "nii": nii, "fqfp": fqfp},
@@ -240,9 +305,9 @@ class Artery(PETModel, ABC):
 
         d_quantiles = {
             "label": self.labels,
-            "qm": qm,
-            "ql": ql,
-            "qh": qh}
+            "qm": res_dict["qm"],
+            "ql": res_dict["ql"],
+            "qh": res_dict["qh"]}
         df = pd.DataFrame(d_quantiles)
         df.to_csv(fqfp1 + "-quantiles.csv")
 
@@ -254,7 +319,7 @@ class Artery(PETModel, ABC):
         v[2] = u[2] * 60  # \tau_3 ~ t_3 - t_2
         v[3] = u[3] * 20  # \alpha - 1
         v[4] = u[4] * 30 + 1  # 1/\beta
-        v[5] = u[5] * 10 + 0.25  # p
+        v[5] = u[5] * 9.75 + 0.25  # p
         v[6] = u[6] * 10 - 10  # \delta p_2 ~ p_2 - p
         v[7] = u[7] * 10 - 10  # \delta p_3 ~ p_3 - p_2
         v[8] = u[8] * 300 + 0.01  # 1/\gamma for s.s.
@@ -273,7 +338,7 @@ class Artery(PETModel, ABC):
         v[2] = u[2] * 60  # \tau_3 ~ t_3 - t_2
         v[3] = u[3] * 20  # \alpha - 1
         v[4] = u[4] * 30 + 1  # 1/\beta
-        v[5] = u[5] * 10 + 0.25  # p
+        v[5] = u[5] * 9.75 + 0.25  # p
         v[6] = u[6] * 10 - 10  # \delta p_2 ~ p_2 - p
         v[7] = u[7] * 10 - 10  # \delta p_3 ~ p_3 - p_2
         v[8] = u[8] * 300 + 0.01  # 1/\gamma for s.s.

@@ -33,13 +33,15 @@ class Boxcar(Artery):
                  truths=None,
                  sample="rslice",
                  nlive=1000,
-                 rstate=np.random.default_rng(916301)):
+                 rstate=np.random.default_rng(916301),
+                 tag=""):
         super().__init__(input_func_measurement,
                          tracer=tracer,
                          truths=truths,
                          sample=sample,
                          nlive=nlive,
-                         rstate=rstate)
+                         rstate=rstate,
+                         tag=tag)
 
         self.SIGMA = 0.01
 

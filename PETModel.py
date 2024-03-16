@@ -125,7 +125,7 @@ class PETModel(DynestyModel):
 
         if tag:
             tag = "-" + tag
-        fqfp1 = self.fqfp + "_dynesty-" + self.__class__.__name__ + tag
+        fqfp1 = self.fqfp + self.__class__.__name__ + tag
 
         try:
             qm, _, _ = self.solver.quantile(res)

@@ -31,34 +31,56 @@ import numpy as np
 import nibabel as nib
 
 
+def kernel_fqfn(artery_fqfn: str):
+    sourcedata = os.path.join(os.getenv("SINGULARITY_HOME"), "CCIR_01211", "sourcedata",)
+    if "sub-108293" in artery_fqfn:
+        return os.path.join(sourcedata, "kernel_hct=46.8.nii.gz")
+    if "sub-108237" in artery_fqfn:
+        return os.path.join(sourcedata, "kernel_hct=43.9.nii.gz")
+    if "sub-108254" in artery_fqfn:
+        return os.path.join(sourcedata, "kernel_hct=37.9.nii.gz")
+    if "sub-108250" in artery_fqfn:
+        return os.path.join(sourcedata, "kernel_hct=42.8.nii.gz")
+    if "sub-108284" in artery_fqfn:
+        return os.path.join(sourcedata, "kernel_hct=39.7.nii.gz")
+    if "sub-108306" in artery_fqfn:
+        return os.path.join(sourcedata, "kernel_hct=41.1.nii.gz")
+
+    # mean hct for females and males
+    return os.path.join(sourcedata, "kernel_hct=44.5.nii.gz")
+
+
 class RadialArtery(Artery):
 
     def __init__(self, input_func_measurement,
-                 kernel_measurement,
+                 kernel_measurement=None,
                  remove_baseline=True,
                  tracer=None,
                  truths=None,
                  sample="rslice",
                  nlive=1000,
-                 rstate=np.random.default_rng(916301)):
+                 rstate=np.random.default_rng(916301),
+                 tag=""):
         super().__init__(input_func_measurement,
                          tracer=tracer,
                          truths=truths,
                          sample=sample,
                          nlive=nlive,
-                         rstate=rstate)
+                         rstate=rstate,
+                         tag=tag)
 
-        self.__kernel_measurement = kernel_measurement
-        self.KERNEL = self.kernel_measurement["img"].copy()
+        self.__kernel_measurement = kernel_measurement  # set with fqfn
+        self.KERNEL = self.kernel_measurement["img"].copy()  # get dict conforming to nibabel
         self.__remove_baseline = remove_baseline
         self.SIGMA = 0.1
 
     @property
     def kernel_measurement(self):
-        if self.__kernel_measurement is None:
-            return None
         if isinstance(self.__kernel_measurement, dict):
             return deepcopy(self.__kernel_measurement)
+
+        if self.__kernel_measurement is None:
+            self.__kernel_measurement = kernel_fqfn(self.input_func_measurement["fqfp"] + ".nii.gz")
 
         assert os.path.isfile(self.__kernel_measurement), f"{self.__kernel_measurement} was not found."
         fqfn = self.__kernel_measurement

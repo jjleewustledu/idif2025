@@ -19,7 +19,6 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-import traceback
 
 from DynestyModel import DynestyModel
 from DynestySolver import DynestySolver
@@ -29,8 +28,10 @@ from dynesty import plotting as dyplot
 # general & system functions
 from abc import abstractmethod
 import os
+import sys
 from copy import deepcopy
 import traceback
+import inspect
 
 # basic numeric setup
 import numpy as np
@@ -121,15 +122,17 @@ class PETModel(DynestyModel):
             niid = self.trim_nii_dict(niid, self.TIME_LAST)
         return deepcopy(niid)
 
-    def plot_results(self, res: dyutils.Results, tag=""):
+    def plot_results(self, res: dyutils.Results, tag="", parc_index=None):
 
+        if not tag and parc_index:
+            tag = f"parc{parc_index}"
         if tag:
             tag = "-" + tag
-        fqfp1 = self.fqfp + self.__class__.__name__ + tag
+        fqfp1 = self.fqfp_results + tag
 
         try:
             qm, _, _ = self.solver.quantile(res)
-            self.plot_truths(qm)
+            self.plot_truths(qm, parc_index=parc_index)
             plt.savefig(fqfp1 + "-results.png")
         except Exception as e:
             print("PETModel.plot_results: caught an Exception: ", str(e))
@@ -174,33 +177,41 @@ class PETModel(DynestyModel):
         if not fqfn:
             fqfn = self.fqfp + "_dynesty-" + self.__class__.__name__ + ".nii.gz"
 
-        # load img
-        _data = deepcopy(data)
-        nii = _data["nii"]  # paranoia
-        nii = nib.Nifti1Image(_data["img"], nii.affine, nii.header)
-        nib.save(nii, fqfn)
+        # useful for  warnings, exceptions
+        cname = self.__class__.__name__
+        mname = inspect.currentframe().f_code.co_name
 
-        # find json fields of interest
-        jfile = _data["fqfp"] + ".json"  # from previously loaded tindices
-        with open(jfile, "r") as f:
-            j = json.load(f)
-        if "timesMid" in _data:
-            j["timesMid"] = _data["timesMid"].tolist()
-        else:
-            j["timesMid"] = self.data2timesMid(_data).tolist()
-        if "taus" in _data:
-            j["taus"] = _data["taus"].tolist()
-        else:
-            j["taus"] = self.data2taus(_data).tolist()
-        if "times" in _data:
-            j["times"] = _data["times"].tolist()
-        else:
-            j["times"] = self.data2t(_data).tolist()
-        base, _ = os.path.splitext(fqfn)  # remove .nii.gz
-        fqfp, _ = os.path.splitext(base)
-        jfile1 = fqfp + ".json"
-        with open(jfile1, "w") as f:
-            json.dump(j, f, indent=4)
+        try:
+            # load img
+            _data = deepcopy(data)
+            nii = _data["nii"]  # paranoia
+            nii = nib.Nifti1Image(_data["img"], nii.affine, nii.header)
+            nib.save(nii, fqfn)
+
+            # find json fields of interest
+            jfile = _data["fqfp"] + ".json"  # from previously loaded tindices
+            with open(jfile, "r") as f:
+                j = json.load(f)
+            if "timesMid" in _data:
+                j["timesMid"] = _data["timesMid"].tolist()
+            else:
+                j["timesMid"] = self.data2timesMid(_data).tolist()
+            if "taus" in _data:
+                j["taus"] = _data["taus"].tolist()
+            else:
+                j["taus"] = self.data2taus(_data).tolist()
+            if "times" in _data:
+                j["times"] = _data["times"].tolist()
+            else:
+                j["times"] = self.data2t(_data).tolist()
+            base, _ = os.path.splitext(fqfn)  # remove .nii.gz
+            fqfp, _ = os.path.splitext(base)
+            jfile1 = fqfp + ".json"
+            with open(jfile1, "w") as f:
+                json.dump(j, f, indent=4)
+        except Exception as e:
+            # catch any error to enable graceful exit while sequentially writing NIfTI files
+            print(f"{cname}.{mname}: caught Exception {e}, but proceeding", file=sys.stderr)
 
     @staticmethod
     def data2t(data: dict):

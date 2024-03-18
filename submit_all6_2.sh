@@ -1,7 +1,7 @@
 #!/bin/bash
 
 set -e
-trap 'echo "Script submit_all.sh exited with error: $?" >&2; exit $?' ERR
+trap 'echo "Script submit_all_ho.sh exited with error: $?" >&2; exit $?' ERR
 
 derivatives="${SINGULARITY_HOME}/CCIR_01211/derivatives"
 subs=("sub-108293" "sub-108237" "sub-108254" "sub-108250" "sub-108284" "sub-108306")

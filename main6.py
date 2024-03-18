@@ -137,6 +137,8 @@ if __name__ == '__main__':
     qms = []
     qls = []
     qhs = []
+    martinv1s = []
+    raichlekss = []
     rhos_pred = []
     resids = []
 
@@ -151,10 +153,13 @@ if __name__ == '__main__':
             qms.append(_qm)
             qls.append(_ql)
             qhs.append(_qh)
+            martinv1s.append(tcm.martin_v1_measurement)
+            raichlekss.append(tcm.raichle_ks_measurement)
             _rho_pred, _, _, _ = tcm.signalmodel(tcm.data(_qm))
             rhos_pred.append(_rho_pred)
             resids.append(np.sum(_rho_pred - tcm.RHO) / np.sum(tcm.RHO))
-        except KeyError as e:
+        except Exception as e:
+            # catch any error to enable graceful exit with writing whatever results were incompletely obtained
             logging.exception(__name__ + ": error in tcm -> " + str(e), exc_info=True)
 
     package1 = {
@@ -164,6 +169,8 @@ if __name__ == '__main__':
         "qm": np.vstack(qms),
         "ql": np.vstack(qls),
         "qh": np.vstack(qhs),
+        "martinv1": np.vstack(martinv1s),
+        "raichleks": np.vstack(raichlekss),
         "rho_pred": np.vstack(rhos_pred),
         "resid": np.array(resids)}
 

@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 from TCModel import TCModel
+from Boxcar import Boxcar
 
 # general & system functions
 import os
@@ -60,7 +61,7 @@ class Raichle1983Model(TCModel):
         hl = data["halflife"]
         timesMid = data["timesMid"]
         input_func_interp = data["inputFuncInterp"]
-        v1 = data["martinv1"]
+        # v1 = data["martinv1"]  # inconsistent with data?
         v = data["v"]
         f = v[0]
         lamb = v[1]
@@ -72,7 +73,8 @@ class Raichle1983Model(TCModel):
         kernel = np.exp(-E * f * times / lamb - 0.005670305 * times)
         input_func_interp = Raichle1983Model.slide(input_func_interp, times, tau_a, hl)
         rho_t = E * f * np.convolve(kernel, input_func_interp, mode="full")
-        rho_t = rho_t[:input_func_interp.size]  # + v1 * input_func_interp
+        rho_t = rho_t[:input_func_interp.size]  # + v1 * input_func_interp  # inconsistent with data?
         rho_t = Raichle1983Model.slide(rho_t, times, t_0, hl)
-        rho = np.interp(timesMid, times, rho_t)
+        # rho = np.interp(timesMid, times, rho_t)
+        rho = Boxcar.apply_boxcar(rho_t, data)
         return rho, timesMid, rho_t, times

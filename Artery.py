@@ -98,6 +98,10 @@ class Artery(PETModel, ABC):
         return self.input_func_measurement["fqfp"]
 
     @property
+    def fqfp_results(self):
+        return self.fqfp + "-" + self.__class__.__name__
+
+    @property
     def input_func_measurement(self):
         if isinstance(self.__input_func_measurement, dict):
             return deepcopy(self.__input_func_measurement)
@@ -142,7 +146,7 @@ class Artery(PETModel, ABC):
 
         return loglike
 
-    def plot_truths(self, truths=None):
+    def plot_truths(self, truths=None, parc_index=None):
         if truths is None:
             truths = self.truths
         data = self.data(truths)
@@ -250,7 +254,7 @@ class Artery(PETModel, ABC):
             tag = self.TAG
         if tag:
             tag = "-" + tag
-        fqfp1 = self.fqfp + "-" + self.__class__.__name__ + tag
+        fqfp1 = self.fqfp_results + tag
 
         ifm = self.input_func_measurement
         M0 = np.max(ifm["img"])

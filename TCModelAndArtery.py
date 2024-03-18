@@ -80,11 +80,11 @@ class TCModelAndArtery(TCModel, ABC):
     def loglike(self, v: np.array):
         return super().loglike(v) + self.ARTERY.loglike(v[:14])
 
-    def plot_truths(self, truths=None):
-        self.plot_truths_with_ARTERY(truths=truths)
-        self.ARTERY.plot_truths(truths=truths)
+    def plot_truths(self, truths=None, parc_index=None):
+        self.plot_truths_with_ARTERY(truths=truths, parc_index=parc_index)
+        self.ARTERY.plot_truths(truths=truths, parc_index=parc_index)
 
-    def plot_truths_with_ARTERY(self, truths=None):
+    def plot_truths_with_ARTERY(self, truths=None, parc_index=None):
         if truths is None:
             truths = self.truths
         data = self.data(truths)
@@ -92,8 +92,11 @@ class TCModelAndArtery(TCModel, ABC):
 
         petm = self.pet_measurement
         t_petm = petm["timesMid"]
-        selected_axes = tuple(np.arange(petm["img"].ndim - 1))
-        rho_petm = np.mean(petm["img"], axis=selected_axes)  # evaluates mean of petm["img"] for spatial dimensions only
+        if parc_index:
+            rho_petm = petm["img"][parc_index]
+        else:
+            selected_axes = tuple(np.arange(petm["img"].ndim - 1))
+            rho_petm = np.median(petm["img"], axis=selected_axes)  # evaluates mean of petm["img"] for spatial dimensions only
         M0 = np.max(rho_petm)
 
         data_for_ARTERY = self.ARTERY.data(truths)
@@ -104,9 +107,9 @@ class TCModelAndArtery(TCModel, ABC):
         p1, = plt.plot(t_inputf, I0 * rho_inputf, color="black", linewidth=2, alpha=0.7,
                        label=f"input function x {I0:.3}")
         p2, = plt.plot(t_petm, rho_petm, color="black", marker="+", ls="none", alpha=0.9, markersize=16,
-                       label="measured TAC")
+                       label=f"measured TAC, parcel {parc_index}")
         p3, = plt.plot(t_pred, M0 * rho_pred, marker="o", color="red", ls="none", alpha=0.8,
-                       label="predicted TAC")
+                       label=f"predicted TAC, parcel {parc_index}")
         plt.xlim([-0.1, 1.1 * np.max([np.max(t_petm), np.max(t_inputf)])])
         plt.xlabel("time of mid-frame (s)")
         plt.ylabel("activity (Bq/mL)")

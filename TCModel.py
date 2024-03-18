@@ -32,6 +32,8 @@ import os
 import pickle
 from copy import deepcopy
 from pprint import pprint
+import warnings
+import inspect
 
 # basic numeric setup
 import numpy as np
@@ -114,16 +116,25 @@ class TCModel(PETModel, ABC):
         self.TIMES_MID = petm["timesMid"]
         try:
             self.MARTIN_V1 = self.__slice_parc(self.martin_v1_measurement["img"], 0)
-        except KeyError:
-            self.MARTIN_V1 = np.array(0.05)
+        except (FileNotFoundError, TypeError, KeyError):
+            self.MARTIN_V1 = np.array(0)
         try:
             self.RAICHLE_KS = self.__slice_parc(self.raichle_ks_measurement["img"], 0)
-        except (KeyError, TypeError):
-            self.RAICHLE_KS = np.array([0.00790, 0.898, 0.0218, 0, 0, 0.05])
+        except (FileNotFoundError, TypeError, KeyError):
+            self.RAICHLE_KS = None  # needed by implementations of Raichle1983Model
 
     @property
     def fqfp(self):
         return self.pet_measurement["fqfp"]
+
+    @property
+    def fqfp_results(self):
+        fqfp1 = self.fqfp + "-" + self.__class__.__name__ + self.ARTERY.__class__.__name__
+        fqfp1 = fqfp1.replace("ParcSchaeffer-reshape-to-schaeffer-", "")
+        fqfp1 = fqfp1.replace("ModelAndArtery", "")
+        fqfp1 = fqfp1.replace("Model", "")
+        fqfp1 = fqfp1.replace("Radial", "")
+        return fqfp1
 
     @property
     def martin_v1_measurement(self):
@@ -132,21 +143,36 @@ class TCModel(PETModel, ABC):
                 os.path.dirname(self._pet_measurement["fqfp"])))
         subject_path = subject_path.replace("sourcedata", "derivatives")
 
-        if isinstance(self.ARTERY, Boxcar):
-            matches = glob.glob(
-                subject_path + "/**/*-ParcSchaeffer-reshape-to-schaeffer-schaeffer-idif_martinv1.nii.gz",
-                recursive=True)
-            if matches and matches[0]:
-                niid = self.load_nii(matches[0])
-                niid["img"] = niid["img"] / self.RECOVERY_COEFFICIENT
-                return niid
-        elif isinstance(self.ARTERY, RadialArtery):
-            matches = glob.glob(
-                subject_path + "/**/*-ParcSchaeffer-reshape-to-schaeffer-schaeffer-twilite_martinv1.nii.gz",
-                recursive=True)
+        # useful for  warnings, exceptions
+        cname = self.__class__.__name__
+        mname = inspect.currentframe().f_code.co_name
+
+        # use existing twilite data
+        if isinstance(self.ARTERY, RadialArtery):
+            to_glob = subject_path + "/**/*-ParcSchaeffer-reshape-to-schaeffer-schaeffer-twilite_martinv1.nii.gz"
+            matches = glob.glob(to_glob, recursive=True)
             if matches and matches[0]:
                 return self.load_nii(matches[0])
-        return {}
+            else:
+                warnings.warn(
+                    f"{cname}.{mname}: {to_glob} failed to produce matches",
+                    UserWarning)
+                warnings.warn(
+                    f"{cname}.{mname}: self.ARTERY == {self.ARTERY}, but proceeding to use Boxcar data ",
+                    UserWarning)
+
+        # use existing idif data
+        to_glob = subject_path + "/**/*-ParcSchaeffer-reshape-to-schaeffer-schaeffer-idif_martinv1.nii.gz"
+        matches = glob.glob(to_glob, recursive=True)
+        if matches and matches[0]:
+            niid = self.load_nii(matches[0])
+            niid["img"] = niid["img"] / self.RECOVERY_COEFFICIENT  # v1 has input func. in denom.
+            return niid
+
+        # raise FileNotFoundError(
+        #     f"{cname}:{mname}: {to_glob} failed to match any usable data files for {type(self.ARTERY)}")
+
+        return None
 
     @property
     def ndim(self):
@@ -172,13 +198,36 @@ class TCModel(PETModel, ABC):
                 os.path.dirname(self._pet_measurement["fqfp"])))
         subject_path = subject_path.replace("sourcedata", "derivatives")
 
-        matches = glob.glob(
-            subject_path +
-            "/**/*-ParcSchaeffer-reshape-to-schaeffer-schaeffer-dynesty-Raichle1983ModelAndArtery-" +
-            self.ARTERY.__class__.__name__ + "-" + self.TAG + "-qm.nii.gz",
-            recursive=True)
+        # useful for  warnings, exceptions
+        cname = self.__class__.__name__
+        mname = inspect.currentframe().f_code.co_name
+
+        # use existing twilite data
+        if isinstance(self.ARTERY, RadialArtery):
+            to_glob = subject_path + f"/**/*-createNiftiMovingAvgFrames-schaeffer-Raichle1983Artery-{self.TAG}-qm.nii.gz"
+            matches = glob.glob(to_glob, recursive=True)
+            if matches and matches[0]:
+                return self.load_nii(matches[0])
+            else:
+                warnings.warn(
+                    f"{cname}.{mname}: {to_glob} failed to produce matches",
+                    UserWarning)
+                warnings.warn(
+                    f"{cname}.{mname}: self.ARTERY == {self.ARTERY}, but proceeding to use Boxcar data ",
+                    UserWarning)
+
+        # use existing idif data
+        to_glob = subject_path + f"/**/*-createNiftiMovingAvgFrames-schaeffer-Raichle1983Boxcar-{self.TAG}-qm.nii.gz"
+        matches = glob.glob(to_glob, recursive=True)
         if matches and matches[0]:
-            return self.load_nii(matches[0])
+            niid = self.load_nii(matches[0])
+            niid["img"] = niid["img"]
+            return niid
+
+        # raise FileNotFoundError(
+        #    f"{cname}:{mname}: {to_glob} failed to match any usable data files for {type(self.ARTERY)}")
+
+        return None
 
     @property
     def truths(self):
@@ -227,7 +276,7 @@ class TCModel(PETModel, ABC):
         niid = self.ARTERY.input_func_measurement
         if self.parse_isotope(fqfn) == "15O":
             niid = self.decay_uncorrect(niid)
-        if "MipIdif_idif" in fqfn:
+        if isinstance(self.ARTERY, Boxcar):
             niid["img"] = self.RECOVERY_COEFFICIENT * niid["img"]
 
         # interpolate to timing domain of pet_measurements
@@ -250,7 +299,7 @@ class TCModel(PETModel, ABC):
 
         return loglike
 
-    def plot_truths(self, truths=None):
+    def plot_truths(self, truths=None, parc_index=None):
         if truths is None:
             truths = self.truths
         data = self.data(truths)
@@ -258,9 +307,12 @@ class TCModel(PETModel, ABC):
 
         petm = self.pet_measurement
         t_petm = petm["timesMid"]
-        selected_axes = tuple(np.arange(petm["img"].ndim - 1))
-        rho_petm = np.mean(petm["img"], axis=selected_axes)  # evaluates mean of petm["img"] for spatial dimensions only
-        M0 = np.max(rho_petm)
+        if parc_index:
+            rho_petm = petm["img"][parc_index]
+        else:
+            selected_axes = tuple(np.arange(petm["img"].ndim - 1))
+            rho_petm = np.median(petm["img"], axis=selected_axes)  # evaluates mean of petm["img"] for spatial dimensions only
+        M0 = np.max(petm["img"])
 
         inputf = self.input_function()
         t_inputf = self.input_function()["timesMid"]
@@ -271,9 +323,9 @@ class TCModel(PETModel, ABC):
         p1, = plt.plot(t_inputf, I0 * rho_inputf, color="black", linewidth=2, alpha=0.7,
                        label=f"input function x {I0:.3}")
         p2, = plt.plot(t_petm, rho_petm, color="black", marker="+", ls="none", alpha=0.9, markersize=16,
-                       label="measured TAC")
+                       label=f"measured TAC, parcel {parc_index}")
         p3, = plt.plot(t_pred, M0 * rho_pred, marker="o", color="red", ls="none", alpha=0.8,
-                       label="predicted TAC")
+                       label=f"predicted TAC, parcel {parc_index}")
         plt.xlim([-0.1, 1.1 * np.max([np.max(t_petm), np.max(t_inputf)])])
         plt.xlabel("time of mid-frame (s)")
         plt.ylabel("activity (Bq/mL)")
@@ -314,6 +366,7 @@ class TCModel(PETModel, ABC):
             "Martin1987Model": self.prior_transform_martin,
             "Raichle1983Model": self.prior_transform_raichle,
             "Mintun1984Model": self.prior_transform_mintun,
+            "Huang1980ModelVenous": self.prior_transform_huang,
             "Huang1980Model": self.prior_transform_huang
         }.get(self.__class__.__name__, self.prior_transform_ichise)
 
@@ -326,14 +379,16 @@ class TCModel(PETModel, ABC):
         qm = []
         ql = []
         qh = []
+        martinv1 = []
+        raichleks = []
         rho_pred = []
         resid = []
 
         if self.RHOS.ndim == 1:
             self.RHO = self.RHOS
             tac = self.RHO
-            self.MARTIN_V1 = np.array(0.05)
-            self.RAICHLE_KS = np.array([0.00790, 0.898, 0.0218, 0, 0, 0.05])
+            self.MARTIN_V1 = np.array(0)
+            self.RAICHLE_KS = None
 
             _res = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
                                                    ndim=self.ndim,
@@ -350,30 +405,35 @@ class TCModel(PETModel, ABC):
             qm.append(_qm)
             ql.append(_ql)
             qh.append(_qh)
+            martinv1.append(self.MARTIN_V1)
+            raichleks.append(self.RAICHLE_KS)
             _rho_pred, _, _, _ = self.signalmodel(self.data(_qm))
             rho_pred.append(_rho_pred)
             resid.append(np.sum(_rho_pred - tac) / np.sum(tac))
 
-            package = {"res": res,
-                       "logz": np.array(logz),
-                       "information": np.array(information),
-                       "qm": np.array(qm),
-                       "ql": np.array(ql),
-                       "qh": np.array(qh),
-                       "rho_pred": np.array(rho_pred),
-                       "resid": np.array(resid)}
+            package = {
+                "res": res,
+                "logz": np.array(logz),
+                "information": np.array(information),
+                "qm": np.array(qm),
+                "ql": np.array(ql),
+                "qh": np.array(qh),
+                "martinv1": np.array(martinv1),
+                "raichleks": np.array(raichleks),
+                "rho_pred": np.array(rho_pred),
+                "resid": np.array(resid)}
 
         elif self.RHOS.ndim == 2:
             for tidx, tac in enumerate(self.RHOS):
                 self.RHO = tac
                 try:
                     self.MARTIN_V1 = self.__slice_parc(self.martin_v1_measurement["img"], tidx)
-                except KeyError:
-                    self.MARTIN_V1 = np.array(0.05)
+                except (FileNotFoundError, TypeError, KeyError):
+                    self.MARTIN_V1 = np.array(0)
                 try:
                     self.RAICHLE_KS = self.__slice_parc(self.raichle_ks_measurement["img"], tidx)
-                except KeyError:
-                    self.RAICHLE_KS = np.array([0.00790, 0.898, 0.0218, 0, 0, 0.05])
+                except (FileNotFoundError, TypeError, KeyError):
+                    self.RAICHLE_KS = None
 
                 _res = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
                                                        ndim=self.ndim,
@@ -381,7 +441,7 @@ class TCModel(PETModel, ABC):
                                                        print_progress=print_progress,
                                                        resume=resume)
                 if print_progress:
-                    self.plot_results(_res, tag=str(tidx))
+                    self.plot_results(_res, tag=f"parc{tidx}", parc_index=tidx)
                 res.append(_res)
                 rd = _res.asdict()
                 logz.append(rd["logz"][-1])
@@ -390,18 +450,23 @@ class TCModel(PETModel, ABC):
                 qm.append(_qm)
                 ql.append(_ql)
                 qh.append(_qh)
+                martinv1.append(self.MARTIN_V1)
+                raichleks.append(self.RAICHLE_KS)
                 _rho_pred, _, _, _ = self.signalmodel(self.data(_qm))
                 rho_pred.append(_rho_pred)
                 resid.append(np.sum(_rho_pred - tac) / np.sum(tac))
 
-            package = {"res": res,
-                       "logz": np.array(logz),
-                       "information": np.array(information),
-                       "qm": np.vstack(qm),
-                       "ql": np.vstack(ql),
-                       "qh": np.vstack(qh),
-                       "rho_pred": np.vstack(rho_pred),
-                       "resid": np.array(resid)}
+            package = {
+                "res": res,
+                "logz": np.array(logz),
+                "information": np.array(information),
+                "qm": np.vstack(qm),
+                "ql": np.vstack(ql),
+                "qh": np.vstack(qh),
+                "martinv1": np.vstack(martinv1),
+                "raichleks": np.vstack(raichleks),
+                "rho_pred": np.vstack(rho_pred),
+                "resid": np.array(resid)}
 
         else:
             raise RuntimeError(self.__class__.__name__ + ": self.RHOS.ndim -> " + self.RHOS.ndim)
@@ -409,32 +474,44 @@ class TCModel(PETModel, ABC):
         self.save_results(package, tag=self.TAG)
         return package
 
-    def run_nested_for_indexed_tac(self, tidx: int):
+    def run_nested_for_indexed_tac(self, tidx: int, checkpoint_file=None, print_progress=False, resume=False):
 
         self.RHO = self.RHOS[tidx]
         try:
             self.MARTIN_V1 = self.__slice_parc(self.martin_v1_measurement["img"], tidx)
-        except (KeyError, TypeError):
-            self.MARTIN_V1 = np.array(0.05)
+        except (FileNotFoundError, TypeError, KeyError):
+            self.MARTIN_V1 = np.array(0)
         try:
             self.RAICHLE_KS = self.__slice_parc(self.raichle_ks_measurement["img"], tidx)
-        except (KeyError, TypeError):
-            self.RAICHLE_KS = np.array([0.00790, 0.898, 0.0218, 0, 0, 0.05])
+        except (FileNotFoundError, TypeError, KeyError):
+            self.RAICHLE_KS = None
 
-        _res = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__, ndim=self.ndim)
+        _res = self.solver.run_nested_for_list(
+            prior_tag=self.__class__.__name__,
+            ndim=self.ndim,
+            checkpoint_file=checkpoint_file,
+            print_progress=print_progress,
+            resume=resume)
+
+        if print_progress:
+            self.plot_results(_res, tag=f"parc{tidx}", parc_index=tidx)
+
         _rd = _res.asdict()
         _qm, _ql, _qh = self.solver.quantile(_res)
         _rho_pred, _, _, _ = self.signalmodel(self.data(_qm))
         _resid = np.sum(_rho_pred - self.RHO) / np.sum(self.RHO)
 
-        package = {"res": _res,
-                   "logz": np.array(_rd["logz"][-1]),
-                   "information": np.array(_rd["information"][-1]),
-                   "qm": np.array(_qm),
-                   "ql": np.array(_ql),
-                   "qh": np.array(_qh),
-                   "rho_pred": np.array(_rho_pred),
-                   "resid": np.array(_resid)}
+        package = {
+            "res": _res,
+            "logz": np.array(_rd["logz"][-1]),
+            "information": np.array(_rd["information"][-1]),
+            "qm": np.array(_qm),
+            "ql": np.array(_ql),
+            "qh": np.array(_qh),
+            "martinv1": np.array(self.MARTIN_V1),
+            "raichleks": np.array(self.RAICHLE_KS),
+            "rho_pred": np.array(_rho_pred),
+            "resid": np.array(_resid)}
 
         # self.save_results(package, tag=str(tidx))
         return package
@@ -444,11 +521,7 @@ class TCModel(PETModel, ABC):
 
         if tag:
             tag = "-" + tag
-        fqfp1 = self.fqfp + "-" + self.__class__.__name__ + self.ARTERY.__class__.__name__ + tag
-        fqfp1 = fqfp1.replace("ParcSchaeffer-reshape-to-schaeffer-", "")
-        fqfp1 = fqfp1.replace("ModelAndArtery", "")
-        fqfp1 = fqfp1.replace("Model", "")
-        fqfp1 = fqfp1.replace("Radial", "")
+        fqfp1 = self.fqfp_results + tag
 
         petm = self.pet_measurement
         M0 = np.max(petm["img"])
@@ -484,6 +557,14 @@ class TCModel(PETModel, ABC):
         with open(fqfp1 + "-res.pickle", 'wb') as f:
             pickle.dump(res_dict["res"], f, pickle.HIGHEST_PROTOCOL)
 
+        product = deepcopy(petm)
+        product["img"] = res_dict["martinv1"]
+        self.save_nii(product, fqfp1 + "-martinv1.nii.gz")
+
+        product = deepcopy(petm)
+        product["img"] = res_dict["raichleks"]
+        self.save_nii(product, fqfp1 + "-raichleks.nii.gz")
+
     @staticmethod
     def decay_correct(tac: dict):
         _tac = deepcopy(tac)
@@ -506,22 +587,22 @@ class TCModel(PETModel, ABC):
     @staticmethod
     def prior_transform_raichle(u):
         v = u
-        v[0] = u[0] * 0.0149 + 0.0022  # f (1/s)
-        v[1] = u[1] + 0.5  # \lambda (cm^3/mL)
-        v[2] = u[2] * 0.0212 + 0.0081  # ps (mL cm^{-3}s^{-1})
+        v[0] = u[0] * 0.016 + 0.0011  # f (1/s)
+        v[1] = u[1] * 1.95 + 0.05  # \lambda (cm^3/mL)
+        v[2] = u[2] * 0.0272 + 0.0011  # ps (mL cm^{-3}s^{-1})
         v[3] = u[3] * 20  # t_0 (s)
-        v[4] = u[4] * (-20) - 15  # \tau_a (s)
+        v[4] = u[4] * (-60) + 20  # \tau_a (s)
         v[5] = u[5] * TCModel.sigma()  # sigma ~ fraction of M0
         return v
 
     @staticmethod
     def prior_transform_mintun(u):
         v = u
-        v[0] = u[0] * 0.6 + 0.14  # OEF
-        v[1] = u[1] * 0.6 + 0.2  # frac. water of metab. at 90 s
+        v[0] = u[0] * 0.6 + 0.2  # OEF
+        v[1] = u[1] * 1.8 + 0.1  # frac. water of metab. at 90 s
         v[2] = u[2] * 0.75 + 0.25  # v_{post} + 0.5 v_{cap}
         v[3] = u[3] * 20  # t_0 (s)
-        v[4] = u[4] * (-30)  # \tau_a (s)
+        v[4] = u[4] * (-60) + 20  # \tau_a (s)
         v[5] = u[5] * TCModel.sigma()  # sigma ~ fraction of M0
         return v
 

@@ -17,8 +17,8 @@
 #SBATCH --priority=0
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=2G
-#SBATCH --time=48:00:00
+#SBATCH --mem-per-cpu=3G
+#SBATCH --time=96:00:00
 #SBATCH --reservation=Aris_group
 #SBATCH --account=aristeidis_sotiras
 #SBATCH --partition=tier2_cpu
@@ -76,6 +76,13 @@ base="${pet##*/}"
 fileprefix="${base%.*}"
 fileprefix="${fileprefix%.*}"
 date2save=$(date +"%m-%d-%y")
+
+echo "Executing ${the_main}" 1>&2
+echo "input func kind is ${input_func_kind}" 1>&2
+echo "pet is ${pet}" 1>&2
+echo "Nparcels is ${Nparcels}" 1>&2
+echo "nlive is ${nlive}" 1>&2
+echo "vrc is ${vrc}" 1>&2
 
 # MAIN Command
 

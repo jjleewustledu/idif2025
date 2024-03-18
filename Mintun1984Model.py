@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 from TCModel import TCModel
+from Boxcar import Boxcar
 
 # general & system functions
 import os
@@ -127,5 +128,6 @@ class Mintun1984Model(TCModel):
 
         rho_t = rho1[:n] + rho2[:n]
         rho_t = Mintun1984Model.slide(rho_t, times, t_0, hl)
-        rho = np.interp(timesMid, times, rho_t)
+        # rho = np.interp(timesMid, times, rho_t)
+        rho = Boxcar.apply_boxcar(rho_t, data)
         return rho, timesMid, rho_t, times

@@ -33,6 +33,11 @@ class DynestyModel(ABC):
 
     @property
     @abstractmethod
+    def fqfp_results(self):
+        pass
+
+    @property
+    @abstractmethod
     def labels(self):
         pass
 
@@ -42,11 +47,11 @@ class DynestyModel(ABC):
         pass
 
     @abstractmethod
-    def plot_results(self, res):
+    def plot_results(self, res, parc_index):
         pass
 
     @abstractmethod
-    def plot_truths(self, truths):
+    def plot_truths(self, truths, parc_index):
         pass
 
     @abstractmethod
@@ -58,7 +63,7 @@ class DynestyModel(ABC):
         pass
 
     @abstractmethod
-    def save_results(self, res):
+    def save_results(self, res, tag):
         pass
 
     @staticmethod

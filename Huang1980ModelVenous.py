@@ -50,7 +50,7 @@ class Huang1980ModelVenous(TCModel):
                          rstate=rstate,
                          tag=tag)
 
-        self.RECOVERY_COEFFICIENT = self.RECOVERY_COEFFICIENT * venous_recovery_coefficient
+        # self.RECOVERY_COEFFICIENT = self.RECOVERY_COEFFICIENT * venous_recovery_coefficient
 
     @property
     def labels(self):

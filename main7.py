@@ -16,12 +16,12 @@ from Mintun1984Model import Mintun1984Model
 from Huang1980ModelVenous import Huang1980ModelVenous
 
 
-def the_tag():
+def the_tag(nlive: float, tag_rc="rc1p85", tag_vrc="vrc1"):
     # __file__ gives the relative path of the script
     file_path = __file__
     file_name = os.path.basename(file_path)
     tag, _ = os.path.splitext(file_name)
-    return tag
+    return f"{tag}-{tag_rc}-{tag_vrc}-{nlive}"
 
 
 def work(tidx, data: dict):
@@ -29,7 +29,8 @@ def work(tidx, data: dict):
 
     pprint(data)
     _nlive = data["nlive"]
-    _tag = the_tag() + "-" + str(_nlive)
+    _vrc = data["venous_recovery_coefficient"]
+    _tag = the_tag(_nlive, tag_vrc=f"vrc{_vrc}")
 
     if "trc-ho" in data["pet_measurement"]:
         _tcm = Raichle1983Model(
@@ -52,7 +53,7 @@ def work(tidx, data: dict):
             truths=[0.069, 0.003, 0.002, 0.000, 12.468, -9.492, 0.020],
             nlive=_nlive,
             tag=_tag,
-            venous_recovery_coefficient=data["venous_recovery_coefficient"])
+            venous_recovery_coefficient=_vrc)
     else:
         return {}
         # raise RuntimeError(__name__ + ".work: data['pet_measurement'] -> " + data["pet_measurement"])
@@ -145,6 +146,8 @@ if __name__ == '__main__':
     qhs = []
     rhos_pred = []
     resids = []
+    martinv1s = []
+    raichlekss = []
 
     for package in packages:
         try:
@@ -160,7 +163,10 @@ if __name__ == '__main__':
             _rho_pred, _, _, _ = tcm.signalmodel(tcm.data(_qm))
             rhos_pred.append(_rho_pred)
             resids.append(np.sum(_rho_pred - tcm.RHO) / np.sum(tcm.RHO))
-        except KeyError as e:
+            martinv1s.append(np.squeeze(tcm.martin_v1_measurement["img"]))
+            raichlekss.append(np.squeeze(tcm.raichle_ks_measurement["img"]))
+        except Exception as e:
+            # catch any error to enable graceful exit with writing whatever results were incompletely obtained
             logging.exception(__name__ + ": error in tcm -> " + str(e), exc_info=True)
 
     package1 = {
@@ -171,8 +177,10 @@ if __name__ == '__main__':
         "ql": np.vstack(qls),
         "qh": np.vstack(qhs),
         "rho_pred": np.vstack(rhos_pred),
-        "resid": np.array(resids)}
+        "resid": np.array(resids),
+        "martinv1": np.array(martinv1s),
+        "raichleks": np.vstack(raichlekss)}
 
-    packages[0]["tcm"].save_results(package1, tag=the_tag() + "-rc1p85-" + str(Nlive))
+    packages[0]["tcm"].save_results(package1, tag=the_tag(Nlive, tag_vrc=f"vrc{vrc}"))
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

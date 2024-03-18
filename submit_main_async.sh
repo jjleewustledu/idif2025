@@ -17,8 +17,8 @@
 #SBATCH --priority=0
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=30
-#SBATCH --mem-per-cpu=1G
-#SBATCH --time=120:00:00
+#SBATCH --mem-per-cpu=3G
+#SBATCH --time=48:00:00
 #SBATCH --reservation=Aris_group
 #SBATCH --account=aristeidis_sotiras
 #SBATCH --partition=tier2_cpu
@@ -65,19 +65,27 @@ echo "------------------------------------------------------" 1>&2
 set -e
 trap 'echo "Script submit_main_async.sh exited with error: $?" >&2; exit $?' ERR
 
-the_main="main6.py"
+the_main="main7.py"
 input_func_kind=$1
 pet=$2
-Nparcels=$3
-nlive=1000
+Nparcels=309
+nlive=3000
+vrc=$3
 filepath="${pet%/*}"
 base="${pet##*/}"
 fileprefix="${base%.*}"
 fileprefix="${fileprefix%.*}"
 date2save=$(date +"%m-%d-%y")
 
+echo "Executing ${the_main}" 1>&2
+echo "input func kind is ${input_func_kind}" 1>&2
+echo "pet is ${pet}" 1>&2
+echo "Nparcels is ${Nparcels}" 1>&2
+echo "nlive is ${nlive}" 1>&2
+echo "vrc is ${vrc}" 1>&2
+
 # MAIN Command
 
 export CCHOME=/ceph/chpc/home/jjlee && \
 export PATH="${CCHOME}/miniconda/envs/dynesty/bin:${PATH}" && \
-python ${CCHOME}/PycharmProjects/dynesty/idif2024/${the_main} "${input_func_kind}" "${pet}" "${Nparcels}" "${nlive}" > "${filepath}/${fileprefix}_submit-main-async-${date2save}.log"
+python ${CCHOME}/PycharmProjects/dynesty/idif2024/${the_main} "${input_func_kind}" "${pet}" "${Nparcels}" "${nlive}" "${vrc}" > "${filepath}/${fileprefix}_submit-main-async-${date2save}.log"

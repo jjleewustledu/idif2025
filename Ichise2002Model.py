@@ -31,7 +31,25 @@ import scipy.integrate as integrate
 
 
 class Ichise2002Model(TCModel):
+    """
 
+    This class is a subclass of the TCModel class and represents the Ichise2002 model for PET data analysis.
+
+    Attributes:
+    - input_function: The input function of the model.
+    - pet_measurement: The PET measurement data.
+    - truths: A dictionary containing the ground truth values for the model parameters. (optional)
+    - home: The home directory where the output files will be saved. (default: current working directory)
+    - sample: The type of sampling to be used. (default: "rslice")
+    - nlive: The number of live points for the Nested Sampling algorithm. (default: 1000)
+    - rstate: The random state for reproducibility. (default: np.random.default_rng(916301))
+    - tag: A tag for identifying the model instance. (default: "")
+
+    Methods:
+    - labels: Returns the labels for the model parameters.
+    - signalmodel: Computes the signal model for the given data.
+
+    """
     def __init__(self,
                  input_function,
                  pet_measurement,

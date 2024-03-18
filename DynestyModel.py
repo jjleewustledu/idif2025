@@ -25,7 +25,110 @@ from abc import ABC, abstractmethod
 
 
 class DynestyModel(ABC):
+    """
 
+    :class: DynestyModel
+
+    Abstract Base Class for implementing a Dynesty model.
+
+    .. attribute:: fqfp
+
+        Full qualified file prefix (fqfp) of the model.
+
+    .. attribute:: fqfp_results
+
+        Full qualified file prefix (fqfp) of the results.
+
+    .. attribute:: labels
+
+        List of parameter labels.
+
+    .. attribute:: truths
+
+        List of parameter truths.
+
+    .. method:: plot_results(res, parc_index)
+
+        Plots the results of the model.
+
+        :param res: The results of the model.
+        :type res: unknown
+
+        :param parc_index: The parameter index.
+        :type parc_index: int
+
+    .. method:: plot_truths(truths, parc_index)
+
+        Plots the parameter truths.
+
+        :param truths: The parameter truths.
+        :type truths: unknown
+
+        :param parc_index: The parameter index.
+        :type parc_index: int
+
+    .. method:: plot_variations(tindex0, tmin, tmax, truths)
+
+        Plots the variations of parameters.
+
+        :param tindex0: Unknown parameter.
+        :type tindex0: unknown
+
+        :param tmin: Minimum parameter value.
+        :type tmin: float
+
+        :param tmax: Maximum parameter value.
+        :type tmax: float
+
+        :param truths: The parameter truths.
+        :type truths: unknown
+
+    .. method:: run_nested(checkpoint_file)
+
+        Runs the nested sampler.
+
+        :param checkpoint_file: The checkpoint file.
+        :type checkpoint_file: str
+
+    .. method:: save_results(res, tag)
+
+        Saves the results of the model.
+
+        :param res: The results of the model.
+        :type res: unknown
+
+        :param tag: The results tag.
+        :type tag: str
+
+    .. staticmethod:: data(v)
+
+        Unknown method.
+
+        :param v: Unknown parameter.
+        :type v: unknown
+
+    .. staticmethod:: loglike(v)
+
+        Unknown method.
+
+        :param v: Unknown parameter.
+        :type v: unknown
+
+    .. staticmethod:: prior_transform(tag)
+
+        Unknown method.
+
+        :param tag: The prior transform tag.
+        :type tag: unknown
+
+    .. staticmethod:: signalmodel(data)
+
+        Creates a signal model based on the given data.
+
+        :param data: The data to create the signal model.
+        :type data: dict
+
+    """
     @property
     @abstractmethod
     def fqfp(self):

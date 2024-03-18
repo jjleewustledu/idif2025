@@ -31,7 +31,6 @@ from datetime import datetime
 import numpy as np
 
 # dynesty
-import dynesty
 from dynesty import dynesty
 from dynesty import utils as dyutils
 
@@ -63,12 +62,8 @@ class DynestySolver(ABC):
 
         mdl = self.model
 
-        if not ndim:
+        if ndim is None:
             ndim = mdl.ndim
-        # if checkpoint_file is None:
-        #     class_name = self.__class__.__name__
-        #     now = datetime.now()
-        #     checkpoint_file = mdl.fqfp+"-dynesty-"+class_name+"-"+now.strftime("%Y%m%d%H%M%S")+".save"
 
         if resume:
             sampler = dynesty.DynamicNestedSampler.restore(checkpoint_file)
@@ -102,12 +97,8 @@ class DynestySolver(ABC):
 
         mdl = self.model
 
-        if not ndim:
+        if ndim is None:
             ndim = mdl.ndim
-        # if checkpoint_file is None:
-        #     class_name = self.__class__.__name__
-        #     now = datetime.now()
-        #     checkpoint_file = mdl.fqfp+"-dynesty-"+class_name+"-"+prior_tag+"-"+now.strftime("%Y%m%d%H%M%S")+".save"
 
         if resume:
             sampler = dynesty.DynamicNestedSampler.restore(checkpoint_file)

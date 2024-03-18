@@ -61,6 +61,10 @@ rcParams.update({"font.size": 30})
 
 
 def kernel_fqfn(artery_fqfn: str):
+    """
+    :param artery_fqfn: The fully qualified file name of an artery.
+    :return: The corresponding fully qualified file name of the kernel to use for that artery.
+    """
     sourcedata = os.path.join(os.getenv("SINGULARITY_HOME"), "CCIR_01211", "sourcedata",)
     if "sub-108293" in artery_fqfn:
         return os.path.join(sourcedata, "kernel_hct=46.8.nii.gz")
@@ -80,7 +84,24 @@ def kernel_fqfn(artery_fqfn: str):
 
 
 class TCModel(PETModel, ABC):
+    """Class documentation for TCModel.
 
+    :class: TCModel
+    :inheritance: PETModel, ABC
+
+    This class represents a TC Model used for PET imaging analysis.
+
+    Attributes:
+        _input_function (str): The fully qualified file path to the input function file.
+        _pet_measurement (str or dict): The fully qualified file path to the PET measurement file or a dictionary containing the PET measurement data.
+        truths (list, optional): A list of ground truth values.
+        home (str): The home directory for the model (default: current working directory).
+        sample (str): The sample type (default: "rslice").
+        nlive (int): The number of live points for dynesty sampling (default: 1000).
+        rstate (np.random.Generator): The random state for dynesty sampling (default: np.random.default_rng(916301)).
+        tag (str): A tag for the model (default: "").
+
+    """
     def __init__(self,
                  input_function,
                  pet_measurement,

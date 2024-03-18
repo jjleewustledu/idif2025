@@ -31,7 +31,29 @@ import numpy as np
 
 
 class Huang1980Model(TCModel):
+    """
 
+    The `Huang1980Model` class is a subclass of `TCModel` and represents a model for PET (Positron Emission Tomography) data based on the Huang et al. (1980) model.
+
+    Attributes:
+        - `input_function`: The input function used in the model.
+        - `pet_measurement`: The PET measurement data.
+        - `truths`: An optional argument representing the ground truth data for comparison.
+        - `home`: The home directory path.
+        - `sample`: The sampling method. Default is "rslice".
+        - `nlive`: The number of live points. Default is 1000.
+        - `rstate`: The random state used for sampling. Default is np.random.default_rng(916301).
+        - `tag`: An optional tag for identifying the model.
+
+    Properties:
+        - `labels`: Returns a list of labels for the parameters in the model.
+
+    Methods:
+        - `signalmodel(data: dict)`: Calculates and returns the signal model for the given data.
+
+    Note: This class does not define any additional methods or attributes beyond those inherited from the `TCModel` class.
+
+    """
     def __init__(self,
                  input_function,
                  pet_measurement,

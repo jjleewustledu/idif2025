@@ -31,7 +31,22 @@ import numpy as np
 
 
 class Raichle1983Model(TCModel):
+    """
+    The Raichle1983Model class is a subclass of the TCModel class that implements the signal model proposed by Raichle et al. in 1983.
 
+    Args:
+        input_function (function): The input function that describes the tracer kinetics.
+        pet_measurement (dict): The PET measurement data.
+        truths (dict, optional): The ground truth values for the parameters. Defaults to None.
+        home (str, optional): The home directory. Defaults to the current working directory.
+        sample (str, optional): The sampling method. Defaults to "rslice".
+        nlive (int, optional): The number of live points for sampling. Defaults to 1000.
+        rstate (numpy.random.Generator, optional): The random state. Defaults to np.random.default_rng(916301).
+        tag (str, optional): A tag for identification. Defaults to "".
+
+    Attributes:
+        labels (list): The labels for the parameters.
+    """
     def __init__(self,
                  input_function,
                  pet_measurement,

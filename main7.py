@@ -17,6 +17,18 @@ from Huang1980ModelVenous import Huang1980ModelVenous
 
 
 def the_tag(nlive: float, tag_rc="rc1p85", tag_vrc="vrc1"):
+    """
+    Generate a tag string based on specified parameters.
+
+    :param nlive: The value of nlive.
+    :type nlive: float
+    :param tag_rc: The value of tag_rc. Default is "rc1p85".
+    :type tag_rc: str
+    :param tag_vrc: The value of tag_vrc. Default is "vrc1".
+    :type tag_vrc: str
+    :return: The generated tag string.
+    :rtype: str
+    """
     # __file__ gives the relative path of the script
     file_path = __file__
     file_name = os.path.basename(file_path)
@@ -25,7 +37,37 @@ def the_tag(nlive: float, tag_rc="rc1p85", tag_vrc="vrc1"):
 
 
 def work(tidx, data: dict):
-    """"""
+    """
+    :param tidx: The index of the time point at which to calculate the model.
+
+    :param data: A dictionary of input data for the method.
+
+    :return: A dictionary containing the results of the method.
+
+    The 'work' method performs calculations based on the provided data dictionary.
+
+    The method starts by printing the contents of the 'data' dictionary using the 'pprint' function.
+
+    Next, it extracts the values of 'nlive' and 'venous_recovery_coefficient' from the 'data' dictionary and assigns them to variables '_nlive' and '_vrc' respectively.
+
+    The method then calls the 'the_tag' function with the value of '_nlive' and 'tag_vrc' keyword argument set to 'vrc{_vrc}'. The returned value is assigned to the variable '_tag'.
+
+    Depending on the value of 'pet_measurement' in the 'data' dictionary, the method creates an instance of one of three models:
+    - If 'trc-ho' is in 'pet_measurement', it creates an instance of 'Raichle1983Model' and assigns it to the variable '_tcm'. The model is initialized with the values of 'input_function
+    *', 'pet_measurement', 'truths', 'nlive', and 'tag'.
+    - If 'trc-oo' is in 'pet_measurement', it creates an instance of 'Mintun1984Model' and assigns it to the variable '_tcm'. The model is initialized with the values of 'input_function
+    *', 'pet_measurement', 'truths', 'nlive', and 'tag'.
+    - If 'trc-fdg' is in 'pet_measurement', it creates an instance of 'Huang1980ModelVenous' and assigns it to the variable '_tcm'. The model is initialized with the values of 'input_function
+    *', 'pet_measurement', 'truths', 'nlive', 'tag', and 'venous_recovery_coefficient'.
+
+    If none of the above conditions are met, an empty dictionary is returned.
+
+    The method then calls the 'run_nested_for_indexed_tac' method of the '_tcm' object, passing 'tidx' as the argument. The return value is assigned to the variable '_package'.
+
+    The '_tcm' object is added to the '_package' dictionary using the key 'tcm'.
+
+    Finally, the '_package' dictionary is returned as the result of the method.
+    """
 
     pprint(data)
     _nlive = data["nlive"]

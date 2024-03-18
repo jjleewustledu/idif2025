@@ -31,7 +31,36 @@ import numpy as np
 
 
 class Mintun1984Model(TCModel):
+    """
+    Mintun1984Model
 
+    The Mintun1984Model class is a subclass of the TCModel class and represents the Mintun 1984 model for PET imaging data analysis.
+
+    Attributes:
+        labels (list of str): List of labels for each parameter of the model.
+            These labels correspond to the order of the parameter values in the 'v' input.
+
+    Methods:
+        signalmodel(data: dict) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+            Calculates the model signal given the input data.
+
+            Args:
+                data (dict): A dictionary containing the following keys and values:
+                    - "halflife" (float): The radioactive isotope's half-life.
+                    - "timesMid" (np.ndarray): The mid-point times of the PET measurements.
+                    - "inputFuncInterp" (np.ndarray): The interpolated input function data.
+                    - "raichleks" (np.ndarray): The Raichle-Kety parameters.
+                    - "martinv1" (float): The Martin arterial volume parameter.
+                    - "v" (np.ndarray): The model parameter values.
+
+            Returns:
+                Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]: A tuple containing the following arrays:
+                    - rho (np.ndarray): The calculated model signal.
+                    - timesMid (np.ndarray): The mid-point times of the PET measurements.
+                    - rho_t (np.ndarray): The model signal at each time point.
+                    - times (np.ndarray): The time values.
+
+    """
     def __init__(self,
                  input_function,
                  pet_measurement,

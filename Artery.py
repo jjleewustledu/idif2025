@@ -57,7 +57,31 @@ rcParams.update({"font.size": 30})
 
 
 class Artery(PETModel, ABC):
+    """
+    Artery class for modeling arterial data in PET imaging.
 
+    Args:
+        input_func_measurement (str or dict): Path to input function measurement file or dictionary representing the input function measurement.
+        tracer (str, optional): Tracer information. If not provided, it will be extracted from the input_func_measurement file name.
+        truths (dict, optional): Dictionary representing the ground truth parameter values. If not provided, the internally stored truths will be used.
+        home (str, optional): Home directory. Defaults to the current working directory.
+        sample (str, optional): Sample type. Defaults to "rslice".
+        nlive (int, optional): Number of live points for the nested sampling algorithm. Defaults to 1000.
+        rstate (numpy.random.Generator, optional): Random state for reproducibility. Defaults to np.random.default_rng(916301).
+        tag (str, optional): Tag for saving results. Defaults to "".
+
+    Attributes:
+        KERNEL (Any): Kernel attribute.
+        __input_func_measurement (str or dict): Path to input function measurement file or dictionary representing the input function measurement.
+        HALFLIFE (float): Halflife attribute.
+        RHO (ndarray): Rho attribute.
+        SIGMA (float): Sigma attribute.
+        TAUS (ndarray): Taus attribute.
+        TIMES_MID (ndarray): TimesMid attribute.
+        tracer (str): Tracer attribute.
+        _truths_internal (dict): Internal truths attribute.
+
+    """
     def __init__(self,
                  input_func_measurement,
                  tracer=None,

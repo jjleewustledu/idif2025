@@ -32,6 +32,19 @@ import nibabel as nib
 
 
 def kernel_fqfn(artery_fqfn: str):
+    """
+    :param artery_fqfn: The fully qualified file name for an artery.
+    :return: The fully qualified file name for the corresponding kernel file.
+
+    This method takes a fully qualified file name for an artery and returns the fully qualified file name for the corresponding kernel file. It uses the artery_fqfn parameter to determine
+    * which kernel file to return based on the substring contained in the artery_fqfn.
+
+    Example usage:
+
+        artery_file = "/path/to/sub-108293_artery.nii.gz"
+        kernel_file = kernel_fqfn(artery_file)
+        print(kernel_file)  # /path/to/CCIR_01211/sourcedata/kernel_hct=46.8.nii.gz
+    """
     sourcedata = os.path.join(os.getenv("SINGULARITY_HOME"), "CCIR_01211", "sourcedata",)
     if "sub-108293" in artery_fqfn:
         return os.path.join(sourcedata, "kernel_hct=46.8.nii.gz")
@@ -51,7 +64,32 @@ def kernel_fqfn(artery_fqfn: str):
 
 
 class RadialArtery(Artery):
+    """
+    Represents a radial artery.
 
+    Args:
+        input_func_measurement (dict): The measurement data for the input function.
+        kernel_measurement (dict, optional): The measurement data for the kernel. Default is None.
+        remove_baseline (bool, optional): Flag to indicate whether to remove baseline. Default is True.
+        tracer (object, optional): The tracer object. Default is None.
+        truths (object, optional): The truths object. Default is None.
+        sample (str, optional): The sample type. Default is "rslice".
+        nlive (int, optional): The number of live points. Default is 1000.
+        rstate (RandomState, optional): The random state. Default is np.random.default_rng(916301).
+        tag (str, optional): The tag. Default is "".
+
+    Attributes:
+        KERNEL (np.array): The kernel array.
+        SIGMA (float): The sigma value.
+
+    Properties:
+        kernel_measurement (dict): The kernel measurement data.
+
+    Methods:
+        signalmodel(data: dict) -> tuple: Calculate the signal model of the radial artery.
+        apply_dispersion(vec, data: dict) -> np.array: Apply dispersion to a vector.
+
+    """
     def __init__(self, input_func_measurement,
                  kernel_measurement=None,
                  remove_baseline=True,

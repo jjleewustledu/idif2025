@@ -63,6 +63,9 @@ rcParams.update({"font.size": 30})
 
 
 class PETModel(DynestyModel):
+    """
+
+    """
     def __init__(self,
                  home=os.getcwd(),
                  sample="rslice",
@@ -129,9 +132,9 @@ class PETModel(DynestyModel):
         if tag:
             tag = "-" + tag
         fqfp1 = self.fqfp_results + tag
+        qm, _, _ = self.solver.quantile(res)
 
         try:
-            qm, _, _ = self.solver.quantile(res)
             self.plot_truths(qm, parc_index=parc_index)
             plt.savefig(fqfp1 + "-results.png")
         except Exception as e:

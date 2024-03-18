@@ -27,7 +27,40 @@ import numpy as np
 
 
 class Boxcar(Artery):
+    """
+    Boxcar class extends the Artery class and represents a boxcar signal model.
 
+    Parameters
+    ----------
+    input_func_measurement : function
+        The input function that calculates the arterial measurements.
+    tracer : Trajectory, optional
+        The tracer trajectory.
+    truths : dict, optional
+        The true values for the parameters.
+    sample : str, optional
+        The sampling method. Default is "rslice".
+    nlive : int, optional
+        The number of live points for nested sampling. Default is 1000.
+    rstate : numpy.random.SeedSequence, optional
+        The random state for sampling. Default is np.random.default_rng(916301).
+    tag : str, optional
+        The tag for the Boxcar instance. Default is "".
+
+    Attributes
+    ----------
+    SIGMA : float
+        The sigma value.
+
+    Methods
+    -------
+    signalmodel(data: dict) -> Tuple[np.ndarray, np.ndarray, np.ndarray]
+        Computes the signal and ideal values of the model.
+
+    apply_boxcar(vec, data: dict) -> np.ndarray
+        Applies the boxcar transformation to the vector.
+
+    """
     def __init__(self, input_func_measurement,
                  tracer=None,
                  truths=None,

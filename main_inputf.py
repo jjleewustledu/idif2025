@@ -16,6 +16,12 @@ from RadialArtery import RadialArtery
 
 
 def the_tag():
+    """
+    Returns the tag extracted from the filename of the script.
+
+    :return: The tag extracted from the filename.
+    :rtype: str
+    """
     # __file__ gives the relative path of the script
     file_path = __file__
     file_name = os.path.basename(file_path)
@@ -24,7 +30,14 @@ def the_tag():
 
 
 def work(tidx, data: dict):
-    """"""
+    """
+    Perform some work by Boxcar or RadialArtery with the given parameters.
+
+    :param tidx: The tidx parameter.
+    :param data: The data parameter.
+
+    :return: The results of the work.
+    """
 
     pprint(data)
     _nlive = data["nlive"]

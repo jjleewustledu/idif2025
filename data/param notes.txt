@@ -1,18 +1,3 @@
-13.000528383008500, 19.753391174512200, 59.998720348683600, 
-0.5177626148228160, 5.497541361542230, 2.035964393413510, -0.9789816658386850, -0.4161770441250010, 18.21420150735880,
-0.06400131540064900, 0.03967305471552440, 0.037361618533538800,
-2.505143760172940,
-0.0009999913062553010
-
-
-18.2058887894788, 4.970107140690640, 16.215699551701800,
-5.679312449864210, 13.023516511262600, 8.362747056537120, -1.0601868608384600, -2.520180661372900, 25.59014573443840, 
-0.1803472613476, 0.06208933385161930, 0.06046334881974790,
-2.3648124025629400,
-0.04032731923113070
-
-
-
 # Raichle
 Parameter 0: 13.774 [13.611, 13.899]
 Parameter 1: 12.254 [9.574, 13.616]
@@ -270,68 +255,6 @@ Parameter 6: 9.346 [8.769, 9.697]
 Parameter 7: -5.729 [-6.049, -5.431]
 Parameter 8: 0.034 [0.032, 0.036]
 
-# Boxcar 20210421150523, oo1
-10.960150181508300,
-0.010125218787388100,
-12.033514448247700,
-0.20547143513364000,
-12.193762084475300,
-2.320054521050010,
--0.022117255042009900,
--1.2474974848592900,
-295.6028391571060,
-0.4360639206409810,
-0.07518657405432730,
-0.17177757786604200,
-2.9510206835641900,
-0.0009999699304696180
-
-
-
-
-
-[tool.poetry]
-name = "dynesty"
-version = "0.1.0"
-description = "dynesty + idif2024"
-authors = ["John Lee <16329959+jjleewustledu@users.noreply.github.com>"]
-license = "MIT"
-readme = "README.md"
-
-[tool.poetry.dependencies]
-python = "3.8.18+"
-dynesty = "^2.1.3"
-numpy = "^1.26.4"
-scipy = "^1.12.0"
-matplotlib = "^3.8.3"
-pytest = "^8.0.2"
-pytest-cov = "^4.1.0"
-pytest-xdist = "^3.5.0"
-coveralls = "^3.3.1"
-dill = "^0.3.8"
-h5py = "^3.10.0"
-tqdm = "^4.66.2"
-jupyter = "^1.0.0"
-ipyparallel = "^8.6.1"
-pylint = "^3.1.0"
-Sphinx = "^7.2.6"
-sphinx-rtd-theme = "^2.0.0"
-numpydoc = "^1.6.0"
-nibabel = "^5.2.1"
-ipython = "^8.22.1"
-pandas = "^2.2.1"
-coverage = "^7.4.3"
-
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-
-Do you confirm generation? (yes/no) [yes] 
-(dynesty) jjlee@twistor dynesty % rsync -a pyproject.toml login3.chpc.wustl.edu:~/PycharmProjects/dynesty         
-(dynesty) jjlee@twistor dynesty % 
-
 # playground for Mintun1984Model, twil
 Parameter 0: 0.639 [0.617, 0.660]
 Parameter 1: 0.269 [0.203, 0.541]
@@ -341,14 +264,59 @@ Parameter 4: -28.524 [-28.742, -28.318]
 Parameter 5: 0.050 [0.049, 0.050]
 
 # playground for Huang1980Model, idif
-Parameter 0: 0.069 [0.068, 0.070]
-Parameter 1: 0.003 [0.003, 0.003]
-Parameter 2: 0.002 [0.002, 0.002]
-Parameter 3: 0.000 [0.000, 0.001]
-Parameter 4: 12.468 [4.434, 12.692]
-Parameter 5: -9.492 [-9.688, -1.497]
-Parameter 6: 0.020 [0.019, 0.021]
+Parameter 0: 0.395 [0.371, 0.420]
+Parameter 1: 0.134 [0.125, 0.145]
+Parameter 2: 0.004 [0.003, 0.004]
+Parameter 3: 0.002 [0.002, 0.002]
+Parameter 4: 10.857 [10.242, 11.384]
+Parameter 5: -44.222 [-44.788, -43.532]
+Parameter 6: 0.015 [0.014, 0.016]
 
+playground for Raichle1983Model:
+
+twilite:
+
+Parameter 0: 0.009 [0.007, 0.016]
+Parameter 1: 0.746 [0.720, 0.776]
+Parameter 2: 0.010 [0.008, 0.020]
+Parameter 3: 6.261 [0.419, 12.227]
+Parameter 4: -12.141 [-18.211, -6.309]
+Parameter 5: 0.021 [0.019, 0.024]
+
+idif:
+
+Parameter 0: 0.006 [0.006, 0.009]
+Parameter 1: 0.622 [0.610, 0.636]
+Parameter 2: 0.018 [0.010, 0.027]
+Parameter 3: 4.361 [0.252, 14.518]
+Parameter 4: -3.703 [-13.816, 0.394]
+Parameter 5: 0.014 [0.012, 0.016]
+
+playground for Mintun1984Model:
+
+twilite:
+
+Parameter 0: 0.470 [0.433, 0.495]
+Parameter 1: 0.270 [0.106, 0.820]
+Parameter 2: 0.886 [0.523, 0.995]
+Parameter 3: 6.742 [0.401, 12.613]
+Parameter 4: -14.034 [-19.642, -7.592]
+Parameter 5: 0.024 [0.019, 0.032]
+
+idif:
+
+Parameter 0: 0.412 [0.384, 0.437]
+Parameter 1: 0.978 [0.231, 1.605]
+Parameter 2: 0.978 [0.884, 0.999]
+Parameter 3: 14.834 [14.163, 15.605]
+Parameter 4: -10.686 [-10.970, -10.366]
+Parameter 5: 0.025 [0.019, 0.034]
+
+playground for Huang1980Model:
+
+twilite:
+
+idif:
 
 
 

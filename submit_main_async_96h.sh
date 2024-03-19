@@ -17,7 +17,7 @@
 #SBATCH --priority=0
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=30
-#SBATCH --mem-per-cpu=3G
+#SBATCH --mem-per-cpu=12G
 #SBATCH --time=96:00:00
 #SBATCH --reservation=Aris_group
 #SBATCH --account=aristeidis_sotiras

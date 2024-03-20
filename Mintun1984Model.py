@@ -152,8 +152,8 @@ class Mintun1984Model(TCModel):
         # compartment 1
         # v_post = 0.83*v1
         # v_cap = 0.01*v1
-        R = 0.85  # ratio of small-vessel to large-vessel Hct
-        rho1 = v1 * R * (1 - oef * v_post_cap) * artery_o2
+        # R = 0.85  # ratio of small-vessel to large-vessel Hct
+        rho1 = v1 * (1 - oef * v_post_cap) * artery_o2
 
         rho_t = rho1[:n] + rho2[:n]
         rho_t = Mintun1984Model.slide(rho_t, times, t_0, hl)

@@ -621,7 +621,7 @@ class TCModel(PETModel, ABC):
         v = u
         v[0] = u[0] * 0.6 + 0.2  # OEF
         v[1] = u[1] * 1.8 + 0.1  # frac. water of metab. at 90 s
-        v[2] = u[2] * 0.5 + 0.5  # v_{post} + 0.5 v_{cap}
+        v[2] = u[2] * 0.3 + 0.7  # v_{post} + 0.5 v_{cap}
         v[3] = u[3] * 20  # t_0 (s)
         v[4] = u[4] * (-60) + 20  # \tau_a (s)
         v[5] = u[5] * TCModel.sigma()  # sigma ~ fraction of M0

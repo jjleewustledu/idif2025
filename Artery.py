@@ -90,12 +90,13 @@ class Artery(PETModel, ABC):
                  sample="rslice",
                  nlive=1000,
                  rstate=np.random.default_rng(916301),
+                 times_last=None,
                  tag=""):
         super().__init__(home=home,
                          sample=sample,
                          nlive=nlive,
                          rstate=rstate,
-                         time_last=180,
+                         time_last=times_last,
                          tag=tag)
 
         self._truths_internal = truths

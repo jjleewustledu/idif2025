@@ -149,7 +149,7 @@ if __name__ == '__main__':
     if "idif".lower() in input_func_kind.lower():
         if "fdg" in prefix:
             input_func = (prefix +
-                          "proc-MipIdif_idif_dynesty-Boxcar-ideal-embed.nii.gz")
+                          "proc-MipIdif_idif_dynesty-Boxcar-ideal-plasma.nii.gz")
         else:
             input_func = (prefix +
                           "proc-MipIdif_idif_dynesty-Boxcar-ideal.nii.gz")
@@ -158,7 +158,7 @@ if __name__ == '__main__':
         if "fdg" in prefix:
             input_func = (
                     prefix +
-                    "proc-TwiliteKit-do-make-input-func-nomodel_inputfunc_dynesty-RadialArtery-ideal-embed.nii.gz")
+                    "proc-TwiliteKit-do-make-input-func-nomodel_inputfunc_dynesty-RadialArtery-ideal-plasma.nii.gz")
         else:
             input_func = (
                     prefix +

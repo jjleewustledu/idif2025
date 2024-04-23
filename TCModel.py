@@ -110,12 +110,13 @@ class TCModel(PETModel, ABC):
                  sample="rslice",
                  nlive=1000,
                  rstate=np.random.default_rng(916301),
+                 time_last=None,
                  tag=""):
         super().__init__(home=home,
                          sample=sample,
                          nlive=nlive,
                          rstate=rstate,
-                         time_last=None,
+                         time_last=time_last,
                          tag=tag)
 
         self._input_function = input_function  # fqfn to be converted to dict by property
@@ -284,13 +285,15 @@ class TCModel(PETModel, ABC):
             self.ARTERY = Boxcar(
                 fqfn,
                 truths=self.truths[:14],
-                nlive=self.NLIVE)
+                nlive=self.NLIVE,
+                times_last=self.TIME_LAST)
         elif "TwiliteKit-do-make-input-func-nomodel" in fqfn:
             self.ARTERY = RadialArtery(
                 fqfn,
                 kernel_fqfn(fqfn),
                 truths=self.truths[:14],
-                nlive=self.NLIVE)
+                nlive=self.NLIVE,
+                times_last=self.TIME_LAST)
         else:
             raise RuntimeError(self.__class__.__name__ + ": does not yet support " + fqfn)
 
@@ -582,9 +585,9 @@ class TCModel(PETModel, ABC):
         product["img"] = res_dict["martinv1"]
         self.save_nii(product, fqfp1 + "-martinv1.nii.gz")
 
-        product = deepcopy(petm)
-        product["img"] = res_dict["raichleks"]
-        self.save_nii(product, fqfp1 + "-raichleks.nii.gz")
+        # product = deepcopy(petm)
+        # product["img"] = res_dict["raichleks"]
+        # self.save_nii(product, fqfp1 + "-raichleks.nii.gz")
 
     @staticmethod
     def decay_correct(tac: dict):

@@ -68,6 +68,7 @@ class Huang1980ModelVenous(TCModel):
                          sample=sample,
                          nlive=nlive,
                          rstate=rstate,
+                         time_last=None,
                          tag=tag)
 
         # self.RECOVERY_COEFFICIENT = self.RECOVERY_COEFFICIENT * venous_recovery_coefficient

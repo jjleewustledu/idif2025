@@ -32,25 +32,17 @@ class Boxcar(Artery):
 
     Parameters
     ----------
-    input_func_measurement : function
-        The input function that calculates the arterial measurements.
-    tracer : Trajectory, optional
-        The tracer trajectory.
-    truths : dict, optional
-        The true values for the parameters.
-    sample : str, optional
-        The sampling method. Default is "rslice".
-    nlive : int, optional
-        The number of live points for nested sampling. Default is 1000.
-    rstate : numpy.random.SeedSequence, optional
-        The random state for sampling. Default is np.random.default_rng(916301).
-    tag : str, optional
-        The tag for the Boxcar instance. Default is "".
+    input_func_measurement (dict): The measurement data for the input function.
+    tracer (Trajectory, optional): The tracer trajectory.
+    truths (dict, optional): The true values for the parameters.
+    sample (str, optional): The sampling method. Default is "rslice".
+    nlive (int, optional): The number of live points for nested sampling. Default is 1000.
+    rstate (numpy.random.SeedSequence, optional): The random state for sampling. Default is np.random.default_rng(916301).
+    tag (str, optional): The tag for the Boxcar instance. Default is "".
 
     Attributes
     ----------
-    SIGMA : float
-        The sigma value.
+    SIGMA (float): The sigma value.
 
     Methods
     -------
@@ -67,6 +59,7 @@ class Boxcar(Artery):
                  sample="rslice",
                  nlive=1000,
                  rstate=np.random.default_rng(916301),
+                 times_last=None,
                  tag=""):
         super().__init__(input_func_measurement,
                          tracer=tracer,
@@ -74,6 +67,7 @@ class Boxcar(Artery):
                          sample=sample,
                          nlive=nlive,
                          rstate=rstate,
+                         times_last=times_last,
                          tag=tag)
 
         self.SIGMA = 0.01

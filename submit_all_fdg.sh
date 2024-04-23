@@ -8,7 +8,7 @@ subs=("sub-108293" "sub-108237" "sub-108250" "sub-108306")
 avrc="1"
 if_types=("twil" "idif")
 proc="trc-fdg_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames*-ParcSchaeffer-reshape-to-schaeffer-schaeffer.nii.gz"
-submit_main="${HOME}/PycharmProjects/dynesty/idif2024/submit_main_async_96h.sh"
+submit_main="${HOME}/PycharmProjects/dynesty/idif2024/submit_main_async_168h.sh"
 
 for sub in "${subs[@]}"; do
   containing_folder="$derivatives/$sub"

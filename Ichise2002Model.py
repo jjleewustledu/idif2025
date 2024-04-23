@@ -58,6 +58,7 @@ class Ichise2002Model(TCModel):
                  sample="rslice",
                  nlive=1000,
                  rstate=np.random.default_rng(916301),
+                 time_last=None,
                  tag=""):
         super().__init__(input_function,
                          pet_measurement,
@@ -66,6 +67,7 @@ class Ichise2002Model(TCModel):
                          sample=sample,
                          nlive=nlive,
                          rstate=rstate,
+                         time_last=time_last,
                          tag=tag)
 
     @property

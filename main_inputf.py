@@ -117,20 +117,20 @@ if __name__ == '__main__':
     if "idif".lower() in input_func_kind.lower():
         if "fdg" in prefix:
             input_func = (prefix +
-                          "proc-MipIdif_idif_dynesty-Boxcar-ideal-embed.nii.gz")
+                          "proc-MipIdif_idif.nii.gz")
         else:
             input_func = (prefix +
-                          "proc-MipIdif_idif_dynesty-Boxcar-ideal.nii.gz")
+                          "proc-MipIdif_idif.nii.gz")
     elif ("twil".lower() in input_func_kind.lower() or
           "aif".lower() in input_func_kind.lower()):
         if "fdg" in prefix:
             input_func = (
                     prefix +
-                    "proc-TwiliteKit-do-make-input-func-nomodel_inputfunc_dynesty-RadialArtery-ideal-embed.nii.gz")
+                    "proc-TwiliteKit-do-make-input-func-nomodel_inputfunc.nii.gz")
         else:
             input_func = (
                     prefix +
-                    "proc-TwiliteKit-do-make-input-func-nomodel_inputfunc_dynesty-RadialArtery-ideal.nii.gz")
+                    "proc-TwiliteKit-do-make-input-func-nomodel_inputfunc.nii.gz")
     else:
         raise RuntimeError(__name__ + ": input_func_kind -> " + input_func_kind)
 

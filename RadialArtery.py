@@ -98,6 +98,7 @@ class RadialArtery(Artery):
                  sample="rslice",
                  nlive=1000,
                  rstate=np.random.default_rng(916301),
+                 times_last=None,
                  tag=""):
         super().__init__(input_func_measurement,
                          tracer=tracer,
@@ -105,6 +106,7 @@ class RadialArtery(Artery):
                          sample=sample,
                          nlive=nlive,
                          rstate=rstate,
+                         times_last=times_last,
                          tag=tag)
 
         self.__kernel_measurement = kernel_measurement  # set with fqfn

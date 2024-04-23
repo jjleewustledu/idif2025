@@ -70,6 +70,7 @@ class Huang1980Model(TCModel):
                          sample=sample,
                          nlive=nlive,
                          rstate=rstate,
+                         time_last=None,
                          tag=tag)
 
     @property

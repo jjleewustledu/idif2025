@@ -69,6 +69,7 @@ class Mintun1984Model(TCModel):
                  sample="rslice",
                  nlive=1000,
                  rstate=np.random.default_rng(916301),
+                 time_last=180,
                  tag=""):
         super().__init__(input_function,
                          pet_measurement,
@@ -77,6 +78,7 @@ class Mintun1984Model(TCModel):
                          sample=sample,
                          nlive=nlive,
                          rstate=rstate,
+                         time_last=time_last,
                          tag=tag)
 
     @property
@@ -152,7 +154,7 @@ class Mintun1984Model(TCModel):
         # compartment 1
         # v_post = 0.83*v1
         # v_cap = 0.01*v1
-        # R = 0.85  # ratio of small-vessel to large-vessel Hct
+        # R = 0.85  # ratio of small-vessel to large-vessel Hct needed when v1 := CBV * R
         rho1 = v1 * (1 - oef * v_post_cap) * artery_o2
 
         rho_t = rho1[:n] + rho2[:n]

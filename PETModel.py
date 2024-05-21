@@ -237,21 +237,14 @@ class PETModel(DynestyModel):
         return times + taus / 2
 
     @staticmethod
-    def parse_halflife(fqfp):
-        iso = PETModel.parse_isotope(fqfp)
-        if iso == "15O":
-            return 122.2416  # sec
-        if iso == "18F":
-            return 1.82951 * 3600  # sec
-        raise ValueError(f"tracer and halflife not identifiable from fqfp {fqfp}")
+    @abstractmethod
+    def parse_halflife(fqfp: str):
+        pass
 
     @staticmethod
+    @abstractmethod
     def parse_isotope(name: str):
-        if "trc-co" in name or "trc-oc" in name or "trc-oo" in name or "trc-ho" in name:
-            return "15O"
-        if "trc-fdg" in name:
-            return "18F"
-        raise ValueError(f"tracer and isotope not identifiable from name {name}")
+        pass
 
     @staticmethod
     def slide(rho, t, dt, halflife=None):

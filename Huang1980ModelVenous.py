@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 from TCModel import TCModel
+from Boxcar import Boxcar
 
 # general & system functions
 import os
@@ -112,5 +113,6 @@ class Huang1980ModelVenous(TCModel):
 
         rho_t = v1 * (input_func_interp + q2 + q3)
         rho_t = Huang1980ModelVenous.slide(rho_t, times, t_0, None)
-        rho = np.interp(timesMid, times, rho_t)
+        # rho = np.interp(timesMid, times, rho_t)
+        rho = Boxcar.apply_boxcar(rho_t, data)
         return rho, timesMid, rho_t, times

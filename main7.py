@@ -92,7 +92,7 @@ def work(tidx, data: dict):
         _tcm = Huang1980ModelVenous(
             data["input_function"],
             data["pet_measurement"],
-            truths=[0.069, 0.003, 0.002, 0.000, 12.468, -9.492, 0.020],
+            truths=[0.476, 0.094, 0.005, 0.0, 9.066, -43.959, 0.021],
             nlive=_nlive,
             tag=_tag,
             venous_recovery_coefficient=_vrc)
@@ -206,11 +206,16 @@ if __name__ == '__main__':
             rhos_pred.append(_rho_pred)
             resids.append(np.sum(_rho_pred - tcm.RHO) / np.sum(tcm.RHO))
             martinv1s.append(np.squeeze(tcm.martin_v1_measurement["img"]))
-            raichlekss.append(np.squeeze(tcm.raichle_ks_measurement["img"]))
+            if tcm.raichle_ks_measurement and tcm.raichle_ks_measurement["img"]:
+                raichlekss.append(np.squeeze(tcm.raichle_ks_measurement["img"]))
         except Exception as e:
             # catch any error to enable graceful exit with writing whatever results were incompletely obtained
             logging.exception(__name__ + ": error in tcm -> " + str(e), exc_info=True)
 
+    if raichlekss:
+        stacked_raichlekss = np.vstack(raichlekss)
+    else:
+        stacked_raichlekss = []
     package1 = {
         "res": ress,
         "logz": np.array(logzs),
@@ -221,7 +226,7 @@ if __name__ == '__main__':
         "rho_pred": np.vstack(rhos_pred),
         "resid": np.array(resids),
         "martinv1": np.array(martinv1s),
-        "raichleks": np.vstack(raichlekss)}
+        "raichleks": stacked_raichlekss}
 
     packages[0]["tcm"].save_results(package1, tag=the_tag(Nlive, tag_vrc=f"vrc{vrc}"))
 

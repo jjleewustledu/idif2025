@@ -99,7 +99,7 @@ if __name__ == '__main__':
     try:
         Nlive = int(sys.argv[4])
     except ValueError:
-        Nlive = 8000
+        Nlive = 1000
     try:
         vrc = int(sys.argv[5])
     except ValueError:

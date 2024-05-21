@@ -109,6 +109,7 @@ class TCModel(PETModel, ABC):
                  home=os.getcwd(),
                  sample="rslice",
                  nlive=1000,
+                 recovery_coefficient=1.8509,
                  rstate=np.random.default_rng(916301),
                  time_last=None,
                  tag=""):
@@ -122,6 +123,7 @@ class TCModel(PETModel, ABC):
         self._input_function = input_function  # fqfn to be converted to dict by property
         self._pet_measurement = pet_measurement  # fqfn to be converted to dict by property
         self._truths_internal = truths
+        self.RECOVERY_COEFFICIENT = recovery_coefficient
 
         self.ARTERY = None
         petm = self.pet_measurement
@@ -136,10 +138,11 @@ class TCModel(PETModel, ABC):
         self.SIGMA = 0.2
         self.TAUS = petm["taus"]
         self.TIMES_MID = petm["timesMid"]
+        self.V1_ASSUMED = np.array(0.05)
         try:
             self.MARTIN_V1 = self.__slice_parc(self.martin_v1_measurement["img"], 0)
         except (FileNotFoundError, TypeError, KeyError):
-            self.MARTIN_V1 = np.array(0)
+            self.MARTIN_V1 = self.V1_ASSUMED
         try:
             self.RAICHLE_KS = self.__slice_parc(self.raichle_ks_measurement["img"], 0)
         except (FileNotFoundError, TypeError, KeyError):
@@ -411,7 +414,7 @@ class TCModel(PETModel, ABC):
         if self.RHOS.ndim == 1:
             self.RHO = self.RHOS
             tac = self.RHO
-            self.MARTIN_V1 = np.array(0)
+            self.MARTIN_V1 = self.V1_ASSUMED
             self.RAICHLE_KS = None
 
             _res = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
@@ -453,7 +456,7 @@ class TCModel(PETModel, ABC):
                 try:
                     self.MARTIN_V1 = self.__slice_parc(self.martin_v1_measurement["img"], tidx)
                 except (FileNotFoundError, TypeError, KeyError):
-                    self.MARTIN_V1 = np.array(0)
+                    self.MARTIN_V1 = self.V1_ASSUMED
                 try:
                     self.RAICHLE_KS = self.__slice_parc(self.raichle_ks_measurement["img"], tidx)
                 except (FileNotFoundError, TypeError, KeyError):
@@ -504,7 +507,7 @@ class TCModel(PETModel, ABC):
         try:
             self.MARTIN_V1 = self.__slice_parc(self.martin_v1_measurement["img"], tidx)
         except (FileNotFoundError, TypeError, KeyError):
-            self.MARTIN_V1 = np.array(0)
+            self.MARTIN_V1 = self.V1_ASSUMED
         try:
             self.RAICHLE_KS = self.__slice_parc(self.raichle_ks_measurement["img"], tidx)
         except (FileNotFoundError, TypeError, KeyError):

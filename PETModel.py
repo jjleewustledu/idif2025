@@ -80,7 +80,6 @@ class PETModel(DynestyModel):
                                     rstate=rstate)
         self.NLIVE = nlive
         self.TIME_LAST = time_last
-        self.RECOVERY_COEFFICIENT = 1.8509
         self.TAG = tag
 
     @property
@@ -145,24 +144,24 @@ class PETModel(DynestyModel):
             dyplot.runplot(res)
             plt.tight_layout()
             plt.savefig(fqfp1 + "-runplot.png")
-        except RuntimeError as e:
-            print(f"PETModel.plot_results.dyplot.runplot: caught a RuntimeError: {e}")
+        except ValueError as e:
+            print(f"PETModel.plot_results.dyplot.runplot: caught a ValueError: {e}")
 
         try:
             fig, axes = dyplot.traceplot(res, labels=self.labels, truths=qm,
                                          fig=plt.subplots(self.ndim, 2, figsize=(16, 50)))
             fig.tight_layout()
             plt.savefig(fqfp1 + "-traceplot.png")
-        except RuntimeError as e:
-            print(f"PETModel.plot_results.dyplot.traceplot: caught a RuntimeError: {e}")
+        except ValueError as e:
+            print(f"PETModel.plot_results.dyplot.traceplot: caught a ValueError: {e}")
 
         try:
             dyplot.cornerplot(res, truths=qm, show_titles=True,
                               title_kwargs={"y": 1.04}, labels=self.labels,
                               fig=plt.subplots(self.ndim, self.ndim, figsize=(100, 100)))
             plt.savefig(fqfp1 + "-cornerplot.png")
-        except RuntimeError as e:
-            print(f"PETModel.plot_results.dyplot.cornerplot: caught a RuntimeError: {e}")
+        except ValueError as e:
+            print(f"PETModel.plot_results.dyplot.cornerplot: caught a ValueError: {e}")
 
     def save_csv(self, data: dict, fqfn=None):
         """ """

@@ -116,8 +116,8 @@ class Mintun1984Model(TCModel):
         else:
             raise RuntimeError(Mintun1984Model.signalmodel.__name__+": raichleks.ndim->"+raichleks.ndim)
         m = 1 - np.exp(-PS / f)
-        n = len(input_func_interp)
-        times = np.arange(n)
+        n = len(input_func_interp) * data["delta_time"]
+        times = np.arange(n, data["delta_time"])
         input_func_interp = Mintun1984Model.slide(input_func_interp, times, tau_a, hl)
         indices = np.where(input_func_interp > 0.05 * max(input_func_interp))
         try:
@@ -159,6 +159,8 @@ class Mintun1984Model(TCModel):
 
         rho_t = rho1[:n] + rho2[:n]
         rho_t = Mintun1984Model.slide(rho_t, times, t_0, hl)
-        # rho = np.interp(timesMid, times, rho_t)
-        rho = Boxcar.apply_boxcar(rho_t, data)
+        if data["rhoUsesBoxcar"]:
+            rho = Boxcar.apply_boxcar(rho_t, data)
+        else:
+            rho = np.interp(timesMid, times, rho_t)
         return rho, timesMid, rho_t, times

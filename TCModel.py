@@ -25,6 +25,7 @@ from abc import ABC
 from PETModel import PETModel
 from Boxcar import Boxcar
 from RadialArtery import RadialArtery
+from TrivialArtery import TrivialArtery
 
 # general & system functions
 import glob
@@ -112,7 +113,8 @@ class TCModel(PETModel, ABC):
                  recovery_coefficient=1.8509,
                  rstate=np.random.default_rng(916301),
                  time_last=None,
-                 tag=""):
+                 tag="",
+                 delta_time=1):
         super().__init__(home=home,
                          sample=sample,
                          nlive=nlive,
@@ -126,13 +128,14 @@ class TCModel(PETModel, ABC):
         self.RECOVERY_COEFFICIENT = recovery_coefficient
 
         self.ARTERY = None
+        self.DELTA_TIME = np.round(delta_time)
         petm = self.pet_measurement
         pprint(self.input_function())
         inputf_timesMid = self.input_function()["timesMid"]
-        inputf_timesMidInterp = np.arange(petm["timesMid"][-1])
+        inputf_timesMidInterp = np.arange(petm["timesMid"][0], petm["timesMid"][-1], self.DELTA_TIME)
         self.HALFLIFE = self.input_function()["halflife"]
         self.INPUTF_INTERP = self.input_function()["img"] / np.max(petm["img"])
-        self.INPUTF_INTERP = np.interp(inputf_timesMid, inputf_timesMidInterp, self.INPUTF_INTERP)
+        self.INPUTF_INTERP = np.interp(inputf_timesMidInterp, inputf_timesMid, self.INPUTF_INTERP)
         self.RHOS = petm["img"] / np.max(petm["img"])
         self.RHO = self.__slice_parc(self.RHOS, 0)
         self.SIGMA = 0.2
@@ -265,15 +268,18 @@ class TCModel(PETModel, ABC):
         elif img1.ndim == 2:
             return img1[xindex]
         else:
-            raise RuntimeError(self.__class__.__name__ + "__slice_parc: img1.ndim -> " + img1.ndim)
+            raise RuntimeError(self.__class__.__name__ + ".__slice_parc: img1.ndim -> " + img1.ndim)
 
     def data(self, v):
+        rhoUsesBoxcar = self.TAUS[2] > self.TIMES_MID[2] - self.TIMES_MID[1]
         return deepcopy({
             "halflife": self.HALFLIFE,
             "rho": self.RHO, "rhos": self.RHOS, "timesMid": self.TIMES_MID, "taus": self.TAUS,
             "times": (self.TIMES_MID - self.TAUS / 2), "inputFuncInterp": self.INPUTF_INTERP,
             "martinv1": self.MARTIN_V1, "raichleks": self.RAICHLE_KS,
-            "v": v})
+            "v": v,
+            "rhoUsesBoxcar": rhoUsesBoxcar,
+            "delta_time": self.DELTA_TIME})
 
     def input_function(self):
         """input function read from filesystem, never updated during dynesty operations"""
@@ -297,6 +303,10 @@ class TCModel(PETModel, ABC):
                 truths=self.truths[:14],
                 nlive=self.NLIVE,
                 times_last=self.TIME_LAST)
+        elif "_proc-" in fqfn and "-aif" in fqfn:
+            self.ARTERY = TrivialArtery(
+                fqfn,
+                times_last=self.TIME_LAST)
         else:
             raise RuntimeError(self.__class__.__name__ + ": does not yet support " + fqfn)
 
@@ -308,7 +318,7 @@ class TCModel(PETModel, ABC):
 
         # interpolate to timing domain of pet_measurements
         petm = self.pet_measurement
-        tMI = np.arange(0, round(petm["timesMid"][-1]))
+        tMI = np.arange(0, round(petm["timesMid"][-1]), self.DELTA_TIME)
         niid["img"] = np.interp(tMI, niid["timesMid"], niid["img"])
         niid["timesMid"] = tMI
         self._input_function = niid
@@ -326,7 +336,7 @@ class TCModel(PETModel, ABC):
 
         return loglike
 
-    def plot_truths(self, truths=None, parc_index=None):
+    def plot_truths(self, truths=None, parc_index=None, activity_units="Bq/cm^3"):
         if truths is None:
             truths = self.truths
         data = self.data(truths)
@@ -335,27 +345,27 @@ class TCModel(PETModel, ABC):
         petm = self.pet_measurement
         t_petm = petm["timesMid"]
         if parc_index:
-            rho_petm = petm["img"][parc_index]
+            petm_hat = petm["img"][parc_index]
         else:
             selected_axes = tuple(np.arange(petm["img"].ndim - 1))
-            rho_petm = np.median(petm["img"], axis=selected_axes)  # evaluates mean of petm["img"] for spatial dimensions only
+            petm_hat = np.median(petm["img"], axis=selected_axes)  # evaluates mean of petm["img"] for spatial dimensions only
         M0 = np.max(petm["img"])
 
         inputf = self.input_function()
-        t_inputf = self.input_function()["timesMid"]
-        rho_inputf = inputf["img"]
-        I0 = M0 / np.max(rho_inputf)
+        t_inputf = inputf["timesMid"]
+        inputf_hat = inputf["img"]
+        I0 = M0 / np.max(inputf_hat)
 
         plt.figure(figsize=(12, 8))
-        p1, = plt.plot(t_inputf, I0 * rho_inputf, color="black", linewidth=2, alpha=0.7,
+        p1, = plt.plot(t_inputf, I0 * inputf_hat, color="black", linewidth=2, alpha=0.7,
                        label=f"input function x {I0:.3}")
-        p2, = plt.plot(t_petm, rho_petm, color="black", marker="+", ls="none", alpha=0.9, markersize=16,
+        p2, = plt.plot(t_petm, petm_hat, color="black", marker="+", ls="none", alpha=0.9, markersize=16,
                        label=f"measured TAC, parcel {parc_index}")
         p3, = plt.plot(t_pred, M0 * rho_pred, marker="o", color="red", ls="none", alpha=0.8,
                        label=f"predicted TAC, parcel {parc_index}")
         plt.xlim([-0.1, 1.1 * np.max([np.max(t_petm), np.max(t_inputf)])])
         plt.xlabel("time of mid-frame (s)")
-        plt.ylabel("activity (Bq/mL)")
+        plt.ylabel("activity (" + activity_units + ")")
         plt.legend(handles=[p1, p2, p3], loc="right", fontsize=12)
         plt.tight_layout()
 
@@ -394,8 +404,9 @@ class TCModel(PETModel, ABC):
             "Raichle1983Model": self.prior_transform_raichle,
             "Mintun1984Model": self.prior_transform_mintun,
             "Huang1980ModelVenous": self.prior_transform_huang,
-            "Huang1980Model": self.prior_transform_huang
-        }.get(self.__class__.__name__, self.prior_transform_ichise)
+            "Huang1980Model": self.prior_transform_huang,
+            "Ichise2002Model": self.prior_transform_ichise,
+        }.get(self.__class__.__name__, self.prior_transform_ichise_vasc)
 
     def run_nested(self, checkpoint_file=None, print_progress=False, resume=False):
         """ default: checkpoint_file=self.fqfp+"_dynesty-ModelClass-yyyyMMddHHmmss.save") """
@@ -607,27 +618,6 @@ class TCModel(PETModel, ABC):
         return _tac
 
     @staticmethod
-    def parse_halflife(fqfp: str):
-        iso = PETModel.parse_isotope(fqfp)
-        if iso == "15O":
-            return 122.2416  # sec
-        if iso == "11C":
-            return 20.340253 * 60  # sec
-        if iso == "18F":
-            return 1.82951 * 3600  # sec
-        raise ValueError(f"tracer and halflife not identifiable from fqfp {fqfp}")
-
-    @staticmethod
-    def parse_isotope(name: str):
-        if "trc-co" in name or "trc-oc" in name or "trc-oo" in name or "trc-ho" in name:
-            return "15O"
-        if "trc-cglc" in name or "trc-cs1p1" in name:
-            return "11C"
-        if "trc-fdg" in name or "trc-tz3108" in name or "trc-asem" in name or "trc-azan" in name or "trc-vat" in name:
-            return "18F"
-        raise ValueError(f"tracer and isotope not identifiable from name {name}")
-
-    @staticmethod
     def prior_transform_martin(u):
         v = u
         return v
@@ -657,10 +647,10 @@ class TCModel(PETModel, ABC):
     @staticmethod
     def prior_transform_huang(u):
         v = u
-        v[0] = u[0] * 0.5  # K_1 (mL cm^{-3}s^{-1})
+        v[0] = u[0] * 0.5  # k_1 (1/s)
         v[1] = u[1] * 0.5  # k_2 (1/s)
         v[2] = u[2] * 0.05  # k_3 (1/s)
-        v[3] = u[3] * 0.05  # k_4 (1/s)
+        v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
         v[4] = u[4] * 20  # t_0 (s)
         v[5] = u[5] * (-35) - 15  # \tau_a (s)
         v[6] = u[6] * TCModel.sigma()  # sigma ~ fraction of M0
@@ -670,11 +660,24 @@ class TCModel(PETModel, ABC):
     def prior_transform_ichise(u):
         v = u
         v[0] = u[0] * 1.5  # K_1 (mL/cm^{-3}s^{-1})
-        v[1] = v[1] * 0.5  # k_2 (1/s)
-        v[2] = v[2] * 0.05  # k_3 (1/s)
-        v[3] = v[3] * 0.05  # k_4 (1/s)
-        v[4] = v[4] * 0.999 + 0.001  # V_P (mL/cm^{-3})
-        v[5] = v[5] * 99.9 + 0.1  # V_N + V_S (mL/cm^{-3})
+        v[1] = u[1] * 0.5  # k_2 (1/s)
+        v[2] = u[2] * 0.05  # k_3 (1/s)
+        v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
+        v[4] = u[4] * 99.9 + 0.1  # V (mL/cm^{-3}) is total volume := V_N + V_S
+        v[5] = u[5] * 20  # t_0 (s)
+        v[6] = u[6] * (-35) - 15  # \tau_a (s)
+        v[7] = u[7] * TCModel.sigma()  # sigma ~ fraction of M0
+        return v
+
+    @staticmethod
+    def prior_transform_ichise_vasc(u):
+        v = u
+        v[0] = u[0] * 1.5  # K_1 (mL/cm^{-3}s^{-1})
+        v[1] = u[1] * 0.5  # k_2 (1/s)
+        v[2] = u[2] * 0.05  # k_3 (1/s)
+        v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
+        v[4] = u[4] * 0.999 + 0.001  # V_P (mL/cm^{-3})
+        v[5] = u[5] * 99.9 + 0.1  # V^\star (mL/cm^{-3}) is total volume := V_P + V_N + V_S
         v[6] = u[6] * 20  # t_0 (s)
         v[7] = u[7] * (-35) - 15  # \tau_a (s)
         v[8] = u[8] * TCModel.sigma()  # sigma ~ fraction of M0

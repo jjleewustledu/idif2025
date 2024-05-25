@@ -86,12 +86,15 @@ class Raichle1983Model(TCModel):
         t_0 = v[3]
         tau_a = v[4]
         E = 1 - np.exp(-ps / f)
-        times = np.arange(0, len(input_func_interp))
+        n = len(input_func_interp) * data["delta_time"]
+        times = np.arange(n, data["delta_time"])
         kernel = np.exp(-E * f * times / lamb - 0.005670305 * times)
         input_func_interp = Raichle1983Model.slide(input_func_interp, times, tau_a, hl)
         rho_t = E * f * np.convolve(kernel, input_func_interp, mode="full")
         rho_t = rho_t[:input_func_interp.size]  # + v1 * input_func_interp  # inconsistent with data?
         rho_t = Raichle1983Model.slide(rho_t, times, t_0, hl)
-        # rho = np.interp(timesMid, times, rho_t)
-        rho = Boxcar.apply_boxcar(rho_t, data)
+        if data["rhoUsesBoxcar"]:
+            rho = Boxcar.apply_boxcar(rho_t, data)
+        else:
+            rho = np.interp(timesMid, times, rho_t)
         return rho, timesMid, rho_t, times

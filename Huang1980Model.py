@@ -62,7 +62,8 @@ class Huang1980Model(TCModel):
                  sample="rslice",
                  nlive=1000,
                  rstate=np.random.default_rng(916301),
-                 tag=""):
+                 tag="",
+                 delta_time=1):
         super().__init__(input_function,
                          pet_measurement,
                          truths=truths,
@@ -71,7 +72,8 @@ class Huang1980Model(TCModel):
                          nlive=nlive,
                          rstate=rstate,
                          time_last=None,
-                         tag=tag)
+                         tag=tag,
+                         delta_time=delta_time)
 
     @property
     def labels(self):
@@ -93,7 +95,8 @@ class Huang1980Model(TCModel):
         t_0 = v[4]
         tau_a = v[5]
         n = len(input_func_interp)
-        times = np.arange(n)
+        tf_interp = n * data["delta_time"]
+        times = np.arange(0, tf_interp, data["delta_time"])
         input_func_interp = Huang1980Model.slide(input_func_interp, times, tau_a, None)
 
         # use k1:k4
@@ -110,8 +113,12 @@ class Huang1980Model(TCModel):
         q2 = (k1 / bminusa) * conv2
         q3 = (k3 * k1 / bminusa) * conv3
 
+        # rho_t is the inferred source signal
+
         rho_t = v1 * (input_func_interp + q2 + q3)
         rho_t = Huang1980Model.slide(rho_t, times, t_0, None)
-        # rho = np.interp(timesMid, times, rho_t)
-        rho = Boxcar.apply_boxcar(rho_t, data)
+        if data["rhoUsesBoxcar"]:
+            rho = Boxcar.apply_boxcar(rho_t, data)
+        else:
+            rho = np.interp(timesMid, times, rho_t)
         return rho, timesMid, rho_t, times

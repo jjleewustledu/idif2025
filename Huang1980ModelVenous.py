@@ -111,8 +111,12 @@ class Huang1980ModelVenous(TCModel):
         q2 = (k1 / bminusa) * conv2
         q3 = (k3 * k1 / bminusa) * conv3
 
+        # rho_t is the inferred source signal
+
         rho_t = v1 * (input_func_interp + q2 + q3)
         rho_t = Huang1980ModelVenous.slide(rho_t, times, t_0, None)
-        # rho = np.interp(timesMid, times, rho_t)
-        rho = Boxcar.apply_boxcar(rho_t, data)
+        if data["rhoUsesBoxcar"]:
+            rho = Boxcar.apply_boxcar(rho_t, data)
+        else:
+            rho = np.interp(timesMid, times, rho_t)
         return rho, timesMid, rho_t, times

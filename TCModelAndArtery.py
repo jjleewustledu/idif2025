@@ -121,8 +121,9 @@ class TCModelAndArtery(TCModel, ABC):
             "Martin1987ModelAndArtery": self.prior_transform_martin,
             "Raichle1983ModelAndArtery": self.prior_transform_raichle,
             "Mintun1984ModelAndArtery": self.prior_transform_mintun,
-            "Huang1980ModelAndArtery": self.prior_transform_huang
-        }.get(self.__class__.__name__, self.prior_transform_ichise)
+            "Huang1980ModelAndArtery": self.prior_transform_huang,
+            "Ichise2002Model": self.prior_transform_ichise,
+        }.get(self.__class__.__name__, self.prior_transform_ichise_vasc)
 
     # def save_results(self, res_dict: dict):
     #     super().save_results(res_dict)
@@ -157,7 +158,7 @@ class TCModelAndArtery(TCModel, ABC):
         return v
 
     @staticmethod
-    def prior_transform_ichise(u):
+    def prior_transform_ichise_vasc(u):
         v = u
         v[:14] = Artery.prior_transform_default(u[:14])
         v[14:] = TCModel.prior_transform_ichise(u[14:])

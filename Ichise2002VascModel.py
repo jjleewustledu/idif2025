@@ -31,7 +31,7 @@ import numpy as np
 import scipy.integrate as integrate
 
 
-class Ichise2002Model(TCModel):
+class Ichise2002VascModel(TCModel):
     """
 
     This class is a subclass of the TCModel class and represents the Ichise2002 model for PET data analysis.
@@ -76,7 +76,7 @@ class Ichise2002Model(TCModel):
     @property
     def labels(self):
         return [
-            r"$K_1$", r"$k_2$", r"$k_3$", r"$k_4$", r"$V_P$", r"$V$", r"$t_0$", r"$\tau_a$", r"$\sigma$"]
+            r"$K_1$", r"$k_2$", r"$k_3$", r"$k_4$", r"$V_P$", r"$V^*$", r"$t_0$", r"$\tau_a$", r"$\sigma$"]
 
     @staticmethod
     def signalmodel(data: dict):
@@ -91,18 +91,20 @@ class Ichise2002Model(TCModel):
         ks = v[:4]
 
         K1 = ks[0]
-        V = v[4]  # total volume of distribution V^\star = V_P + V_N + V_S, per Ichise 2002 appendix
-        g1 = V * ks[1] * ks[3]
+        VP = v[4]
+        Vstar = v[5]  # total volume of distribution V^\star = V_P + V_N + V_S, per Ichise 2002 appendix
+        g1 = Vstar * ks[1] * ks[3]
         g2 = -1 * ks[1] * ks[3]
         g3 = -(ks[1] + ks[2] + ks[3])
-        g4 = K1
-        t_0 = v[5]
-        tau_a = v[6]
+        g4star = K1
+        g5 = VP
+        t_0 = v[6]
+        tau_a = v[7]
 
         # rho_t is the inferred source signal
 
         rho_t = np.zeros(len(timesMid))
-        rho_p = Ichise2002Model.slide(input_func_interp, times, tau_a, None)
+        rho_p = Ichise2002VascModel.slide(input_func_interp, times, tau_a, None)
         timesMid1 = timesMid[1:]
         for tidx, tMid in enumerate(timesMid1):
             _m = rho[:tidx]
@@ -119,10 +121,10 @@ class Ichise2002Model(TCModel):
                 int2 = 0
             int1 = 0.5 * integrate.trapezoid(integrate.cumulative_trapezoid(_rho_p_times_int, _times), _times[:-1])
 
-            rho_t[tidx] = g1 * int1 + g2 * int2 + g3 * int3 + g4 * int4
+            rho_t[tidx] = g1 * int1 + g2 * int2 + g3 * int3 + g4star * int4 + g5 * rho_p[_times_int[-1]]
 
         rho_t[rho_t < 0] = 0
-        rho_t = Ichise2002Model.slide(rho_t, times, t_0, None)
+        rho_t = Ichise2002VascModel.slide(rho_t, times, t_0, None)
         if data["rhoUsesBoxcar"]:
             rho = Boxcar.apply_boxcar(rho_t, data)
         else:
@@ -134,20 +136,35 @@ class Ichise2002Model(TCModel):
 
         v = data["v"]
         ks = v[:4]
+
         K1 = ks[0]
-        k2 = ks[1]
-        k3 = ks[2]
-        k4 = ks[3]
-        return K1*k3/(k2*k4)
+        VP = v[4]
+        Vstar = v[5]  # total volume of distribution V^\star = V_P + V_N + V_S, per Ichise 2002 appendix
+        g1 = Vstar * ks[1] * ks[3]
+        g2 = -1 * ks[1] * ks[3]
+        g3 = -(ks[1] + ks[2] + ks[3])
+        g4star = K1
+        g5 = VP
+
+        numer = g1*(g1 + g3*g4star) + g2*(g4star + g3*g5)^2
+        denom = g2*(g1 + g3*g4star)
+        return numer/denom
 
     @staticmethod
     def volume_nonspecific(data: dict):
 
         v = data["v"]
-        ks = v[:4]
-        K1 = ks[0]
-        k2 = ks[1]
-        return K1/k2
+        VP = v[4]
+        Vstar = v[5]
+        VS = Ichise2002VascModel.volume_specific(data)
+
+        return Vstar - VP - VS
+
+    @staticmethod
+    def volume_plasma(data: dict):
+
+        v = data["v"]
+        return v[4]
 
     @staticmethod
     def volume_total(data: dict):

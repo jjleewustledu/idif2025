@@ -44,7 +44,7 @@ class TZ3108:
                  rstate=np.random.default_rng(916301),
                  tag="",
                  model=None,
-                 delta_time=5):
+                 delta_time=8):
         if "Ichise2002VascModel" in model:
             self._strategy = Ichise2002VascModel(
                 input_function,

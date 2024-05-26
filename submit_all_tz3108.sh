@@ -7,7 +7,7 @@ derivatives="${SINGULARITY_HOME}/TZ3108/derivatives"
 subs=("sub-bud" "sub-cheech" "sub-lou" "sub-ollie")
 if_type="aif"
 model_types=("Ichise2002VascModel" "Huang1980Model")
-proc="_trc-tz3108_*proc*-tacs.nii.gz"
+proc="_trc-tz3108_*-tacs.nii.gz"
 submit_main="${HOME}/PycharmProjects/dynesty/idif2024/submit_main_tz3108.sh"
 
 for sub in "${subs[@]}"; do
@@ -20,9 +20,9 @@ for sub in "${subs[@]}"; do
   done < <(find "$containing_folder" -type f -name "*$proc*")
 
   for afile in "${files[@]}"; do
-    for type in "${model_types[@]}"; do
-      echo "sbatch \"${submit_main}\" \"${if_type}\" \"${afile}\" \"${type}\""
-      sbatch "${submit_main}" "${if_type}" "${afile}" "${type}"
+    for mdl_type in "${model_types[@]}"; do
+      echo "sbatch \"${submit_main}\" \"${if_type}\" \"${afile}\" \"${mdl_type}\""
+      sbatch "${submit_main}" "${if_type}" "${afile}" "${mdl_type}"
     done
   done
 done

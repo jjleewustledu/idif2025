@@ -363,7 +363,8 @@ class TCModel(PETModel, ABC):
                        label=f"measured TAC, parcel {parc_index}")
         p3, = plt.plot(t_pred, M0 * rho_pred, marker="o", color="red", ls="none", alpha=0.8,
                        label=f"predicted TAC, parcel {parc_index}")
-        plt.xlim([-0.1, 1.1 * np.max([np.max(t_petm), np.max(t_inputf)])])
+        width = np.max((np.max(t_petm), np.max(t_inputf)))
+        plt.xlim((-0.1 * width, 1.1 * width))
         plt.xlabel("time of mid-frame (s)")
         plt.ylabel("activity (" + activity_units + ")")
         plt.legend(handles=[p1, p2, p3], loc="right", fontsize=12)

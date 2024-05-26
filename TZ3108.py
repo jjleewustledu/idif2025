@@ -77,7 +77,7 @@ class TZ3108:
                 nlive=nlive,
                 rstate=rstate,
                 tag=tag,
-                delta_time=delta_time)
+                delta_time=1)
         else:
             raise RuntimeError(self.__class__.__name__ + ".__init__() does not support model -> " + model)
 

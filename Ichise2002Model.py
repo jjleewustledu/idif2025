@@ -76,10 +76,10 @@ class Ichise2002Model(TCModel):
     @property
     def labels(self):
         return [
-            r"$K_1$", r"$k_2$", r"$k_3$", r"$k_4$", r"$V_P$", r"$V$", r"$t_0$", r"$\tau_a$", r"$\sigma$"]
+            r"$K_1$", r"$k_2$", r"$k_3$", r"$k_4$", r"$V$", r"$\tau_a$", r"$\sigma$"]
 
     @staticmethod
-    def signalmodel(data: dict):
+    def signalmodel(data: dict, verbose=False):
 
         rho = data["rho"]
         timesMid = data["timesMid"]
@@ -96,38 +96,41 @@ class Ichise2002Model(TCModel):
         g2 = -1 * ks[1] * ks[3]
         g3 = -(ks[1] + ks[2] + ks[3])
         g4 = K1
-        t_0 = v[5]
-        tau_a = v[6]
+        tau_a = v[5]
+        # t_0 = v[6]
 
-        # rho_t is the inferred source signal
+        # rho_oversampled over-samples rho to match rho_t
+        # rho_t is the inferred source signal, sampled to match input_func_interp
 
-        rho_t = np.zeros(len(timesMid))
+        rho_oversampled = np.interp(times, timesMid, rho)
+        rho_t = np.zeros(len(times))
         rho_p = Ichise2002Model.slide(input_func_interp, times, tau_a, None)
-        timesMid1 = timesMid[1:]
-        for tidx, tMid in enumerate(timesMid1):
-            _m = rho[:tidx]
-            _t = timesMid[:tidx]
-            _times = np.arange(min(tMid, n - 1))  # integration interval
-            _times_int = _times.astype(int)  # integration interval cast as integer
-            _rho_p_times_int = rho_p[_times_int]  # integration interval
+        for tidx, time in enumerate(times):
+            _tidx_interval = np.arange(0, tidx + 1)
+            _time_interval = times[_tidx_interval]
 
-            int3 = integrate.trapezoid(_m, _t)
-            int4 = integrate.trapezoid(_rho_p_times_int, _times)
-            if len(_t[:-1]) > 0:
-                int2 = 0.5 * integrate.trapezoid(integrate.cumulative_trapezoid(_m, _t), _t[:-1])
-            else:
-                int2 = 0
-            int1 = 0.5 * integrate.trapezoid(integrate.cumulative_trapezoid(_rho_p_times_int, _times), _times[:-1])
+            _rho_interval = rho_oversampled[_tidx_interval]
+            _rho_p_interval = rho_p[_tidx_interval]  # integration interval
+
+            int4 = integrate.trapezoid(_rho_p_interval, _time_interval)
+            int3 = integrate.trapezoid(_rho_interval, _time_interval)
+            int2 = 0.5 * integrate.trapezoid(
+                integrate.cumulative_trapezoid(_rho_interval, _time_interval), _time_interval[:-1])
+            int1 = 0.5 * integrate.trapezoid(
+                integrate.cumulative_trapezoid(_rho_p_interval, _time_interval), _time_interval[:-1])
 
             rho_t[tidx] = g1 * int1 + g2 * int2 + g3 * int3 + g4 * int4
 
         rho_t[rho_t < 0] = 0
-        rho_t = Ichise2002Model.slide(rho_t, times, t_0, None)
+        # rho_t = Ichise2002Model.slide(rho_t, times, t_0, None)
         if data["rhoUsesBoxcar"]:
             rho = Boxcar.apply_boxcar(rho_t, data)
         else:
             rho = np.interp(timesMid, times, rho_t)
-        return rho, timesMid, rho_t, times
+        if verbose:
+            return rho, timesMid, rho_t, times, rho_oversampled, rho_p
+        else:
+            return rho, timesMid, rho_t, times
 
     @staticmethod
     def volume_specific(data: dict):

@@ -43,7 +43,8 @@ class TZ3108:
                  nlive=1000,
                  rstate=np.random.default_rng(916301),
                  tag="",
-                 model=None):
+                 model=None,
+                 delta_time=5):
         if "Ichise2002VascModel" in model:
             self._strategy = Ichise2002VascModel(
                 input_function,
@@ -54,7 +55,7 @@ class TZ3108:
                 nlive=nlive,
                 rstate=rstate,
                 tag=tag,
-                delta_time=1)
+                delta_time=delta_time)
         elif "Ichise2002Model" in model:
             self._strategy = Ichise2002Model(
                 input_function,
@@ -65,7 +66,7 @@ class TZ3108:
                 nlive=nlive,
                 rstate=rstate,
                 tag=tag,
-                delta_time=1)
+                delta_time=delta_time)
         elif "Huang1980Model" in model:
             self._strategy = Huang1980Model(
                 input_function,
@@ -76,7 +77,7 @@ class TZ3108:
                 nlive=nlive,
                 rstate=rstate,
                 tag=tag,
-                delta_time=1)
+                delta_time=delta_time)
         else:
             raise RuntimeError(self.__class__.__name__ + ".__init__() does not support model -> " + model)
 

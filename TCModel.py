@@ -132,7 +132,7 @@ class TCModel(PETModel, ABC):
         petm = self.pet_measurement
         pprint(self.input_function())
         inputf_timesMid = self.input_function()["timesMid"]
-        inputf_timesMidInterp = np.arange(petm["timesMid"][0], petm["timesMid"][-1], self.DELTA_TIME)
+        inputf_timesMidInterp = np.arange(0, petm["timesMid"][-1], self.DELTA_TIME)
         self.HALFLIFE = self.input_function()["halflife"]
         self.INPUTF_INTERP = self.input_function()["img"] / np.max(petm["img"])
         self.INPUTF_INTERP = np.interp(inputf_timesMidInterp, inputf_timesMid, self.INPUTF_INTERP)
@@ -647,40 +647,40 @@ class TCModel(PETModel, ABC):
     @staticmethod
     def prior_transform_huang(u):
         v = u
-        v[0] = u[0] * 0.5  # k_1 (1/s)
+        v[0] = u[0] * 2  # k_1 (1/s)
         v[1] = u[1] * 0.5  # k_2 (1/s)
         v[2] = u[2] * 0.05  # k_3 (1/s)
         v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
         v[4] = u[4] * 20  # t_0 (s)
-        v[5] = u[5] * (-35) - 15  # \tau_a (s)
+        v[5] = u[5] * 120 - 60  # \tau_a (s)
         v[6] = u[6] * TCModel.sigma()  # sigma ~ fraction of M0
         return v
 
     @staticmethod
     def prior_transform_ichise(u):
         v = u
-        v[0] = u[0] * 1.5  # K_1 (mL/cm^{-3}s^{-1})
+        v[0] = u[0] * 2  # K_1 (mL/cm^{-3}s^{-1})
         v[1] = u[1] * 0.5  # k_2 (1/s)
         v[2] = u[2] * 0.05  # k_3 (1/s)
         v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
         v[4] = u[4] * 99.9 + 0.1  # V (mL/cm^{-3}) is total volume := V_N + V_S
-        v[5] = u[5] * 20  # t_0 (s)
-        v[6] = u[6] * (-35) - 15  # \tau_a (s)
-        v[7] = u[7] * TCModel.sigma()  # sigma ~ fraction of M0
+        v[5] = u[5] * 120 - 60  # \tau_a (s)
+        # v[5] = u[5] * 20  # t_0 (s)
+        v[6] = u[6] * TCModel.sigma()  # sigma ~ fraction of M0
         return v
 
     @staticmethod
     def prior_transform_ichise_vasc(u):
         v = u
-        v[0] = u[0] * 1.5  # K_1 (mL/cm^{-3}s^{-1})
+        v[0] = u[0] * 2  # K_1 (mL/cm^{-3}s^{-1})
         v[1] = u[1] * 0.5  # k_2 (1/s)
         v[2] = u[2] * 0.05  # k_3 (1/s)
         v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
-        v[4] = u[4] * 0.999 + 0.001  # V_P (mL/cm^{-3})
+        v[4] = u[4] * 0.099 + 0.001  # V_P (mL/cm^{-3})
         v[5] = u[5] * 99.9 + 0.1  # V^\star (mL/cm^{-3}) is total volume := V_P + V_N + V_S
-        v[6] = u[6] * 20  # t_0 (s)
-        v[7] = u[7] * (-35) - 15  # \tau_a (s)
-        v[8] = u[8] * TCModel.sigma()  # sigma ~ fraction of M0
+        v[6] = u[6] * 120 - 60  # \tau_a (s)
+        # v[6] = u[6] * 20  # t_0 (s)
+        v[7] = u[7] * TCModel.sigma()  # sigma ~ fraction of M0
         return v
 
     @staticmethod

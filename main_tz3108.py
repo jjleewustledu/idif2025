@@ -38,7 +38,7 @@ def work(tidx, data: dict):
         _tcm = TZ3108(
             data["input_function"],
             data["pet_measurement"],
-            truths=[0.476, 0.094, 0.005, 0.0, 9.066, -43.959, 0.021],
+            truths=[0.5, 0.002, 0.005, 0.0001, 9.066, -43.959, 0.021],
             nlive=_nlive,
             tag=_tag,
             model=_model)
@@ -61,15 +61,15 @@ if __name__ == '__main__':
     try:
         Nparcels = int(sys.argv[3])
     except ValueError:
-        sys.exit(1)
+        Nparcels = 21
     try:
         Nlive = int(sys.argv[4])
     except ValueError:
-        Nlive = 300
+        Nlive = 100
     try:
         model = sys.argv[5]
     except ValueError:
-        model = "Ichise2002Model"
+        model = "Ichise2002VascModel"
 
     fqfp, _ = os.path.splitext(pet)
     fqfp, _ = os.path.splitext(fqfp)
@@ -78,15 +78,9 @@ if __name__ == '__main__':
         filemode="w",
         format="%(name)s - %(levelname)s - %(message)s")
 
-    trunc_idx = pet.find("proc-")
+    trunc_idx = pet.find("-tacs")
     prefix = pet[:trunc_idx]
-    if "idif".lower() in input_func_kind.lower():
-        input_func = (prefix + "proc-MipIdif_idif_dynesty-Boxcar-ideal-plasma.nii.gz")
-    elif ("twil".lower() in input_func_kind.lower() or
-          "aif".lower() in input_func_kind.lower()):
-        input_func = (prefix + "proc-plasma.nii.gz")
-    else:
-        raise RuntimeError(__name__ + ": input_func_kind -> " + input_func_kind)
+    input_func = (prefix + "-aif.nii.gz")
 
     the_data = {
         "input_function": input_func,

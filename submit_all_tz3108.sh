@@ -4,10 +4,10 @@ set -e
 trap 'echo "Script submit_all_tz3108.sh exited with error: $?" >&2; exit $?' ERR
 
 derivatives="${SINGULARITY_HOME}/TZ3108/derivatives"
-subs=("sub-bud" "sub-cheech" "sub-lou" "sub-ollie" "sub-ring" "sub-stan" "sub-wuzzy")
+subs=("sub-bud" "sub-cheech" "sub-lou" "sub-ollie")
 if_type="aif"
-model_types=("Ichise" "Huang")
-proc="trc-tz3108_proc-haojiang.nii.gz"
+model_types=("Ichise2002VascModel" "Huang1980Model")
+proc="_trc-tz3108_*proc*-tacs.nii.gz"
 submit_main="${HOME}/PycharmProjects/dynesty/idif2024/submit_main_tz3108.sh"
 
 for sub in "${subs[@]}"; do

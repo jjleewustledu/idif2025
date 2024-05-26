@@ -81,7 +81,7 @@ class Huang1980Model(TCModel):
             r"$k_1$", r"$k_2$", r"$k_3$", r"$k_4$", r"$t_0$", r"$\tau_a$", r"$\sigma$"]
 
     @staticmethod
-    def signalmodel(data: dict):
+    def signalmodel(data: dict, verbose=False):
 
         timesMid = data["timesMid"]
         input_func_interp = data["inputFuncInterp"]
@@ -121,4 +121,7 @@ class Huang1980Model(TCModel):
             rho = Boxcar.apply_boxcar(rho_t, data)
         else:
             rho = np.interp(timesMid, times, rho_t)
-        return rho, timesMid, rho_t, times
+        if verbose:
+            return rho, timesMid, rho_t, times, v1 * (q2 + q3), v1 * input_func_interp
+        else:
+            return rho, timesMid, rho_t, times

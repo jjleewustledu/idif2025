@@ -68,8 +68,8 @@ trap 'echo "Script submit_main_async.sh exited with error: $?" >&2; exit $?' ERR
 the_main="main_tz3108.py"
 input_func_kind=$1
 pet=$2
-Nparcels=8
-nlive=1000
+Nparcels=21
+nlive=100
 model=$3
 filepath="${pet%/*}"
 base="${pet##*/}"

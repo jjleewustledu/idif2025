@@ -51,12 +51,22 @@ def work(tidx, data: dict):
     return _package
 
 
+def is_stackable(arrays):
+    if not isinstance(arrays, (list, tuple)):
+        return False
+    if not all(isinstance(arr, np.ndarray) for arr in arrays):
+        return False
+    if len({arr.shape[1:] for arr in arrays}) != 1:
+        return False
+    return True
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
 
     # the_data objects for work
 
-    input_func_kind = sys.argv[1]
+    input_func_kind = sys.argv[1]  # ignored, but maintain interface of TCM
     pet = sys.argv[2]
     try:
         Nparcels = int(sys.argv[3])
@@ -105,8 +115,12 @@ if __name__ == '__main__':
     rhos_pred = []
     resids = []
 
-    for package in packages:
+    for pidx, package in enumerate(packages):
         try:
+            # save each package separately since this try-except block often has errors
+            tag = f"{the_tag(Nlive, tag_model=model)}_{__name__}_pidx{pidx}"
+            package["tcm"].save_res_dict(package, tag=tag)
+
             tcm = package["tcm"]
             ress.append(package["res"])
             rd = package["res"].asdict()
@@ -123,16 +137,25 @@ if __name__ == '__main__':
             # catch any error to enable graceful exit with writing whatever results were incompletely obtained
             logging.exception(__name__ + ": error in tcm -> " + str(e), exc_info=True)
 
+    if is_stackable(qms):
+        qms = np.vstack(qms)
+    if is_stackable(qls):
+        qls = np.vstack(qls)
+    if is_stackable(qhs):
+        qhs = np.vstack(qhs)
+    if is_stackable(rhos_pred):
+        rhos_pred = np.vstack(rhos_pred)
+
     package1 = {
         "res": ress,
         "logz": np.array(logzs),
         "information": np.array(informations),
-        "qm": np.vstack(qms),
-        "ql": np.vstack(qls),
-        "qh": np.vstack(qhs),
-        "rho_pred": np.vstack(rhos_pred),
+        "qm": qms,
+        "ql": qls,
+        "qh": qhs,
+        "rho_pred": rhos_pred,
         "resid": np.array(resids)}
 
-    packages[0]["tcm"].save_results(package1, tag=the_tag(Nlive))
+    packages[0]["tcm"].save_results(package1, tag=the_tag(Nlive, tag_model=model))
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

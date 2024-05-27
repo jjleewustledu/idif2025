@@ -552,8 +552,18 @@ class TCModel(PETModel, ABC):
             "rho_pred": np.array(_rho_pred),
             "resid": np.array(_resid)}
 
-        # self.save_results(package, tag=str(tidx))
+        # tag = f"{TCModel.run_nested_for_indexed_tac.__qualname__}_tidx{tidx}"
+        # self.save_res_dict(package, tag=tag)
         return package
+
+    def save_res_dict(self, res_dict: dict, tag=""):
+
+        if tag:
+            tag = "-" + tag
+        fqfp1 = self.fqfp_results + tag
+
+        with open(fqfp1 + "-res.pickle", 'wb') as f:
+            pickle.dump(res_dict["res"], f, pickle.HIGHEST_PROTOCOL)
 
     def save_results(self, res_dict: dict, tag=""):
         """"""
@@ -561,6 +571,9 @@ class TCModel(PETModel, ABC):
         if tag:
             tag = "-" + tag
         fqfp1 = self.fqfp_results + tag
+
+        with open(fqfp1 + "-res.pickle", 'wb') as f:
+            pickle.dump(res_dict["res"], f, pickle.HIGHEST_PROTOCOL)
 
         petm = self.pet_measurement
         M0 = np.max(petm["img"])
@@ -592,9 +605,6 @@ class TCModel(PETModel, ABC):
         product = deepcopy(petm)
         product["img"] = res_dict["resid"]
         self.save_nii(product, fqfp1 + "-resid.nii.gz")
-
-        with open(fqfp1 + "-res.pickle", 'wb') as f:
-            pickle.dump(res_dict["res"], f, pickle.HIGHEST_PROTOCOL)
 
         product = deepcopy(petm)
         product["img"] = res_dict["martinv1"]

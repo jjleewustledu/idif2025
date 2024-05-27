@@ -659,9 +659,9 @@ class TCModel(PETModel, ABC):
     def prior_transform_huang(u):
         v = u
         v[0] = u[0] * 2  # k_1 (1/s)
-        v[1] = u[1] * 0.5  # k_2 (1/s)
-        v[2] = u[2] * 0.05  # k_3 (1/s)
-        v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
+        v[1] = u[1] * 0.5 + 0.000001  # k_2 (1/s)
+        v[2] = u[2] * 0.05 + 0.000001  # k_3 (1/s)
+        v[3] = u[3] * 0.05 + 0.000001  # k_4 (1/s)
         v[4] = u[4] * 20  # t_0 (s)
         v[5] = u[5] * 120 - 60  # \tau_a (s)
         v[6] = u[6] * TCModel.sigma()  # sigma ~ fraction of M0
@@ -671,9 +671,9 @@ class TCModel(PETModel, ABC):
     def prior_transform_ichise(u):
         v = u
         v[0] = u[0] * 2  # K_1 (mL/cm^{-3}s^{-1})
-        v[1] = u[1] * 0.5  # k_2 (1/s)
-        v[2] = u[2] * 0.05  # k_3 (1/s)
-        v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
+        v[1] = u[1] * 0.5 + 0.000001  # k_2 (1/s)
+        v[2] = u[2] * 0.05 + 0.000001  # k_3 (1/s)
+        v[3] = u[3] * 0.05 + 0.000001  # k_4 (1/s)
         v[4] = u[4] * 99.9 + 0.1  # V (mL/cm^{-3}) is total volume := V_N + V_S
         v[5] = u[5] * 120 - 60  # \tau_a (s)
         # v[5] = u[5] * 20  # t_0 (s)
@@ -684,9 +684,9 @@ class TCModel(PETModel, ABC):
     def prior_transform_ichise_vasc(u):
         v = u
         v[0] = u[0] * 2  # K_1 (mL/cm^{-3}s^{-1})
-        v[1] = u[1] * 0.5  # k_2 (1/s)
-        v[2] = u[2] * 0.05  # k_3 (1/s)
-        v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
+        v[1] = u[1] * 0.5 + 0.000001  # k_2 (1/s)
+        v[2] = u[2] * 0.05 + 0.000001  # k_3 (1/s)
+        v[3] = u[3] * 0.05 + 0.000001  # k_4 (1/s)
         v[4] = u[4] * 0.099 + 0.001  # V_P (mL/cm^{-3})
         v[5] = u[5] * 99.9 + 0.1  # V^\star (mL/cm^{-3}) is total volume := V_P + V_N + V_S
         v[6] = u[6] * 120 - 60  # \tau_a (s)

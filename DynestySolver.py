@@ -121,5 +121,5 @@ class DynestySolver(ABC):
         qh = np.zeros(len(samples))
         for i, x in enumerate(samples):
             ql[i], qm[i], qh[i] = dyutils.quantile(x, [0.025, 0.5, 0.975], weights=weights)
-            print(f"Parameter {i}: {qm[i]:.3f} [{ql[i]:.3f}, {qh[i]:.3f}]")
+            print(f"Parameter {i}: {qm[i]:.6f} [{ql[i]:.6f}, {qh[i]:.6f}]")
         return qm, ql, qh

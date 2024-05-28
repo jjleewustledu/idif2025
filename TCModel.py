@@ -30,6 +30,7 @@ from TrivialArtery import TrivialArtery
 # general & system functions
 import glob
 import os
+import sys
 import pickle
 from copy import deepcopy
 from pprint import pprint
@@ -598,21 +599,35 @@ class TCModel(PETModel, ABC):
         product["img"] = res_dict["qh"]
         self.save_nii(product, fqfp1 + "-qh.nii.gz")
 
-        product = deepcopy(petm)
-        product["img"] = M0 * res_dict["rho_pred"]
-        self.save_nii(product, fqfp1 + "-rho-pred.nii.gz")
+        try:
+            # historically prone to fail
 
-        product = deepcopy(petm)
-        product["img"] = res_dict["resid"]
-        self.save_nii(product, fqfp1 + "-resid.nii.gz")
+            if not TCModel.is_sequence(res_dict["rho_pred"]):
+                product = deepcopy(petm)
+                product["img"] = M0 * res_dict["rho_pred"]
+                self.save_nii(product, fqfp1 + "-rho-pred.nii.gz")
 
-        product = deepcopy(petm)
-        product["img"] = res_dict["martinv1"]
-        self.save_nii(product, fqfp1 + "-martinv1.nii.gz")
+            if not TCModel.is_sequence(res_dict["resid"]):
+                product = deepcopy(petm)
+                product["img"] = res_dict["resid"]
+                self.save_nii(product, fqfp1 + "-resid.nii.gz")
+
+            if not TCModel.is_sequence(res_dict["martinv1"]):
+                product = deepcopy(petm)
+                product["img"] = res_dict["martinv1"]
+                self.save_nii(product, fqfp1 + "-martinv1.nii.gz")
+        except Exception as e:
+            # catch any error to enable graceful exit while sequentially writing NIfTI files
+            print(f"{TCModel.save_results.__name__}: caught Exception {e}, but proceeding", file=sys.stderr)
 
         # product = deepcopy(petm)
         # product["img"] = res_dict["raichleks"]
         # self.save_nii(product, fqfp1 + "-raichleks.nii.gz")
+
+    @staticmethod
+    def is_sequence(obj):
+        """ a sequence cannot be multiplied by floating point """
+        return isinstance(obj, (list, tuple, type(None)))
 
     @staticmethod
     def decay_correct(tac: dict):

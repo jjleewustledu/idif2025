@@ -40,10 +40,6 @@ class Boxcar(Artery):
     rstate (numpy.random.SeedSequence, optional): The random state for sampling. Default is np.random.default_rng(916301).
     tag (str, optional): The tag for the Boxcar instance. Default is "".
 
-    Attributes
-    ----------
-    SIGMA (float): The sigma value.
-
     Methods
     -------
     signalmodel(data: dict) -> Tuple[np.ndarray, np.ndarray, np.ndarray]
@@ -70,7 +66,7 @@ class Boxcar(Artery):
                          times_last=times_last,
                          tag=tag)
 
-        self.SIGMA = 0.01
+        Artery.sigma = 0.01
 
     @staticmethod
     def signalmodel(data: dict):

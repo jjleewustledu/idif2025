@@ -79,7 +79,7 @@ if __name__ == '__main__':
     try:
         model = sys.argv[5]
     except ValueError:
-        model = "Ichise2002VascModel"
+        model = "LineModel"
 
     fqfp, _ = os.path.splitext(pet)
     fqfp, _ = os.path.splitext(fqfp)
@@ -132,7 +132,7 @@ if __name__ == '__main__':
             qhs.append(_qh)
             _rho_pred, _, _, _ = tcm.signalmodel(tcm.data(_qm))
             rhos_pred.append(_rho_pred)
-            resids.append(np.sum(_rho_pred - tcm.RHO) / np.sum(tcm.RHO))
+            resids.append(np.sum(_rho_pred - tcm.rho) / np.sum(tcm.rho))
         except Exception as e:
             # catch any error to enable graceful exit with writing whatever results were incompletely obtained
             logging.exception(__name__ + ": error in tcm -> " + str(e), exc_info=True)

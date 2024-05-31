@@ -80,7 +80,6 @@ class RadialArtery(Artery):
 
     Attributes:
         KERNEL (np.array): The kernel array.
-        SIGMA (float): The sigma value.
 
     Properties:
         kernel_measurement (dict): The kernel measurement data.
@@ -112,7 +111,7 @@ class RadialArtery(Artery):
         self.__kernel_measurement = kernel_measurement  # set with fqfn
         self.KERNEL = self.kernel_measurement["img"].copy()  # get dict conforming to nibabel
         self.__remove_baseline = remove_baseline
-        self.SIGMA = 0.1
+        Artery.sigma = 0.1
 
     @property
     def kernel_measurement(self):

@@ -75,13 +75,15 @@ class Artery(PETModel, ABC):
         __input_func_measurement (str or dict): Path to input function measurement file or dictionary representing the input function measurement.
         HALFLIFE (float): Halflife attribute.
         RHO (ndarray): Rho attribute.
-        SIGMA (float): Sigma attribute.
         TAUS (ndarray): Taus attribute.
         TIMES_MID (ndarray): TimesMid attribute.
         tracer (str): Tracer attribute.
         _truths_internal (dict): Internal truths attribute.
 
     """
+
+    sigma = None
+
     def __init__(self,
                  input_func_measurement,
                  tracer=None,
@@ -106,7 +108,7 @@ class Artery(PETModel, ABC):
         ifm = self.input_func_measurement  # get dict conforming to nibabel
         self.HALFLIFE = ifm["halflife"]
         self.RHO = ifm["img"] / np.max(ifm["img"])
-        self.SIGMA = 0.1
+        Artery.sigma = 0.1
         self.TAUS = ifm["taus"]
         self.TIMES_MID = ifm["timesMid"]
 
@@ -356,7 +358,7 @@ class Artery(PETModel, ABC):
         v[10] = u[10] * 0.75  # f_3
         v[11] = u[11] * 0.75  # f_{ss}
         v[12] = u[12] * 4 + 0.5  # A is amplitude adjustment
-        v[13] = u[13] * Artery.sigma()  # sigma ~ fraction of M0
+        v[13] = u[13] * Artery.sigma  # sigma ~ fraction of M0
         return v
 
     @staticmethod
@@ -375,7 +377,7 @@ class Artery(PETModel, ABC):
         v[10] = u[10] * 0.5  # f_3
         v[11] = u[11] * 0.25  # f_{ss}
         v[12] = u[12] * 4 + 0.5  # A is amplitude adjustment
-        v[13] = u[13] * Artery.sigma()  # sigma ~ fraction of M0
+        v[13] = u[13] * Artery.sigma  # sigma ~ fraction of M0
         return v
 
     @staticmethod
@@ -394,12 +396,8 @@ class Artery(PETModel, ABC):
         v[10] = u[10] * 0.25  # f_3
         v[11] = u[11] * 0.25  # f_{ss}
         v[12] = u[12] * 4 + 0.5  # A is amplitude adjustment
-        v[13] = u[13] * Artery.sigma()  # sigma ~ fraction of M0
+        v[13] = u[13] * Artery.sigma  # sigma ~ fraction of M0
         return v
-
-    @staticmethod
-    def sigma():
-        return 0.1
 
     @staticmethod
     def solution_1bolus(t, t_0, a, b, p):
@@ -415,27 +413,27 @@ class Artery(PETModel, ABC):
 
     @staticmethod
     def solution_2bolus(t, t_0, a, b, p, g, f_ss):
-        """ generalized gamma distributions + rising exponential """
+        """ generalized gamma distributions + global decay """
         f_1 = 1 - f_ss
         rho = (f_1 * Artery.solution_1bolus(t, t_0, a, b, p) +
-               f_ss * Artery.solution_ss(t, t_0, g))
+               f_ss * Artery.solution_1bolus(t, t_0, a, g, p))
         return rho
 
     @staticmethod
     def solution_3bolus(t, t_0, tau_2, a, b, p, dp_2, g, f_2, f_ss):
-        """ two sequential generalized gamma distributions + rising exponential """
+        """ two sequential generalized gamma distributions + global decay """
 
         f_ss_ = f_ss * (1 - f_2)
         f_1_ = (1 - f_ss) * (1 - f_2)
         f_2_ = f_2
         rho = (f_1_ * Artery.solution_1bolus(t, t_0, a, b, p) +
                f_2_ * Artery.solution_1bolus(t, t_0 + tau_2, a, b, max(0.25, p + dp_2)) +
-               f_ss_ * Artery.solution_ss(t, t_0, g))
+               f_ss_ * Artery.solution_1bolus(t, t_0, a, g, p))
         return rho
 
     @staticmethod
     def solution_4bolus(t, t_0, tau_2, tau_3, a, b, p, dp_2, dp_3, g, f_2, f_3, f_ss):
-        """ three sequential generalized gamma distributions + rising exponential """
+        """ three sequential generalized gamma distributions + global decay """
 
         f_ss_ = f_ss * (1 - f_2) * (1 - f_3)
         f_1_ = (1 - f_ss) * (1 - f_2) * (1 - f_3)
@@ -444,12 +442,12 @@ class Artery(PETModel, ABC):
         rho = (f_1_ * Artery.solution_1bolus(t, t_0, a, b, p) +
                f_2_ * Artery.solution_1bolus(t, t_0 + tau_2, a, b, max(0.25, p + dp_2)) +
                f_3_ * Artery.solution_1bolus(t, t_0 + tau_2 + tau_3, a, b, max(0.25, p + dp_2 + dp_3)) +
-               f_ss_ * Artery.solution_ss(t, t_0, g))
+               f_ss_ * Artery.solution_1bolus(t, t_0, a, g, p))
         return rho
 
     @staticmethod
     def solution_ss(t, t0, g):
-        """ rising exponential coincident with first-appearing bolus """
+        """ global exponential rise coincident with first-appearing bolus """
 
         t_ = np.array(t - t0)
         rho = 1 - np.exp(-g * t_)

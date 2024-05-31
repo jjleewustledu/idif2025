@@ -120,7 +120,7 @@ if __name__ == '__main__':
         qhs.append(_qh)
         _rho_pred, _, _, _ = tcm.signalmodel(tcm.data(_qm))
         rhos_pred.append(_rho_pred)
-        resids.append(np.sum(_rho_pred - tcm.RHO) / np.sum(tcm.RHO))
+        resids.append(np.sum(_rho_pred - tcm.rho) / np.sum(tcm.rho))
 
     package1 = {
         "res": ress,

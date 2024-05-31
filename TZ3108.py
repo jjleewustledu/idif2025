@@ -23,6 +23,7 @@
 from Huang1980Model import Huang1980Model
 from Ichise2002Model import Ichise2002Model
 from Ichise2002VascModel import Ichise2002VascModel
+from LineModel import LineModel
 
 # general & system functions
 import os
@@ -78,6 +79,17 @@ class TZ3108:
                 rstate=rstate,
                 tag=tag,
                 delta_time=1)
+        elif "LineModel" in model:
+            self._strategy = LineModel(
+                input_function,
+                pet_measurement,
+                truths=truths,
+                home=home,
+                sample=sample,
+                nlive=nlive,
+                rstate=rstate,
+                tag=tag,
+                delta_time=delta_time)
         else:
             raise RuntimeError(self.__class__.__name__ + ".__init__() does not support model -> " + model)
 
@@ -100,6 +112,14 @@ class TZ3108:
     @property
     def pet_measurement(self):
         return self._strategy.pet_measurement
+
+    @property
+    def sigma(self):
+        return self._strategy.sigma
+ 
+    @property
+    def solver(self):
+        return self._strategy.solver
 
     @property
     def truths(self):
@@ -153,11 +173,11 @@ class TZ3108:
     def save_nii(self, *args, **kwargs):
         return self._strategy.save_nii(*args, **kwargs)
 
+    def save_res_dict(self, *args, **kwargs):
+        return self._strategy.save_res_dict(*args, **kwargs)
+
     def save_results(self, *args, **kwargs):
         return self._strategy.save_results(*args, **kwargs)
-
-    def sigma(self):
-        return self._strategy.sigma()
 
     def signalmodel(self, *args, **kwargs):
         return self._strategy.signalmodel(*args, **kwargs)

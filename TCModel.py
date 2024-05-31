@@ -104,6 +104,8 @@ class TCModel(PETModel, ABC):
         tag (str): A tag for the model (default: "").
 
     """
+    sigma = None
+
     def __init__(self,
                  input_function,
                  pet_measurement,
@@ -139,7 +141,7 @@ class TCModel(PETModel, ABC):
         self.INPUTF_INTERP = np.interp(inputf_timesMidInterp, inputf_timesMid, self.INPUTF_INTERP)
         self.RHOS = petm["img"] / np.max(petm["img"])
         self.RHO = self.__slice_parc(self.RHOS, 0)
-        self.SIGMA = 0.2
+        TCModel.sigma = 0.2
         self.TAUS = petm["taus"]
         self.TIMES_MID = petm["timesMid"]
         self.V1_ASSUMED = np.array(0.05)
@@ -257,6 +259,14 @@ class TCModel(PETModel, ABC):
         #    f"{cname}:{mname}: {to_glob} failed to match any usable data files for {type(self.ARTERY)}")
 
         return None
+
+    @property
+    def rho(self):
+        return self.RHO
+
+    @property
+    def rho2(self):
+        return self.RHOS
 
     @property
     def truths(self):
@@ -408,7 +418,10 @@ class TCModel(PETModel, ABC):
             "Huang1980ModelVenous": self.prior_transform_huang,
             "Huang1980Model": self.prior_transform_huang,
             "Ichise2002Model": self.prior_transform_ichise,
-        }.get(self.__class__.__name__, self.prior_transform_ichise_vasc)
+            "Ichise2002VascModel": self.prior_transform_ichise_vasc,
+            "LineModel": self.prior_transform_test,
+        }.get(self.__class__.__name__, self.prior_transform_huang)
+        # default is self.prior_transform_huang for 2-tissue compartment models
 
     def run_nested(self, checkpoint_file=None, print_progress=False, resume=False):
         """ default: checkpoint_file=self.fqfp+"_dynesty-ModelClass-yyyyMMddHHmmss.save") """
@@ -656,7 +669,7 @@ class TCModel(PETModel, ABC):
         v[2] = u[2] * 0.0272 + 0.0011  # ps (mL cm^{-3}s^{-1})
         v[3] = u[3] * 20  # t_0 (s)
         v[4] = u[4] * (-60) + 20  # \tau_a (s)
-        v[5] = u[5] * TCModel.sigma()  # sigma ~ fraction of M0
+        v[5] = u[5] * TCModel.sigma  # sigma ~ fraction of M0
         return v
 
     @staticmethod
@@ -667,48 +680,52 @@ class TCModel(PETModel, ABC):
         v[2] = 0.835  # (v_{post} + 0.5 v_{cap}) / v_1
         v[3] = u[3] * 20  # t_0 (s)
         v[4] = u[4] * (-60) + 20  # \tau_a (s)
-        v[5] = u[5] * TCModel.sigma()  # sigma ~ fraction of M0
+        v[5] = u[5] * TCModel.sigma  # sigma ~ fraction of M0
         return v
 
     @staticmethod
     def prior_transform_huang(u):
         v = u
         v[0] = u[0] * 2  # k_1 (1/s)
-        v[1] = u[1] * 0.5 + 0.000001  # k_2 (1/s)
-        v[2] = u[2] * 0.05 + 0.000001  # k_3 (1/s)
-        v[3] = u[3] * 0.05 + 0.000001  # k_4 (1/s)
+        v[1] = u[1] * 0.5 + 0.00001  # k_2 (1/s)
+        v[2] = u[2] * 0.05 + 0.00001  # k_3 (1/s)
+        v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
         v[4] = u[4] * 20  # t_0 (s)
         v[5] = u[5] * 120 - 60  # \tau_a (s)
-        v[6] = u[6] * TCModel.sigma()  # sigma ~ fraction of M0
+        v[6] = u[6] * TCModel.sigma  # sigma ~ fraction of M0
         return v
 
     @staticmethod
     def prior_transform_ichise(u):
         v = u
         v[0] = u[0] * 2  # K_1 (mL/cm^{-3}s^{-1})
-        v[1] = u[1] * 0.5 + 0.000001  # k_2 (1/s)
-        v[2] = u[2] * 0.05 + 0.000001  # k_3 (1/s)
-        v[3] = u[3] * 0.05 + 0.000001  # k_4 (1/s)
+        v[1] = u[1] * 0.5 + 0.00001  # k_2 (1/s)
+        v[2] = u[2] * 0.05 + 0.00001  # k_3 (1/s)
+        v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
         v[4] = u[4] * 99.9 + 0.1  # V (mL/cm^{-3}) is total volume := V_N + V_S
         v[5] = u[5] * 120 - 60  # \tau_a (s)
         # v[5] = u[5] * 20  # t_0 (s)
-        v[6] = u[6] * TCModel.sigma()  # sigma ~ fraction of M0
+        v[6] = u[6] * TCModel.sigma  # sigma ~ fraction of M0
         return v
 
     @staticmethod
     def prior_transform_ichise_vasc(u):
         v = u
         v[0] = u[0] * 2  # K_1 (mL/cm^{-3}s^{-1})
-        v[1] = u[1] * 0.5 + 0.000001  # k_2 (1/s)
-        v[2] = u[2] * 0.05 + 0.000001  # k_3 (1/s)
-        v[3] = u[3] * 0.05 + 0.000001  # k_4 (1/s)
+        v[1] = u[1] * 0.5 + 0.00001  # k_2 (1/s)
+        v[2] = u[2] * 0.05 + 0.00001  # k_3 (1/s)
+        v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
         v[4] = u[4] * 0.099 + 0.001  # V_P (mL/cm^{-3})
         v[5] = u[5] * 99.9 + 0.1  # V^\star (mL/cm^{-3}) is total volume := V_P + V_N + V_S
         v[6] = u[6] * 120 - 60  # \tau_a (s)
         # v[6] = u[6] * 20  # t_0 (s)
-        v[7] = u[7] * TCModel.sigma()  # sigma ~ fraction of M0
+        v[7] = u[7] * TCModel.sigma  # sigma ~ fraction of M0
         return v
 
     @staticmethod
-    def sigma():
-        return 0.2
+    def prior_transform_test(u):
+        v = u
+        v[0] = u[0] * 2  # intercept
+        v[1] = u[1] * 0.5 + 0.00001  # slope
+        v[2] = u[2] * TCModel.sigma  # sigma ~ fraction of M0
+        return v

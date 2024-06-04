@@ -82,7 +82,8 @@ class Artery(PETModel, ABC):
 
     """
 
-    sigma = None
+    duration = None  # class attribute used by input function models
+    sigma = None  # class attribute needed by dynesty
 
     def __init__(self,
                  input_func_measurement,
@@ -111,6 +112,7 @@ class Artery(PETModel, ABC):
         Artery.sigma = 0.1
         self.TAUS = ifm["taus"]
         self.TIMES_MID = ifm["timesMid"]
+        Artery.duration = self.TIMES_MID[-1]
 
         self.tracer = tracer
         if not self.tracer:
@@ -353,7 +355,7 @@ class Artery(PETModel, ABC):
         v[5] = u[5] * 9.75 + 0.25  # p
         v[6] = u[6] * 10 - 10  # \delta p_2 ~ p_2 - p
         v[7] = u[7] * 10 - 10  # \delta p_3 ~ p_3 - p_2
-        v[8] = u[8] * 300 + 0.01  # 1/\gamma for s.s.
+        v[8] = u[8] * Artery.duration + 1/Artery.duration  # 1/\gamma for s.s.
         v[9] = u[9] * 0.75 + 0.25  # f_2
         v[10] = u[10] * 0.75  # f_3
         v[11] = u[11] * 0.75  # f_{ss}
@@ -372,7 +374,7 @@ class Artery(PETModel, ABC):
         v[5] = u[5] * 9.75 + 0.25  # p
         v[6] = u[6] * 10 - 10  # \delta p_2 ~ p_2 - p
         v[7] = u[7] * 10 - 10  # \delta p_3 ~ p_3 - p_2
-        v[8] = u[8] * 300 + 0.01  # 1/\gamma for s.s.
+        v[8] = u[8] * Artery.duration + 1/Artery.duration  # 1/\gamma for s.s.
         v[9] = u[9] * 0.75 + 0.25  # f_2
         v[10] = u[10] * 0.5  # f_3
         v[11] = u[11] * 0.25  # f_{ss}
@@ -391,7 +393,7 @@ class Artery(PETModel, ABC):
         v[5] = u[5] * 9.75 + 0.25  # p
         v[6] = u[6] * 10 - 10  # \delta p_2 ~ p_2 - p
         v[7] = u[7] * 10 - 10  # \delta p_3 ~ p_3 - p_2
-        v[8] = u[8] * 300 + 0.01  # 1/\gamma for s.s.
+        v[8] = u[8] * Artery.duration + 1/Artery.duration  # 1/\gamma for s.s.
         v[9] = u[9] * 0.5  # f_2
         v[10] = u[10] * 0.25  # f_3
         v[11] = u[11] * 0.25  # f_{ss}
@@ -416,7 +418,7 @@ class Artery(PETModel, ABC):
         """ generalized gamma distributions + global decay """
         f_1 = 1 - f_ss
         rho = (f_1 * Artery.solution_1bolus(t, t_0, a, b, p) +
-               f_ss * Artery.solution_1bolus(t, t_0, a, g, p))
+               f_ss * Artery.solution_ss(t, t_0, g))
         return rho
 
     @staticmethod
@@ -428,7 +430,7 @@ class Artery(PETModel, ABC):
         f_2_ = f_2
         rho = (f_1_ * Artery.solution_1bolus(t, t_0, a, b, p) +
                f_2_ * Artery.solution_1bolus(t, t_0 + tau_2, a, b, max(0.25, p + dp_2)) +
-               f_ss_ * Artery.solution_1bolus(t, t_0, a, g, p))
+               f_ss_ * Artery.solution_ss(t, t_0, g))
         return rho
 
     @staticmethod
@@ -442,14 +444,28 @@ class Artery(PETModel, ABC):
         rho = (f_1_ * Artery.solution_1bolus(t, t_0, a, b, p) +
                f_2_ * Artery.solution_1bolus(t, t_0 + tau_2, a, b, max(0.25, p + dp_2)) +
                f_3_ * Artery.solution_1bolus(t, t_0 + tau_2 + tau_3, a, b, max(0.25, p + dp_2 + dp_3)) +
-               f_ss_ * Artery.solution_1bolus(t, t_0, a, g, p))
+               f_ss_ * Artery.solution_ss(t, t_0, g))
         return rho
 
     @staticmethod
-    def solution_ss(t, t0, g):
+    def solution_ss(t, t_0, g):
+        """ global exponential decay coincident with first-appearing bolus """
+
+        a = 1
+        p = 1
+        t_ = np.array(t - t_0, dtype=complex)
+        t_ = t_.clip(min=0)
+        rho = np.power(t_, a) * np.exp(-np.power((g * t_), p))
+        rho = np.real(rho)
+        rho = rho.clip(min=0)
+        rho = rho / np.max(rho)
+        return rho
+
+    @staticmethod
+    def solution_ss_ori(t, t_0, g):
         """ global exponential rise coincident with first-appearing bolus """
 
-        t_ = np.array(t - t0)
+        t_ = np.array(t - t_0)
         rho = 1 - np.exp(-g * t_)
         rho = rho.clip(min=0)
         rho = rho / np.max(rho)

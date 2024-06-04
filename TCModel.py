@@ -104,7 +104,7 @@ class TCModel(PETModel, ABC):
         tag (str): A tag for the model (default: "").
 
     """
-    sigma = None
+    sigma = None  # class attribute needed by dynesty
 
     def __init__(self,
                  input_function,

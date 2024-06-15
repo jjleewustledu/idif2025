@@ -57,7 +57,7 @@ class TCModelAndArtery(TCModel, ABC):
                          nlive=nlive,
                          rstate=rstate)
 
-        pprint(self.input_function())
+        pprint(self.adjusted_input_function())
 
     def data(self, v):
         artery_data = self.ARTERY.data(v[:14])
@@ -66,7 +66,7 @@ class TCModelAndArtery(TCModel, ABC):
         if not np.any(np.isnan(ARTERY_ideal)):
             artery_ideal = (ARTERY_ideal.copy() *
                             np.max(self.ARTERY.input_func_measurement["img"]) /
-                            np.max(self.pet_measurement["img"]))
+                            np.max(self.adjusted_pet_measurement["img"]))
             artery_timesMid = self.TIMES_MID[self.TIMES_MID <= t_ideal[-1]]
             inputf_interp[:len(artery_timesMid)] = np.interp(artery_timesMid, t_ideal, artery_ideal)
 
@@ -90,7 +90,7 @@ class TCModelAndArtery(TCModel, ABC):
         data = self.data(truths)
         rho_pred, t_pred, _, _ = self.signalmodel(data)
 
-        petm = self.pet_measurement
+        petm = self.adjusted_pet_measurement
         t_petm = petm["timesMid"]
         if parc_index:
             rho_petm = petm["img"][parc_index]

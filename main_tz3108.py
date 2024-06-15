@@ -119,7 +119,7 @@ if __name__ == '__main__':
         try:
             # save each package separately since this try-except block often has errors
             tag = f"{the_tag(Nlive, tag_model=model)}_{__name__}_pidx{pidx}"
-            package["tcm"].save_res_dict(package, tag=tag)
+            package["tcm"].pickle_results(package, tag=tag)
 
             tcm = package["tcm"]
             ress.append(package["res"])

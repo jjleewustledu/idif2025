@@ -134,7 +134,7 @@ class TZ3108:
 
     @property
     def pet_measurement(self):
-        return self._strategy.pet_measurement
+        return self._strategy.adjusted_pet_measurement
 
     @property
     def sigma(self):
@@ -161,7 +161,7 @@ class TZ3108:
         return self._strategy.data2timesMid(data)
 
     def input_function(self):
-        return self._strategy.input_function()
+        return self._strategy.adjusted_input_function()
 
     def load_nii(self, fqfn):
         return self._strategy.load_nii(fqfn)
@@ -197,7 +197,7 @@ class TZ3108:
         return self._strategy.save_nii(*args, **kwargs)
 
     def save_res_dict(self, *args, **kwargs):
-        return self._strategy.save_res_dict(*args, **kwargs)
+        return self._strategy.pickle_results(*args, **kwargs)
 
     def save_results(self, *args, **kwargs):
         return self._strategy.save_results(*args, **kwargs)

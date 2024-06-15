@@ -201,6 +201,15 @@ class PETModel(DynestyModel, ABC):
             # catch any error to enable graceful exit while sequentially writing NIfTI files
             print(f"{cname}.{mname}: caught Exception {e}, but proceeding", file=sys.stderr)
 
+    def slice_parc(self, img: np.array, xindex: int):
+        img1 = img.copy()
+        if img1.ndim == 1:
+            return img1
+        elif img1.ndim == 2:
+            return img1[xindex]
+        else:
+            raise RuntimeError(self.__class__.__name__ + ".__slice_parc: img1.ndim -> " + img1.ndim)
+
     @staticmethod
     def slide(rho, t, dt, halflife=None):
         if abs(dt) < 0.1:

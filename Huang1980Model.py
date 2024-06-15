@@ -39,7 +39,7 @@ class Huang1980Model(TCModel):
         - `input_function`: The input function used in the model.
         - `pet_measurement`: The PET measurement data.
         - `truths`: An optional argument representing the ground truth data for comparison.
-        - `home`: The home directory path.
+        - `HOME`: The HOME directory path.
         - `sample`: The sampling method. Default is "rslice".
         - `nlive`: The number of live points. Default is 1000.
         - `rstate`: The random state used for sampling. Default is np.random.default_rng(916301).

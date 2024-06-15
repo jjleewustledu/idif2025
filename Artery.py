@@ -22,7 +22,6 @@
 
 from abc import ABC
 from PETModel import PETModel
-from dynesty import utils as dyutils
 
 # general & system functions
 import re
@@ -37,10 +36,9 @@ import pandas as pd
 # plotting
 from matplotlib import pyplot as plt
 from matplotlib import cm
-
-# re-defining plotting defaults
 from matplotlib import rcParams
 
+# re-defining plotting defaults
 rcParams.update({"xtick.major.pad": "7.0"})
 rcParams.update({"xtick.major.size": "7.5"})
 rcParams.update({"xtick.major.width": "1.5"})
@@ -58,28 +56,6 @@ rcParams.update({"font.size": 30})
 
 class Artery(PETModel, ABC):
     """
-    Artery class for modeling arterial data in PET imaging.
-
-    Args:
-        input_func_measurement (str or dict): Path to input function measurement file or dictionary representing the input function measurement.
-        tracer (str, optional): Tracer information. If not provided, it will be extracted from the input_func_measurement file name.
-        truths (dict, optional): Dictionary representing the ground truth parameter values. If not provided, the internally stored truths will be used.
-        home (str, optional): Home directory. Defaults to the current working directory.
-        sample (str, optional): Sample type. Defaults to "rslice".
-        nlive (int, optional): Number of live points for the nested sampling algorithm. Defaults to 1000.
-        rstate (numpy.random.Generator, optional): Random state for reproducibility. Defaults to np.random.default_rng(916301).
-        tag (str, optional): Tag for saving results. Defaults to "".
-
-    Attributes:
-        KERNEL (Any): Kernel attribute.
-        __input_func_measurement (str or dict): Path to input function measurement file or dictionary representing the input function measurement.
-        HALFLIFE (float): Halflife attribute.
-        RHO (ndarray): Rho attribute.
-        TAUS (ndarray): Taus attribute.
-        TIMES_MID (ndarray): TimesMid attribute.
-        tracer (str): Tracer attribute.
-        _truths_internal (dict): Internal truths attribute.
-
     """
 
     duration = None  # class attribute used by input function models
@@ -232,6 +208,65 @@ class Artery(PETModel, ABC):
             "oo": Artery.prior_transform_oo
         }.get(self.tracer, Artery.prior_transform_default)
 
+    # noinspection DuplicatedCode
+    @staticmethod
+    def prior_transform_co(u):
+        v = u
+        v[0] = u[0] * 60  # t_0
+        v[1] = u[1] * 60  # \tau_2 ~ t_2 - t_0
+        v[2] = u[2] * 60  # \tau_3 ~ t_3 - t_2
+        v[3] = u[3] * 20  # \alpha - 1
+        v[4] = u[4] * 30 + 1  # 1/\beta
+        v[5] = u[5] * 9.75 + 0.25  # p
+        v[6] = u[6] * 10 - 10  # \delta p_2 ~ p_2 - p
+        v[7] = u[7] * 10 - 10  # \delta p_3 ~ p_3 - p_2
+        v[8] = u[8] * Artery.duration + 1/Artery.duration  # 1/\gamma for s.s.
+        v[9] = u[9] * 0.75 + 0.25  # f_2
+        v[10] = u[10] * 0.75  # f_3
+        v[11] = u[11] * 0.75  # f_{ss}
+        v[12] = u[12] * 4 + 0.5  # A is amplitude adjustment
+        v[13] = u[13] * Artery.sigma  # sigma ~ fraction of M0
+        return v
+
+    # noinspection DuplicatedCode
+    @staticmethod
+    def prior_transform_oo(u):
+        v = u
+        v[0] = u[0] * 60  # t_0
+        v[1] = u[1] * 60  # \tau_2 ~ t_2 - t_0
+        v[2] = u[2] * 60  # \tau_3 ~ t_3 - t_2
+        v[3] = u[3] * 20  # \alpha - 1
+        v[4] = u[4] * 30 + 1  # 1/\beta
+        v[5] = u[5] * 9.75 + 0.25  # p
+        v[6] = u[6] * 10 - 10  # \delta p_2 ~ p_2 - p
+        v[7] = u[7] * 10 - 10  # \delta p_3 ~ p_3 - p_2
+        v[8] = u[8] * Artery.duration + 1/Artery.duration  # 1/\gamma for s.s.
+        v[9] = u[9] * 0.75 + 0.25  # f_2
+        v[10] = u[10] * 0.5  # f_3
+        v[11] = u[11] * 0.25  # f_{ss}
+        v[12] = u[12] * 4 + 0.5  # A is amplitude adjustment
+        v[13] = u[13] * Artery.sigma  # sigma ~ fraction of M0
+        return v
+
+    @staticmethod
+    def prior_transform_default(u):
+        v = u
+        v[0] = u[0] * 60  # t_0
+        v[1] = u[1] * 60  # \tau_2 ~ t_2 - t_0
+        v[2] = u[2] * 60  # \tau_3 ~ t_3 - t_2
+        v[3] = u[3] * 20  # \alpha - 1
+        v[4] = u[4] * 30 + 1  # 1/\beta
+        v[5] = u[5] * 9.75 + 0.25  # p
+        v[6] = u[6] * 10 - 10  # \delta p_2 ~ p_2 - p
+        v[7] = u[7] * 10 - 10  # \delta p_3 ~ p_3 - p_2
+        v[8] = u[8] * Artery.duration + 1/Artery.duration  # 1/\gamma for s.s.
+        v[9] = u[9] * 0.5  # f_2
+        v[10] = u[10] * 0.25  # f_3
+        v[11] = u[11] * 0.25  # f_{ss}
+        v[12] = u[12] * 4 + 0.5  # A is amplitude adjustment
+        v[13] = u[13] * Artery.sigma  # sigma ~ fraction of M0
+        return v
+
     def run_nested(self, checkpoint_file=None, print_progress=False, resume=False):
         """ conforms with behaviors and interfaces of TCModel.py """
 
@@ -276,6 +311,7 @@ class Artery(PETModel, ABC):
         self.save_results(package, tag=self.TAG)
         return package
 
+    # noinspection DuplicatedCode
     def save_results(self, res_dict: dict, tag=""):
         """ conforms with behaviors and interfaces of TCModel.py """
 
@@ -343,63 +379,6 @@ class Artery(PETModel, ABC):
             "qh": res_dict["qh"]}
         df = pd.DataFrame(d_quantiles)
         df.to_csv(fqfp1 + "-quantiles.csv")
-
-    @staticmethod
-    def prior_transform_co(u):
-        v = u
-        v[0] = u[0] * 60  # t_0
-        v[1] = u[1] * 60  # \tau_2 ~ t_2 - t_0
-        v[2] = u[2] * 60  # \tau_3 ~ t_3 - t_2
-        v[3] = u[3] * 20  # \alpha - 1
-        v[4] = u[4] * 30 + 1  # 1/\beta
-        v[5] = u[5] * 9.75 + 0.25  # p
-        v[6] = u[6] * 10 - 10  # \delta p_2 ~ p_2 - p
-        v[7] = u[7] * 10 - 10  # \delta p_3 ~ p_3 - p_2
-        v[8] = u[8] * Artery.duration + 1/Artery.duration  # 1/\gamma for s.s.
-        v[9] = u[9] * 0.75 + 0.25  # f_2
-        v[10] = u[10] * 0.75  # f_3
-        v[11] = u[11] * 0.75  # f_{ss}
-        v[12] = u[12] * 4 + 0.5  # A is amplitude adjustment
-        v[13] = u[13] * Artery.sigma  # sigma ~ fraction of M0
-        return v
-
-    @staticmethod
-    def prior_transform_oo(u):
-        v = u
-        v[0] = u[0] * 60  # t_0
-        v[1] = u[1] * 60  # \tau_2 ~ t_2 - t_0
-        v[2] = u[2] * 60  # \tau_3 ~ t_3 - t_2
-        v[3] = u[3] * 20  # \alpha - 1
-        v[4] = u[4] * 30 + 1  # 1/\beta
-        v[5] = u[5] * 9.75 + 0.25  # p
-        v[6] = u[6] * 10 - 10  # \delta p_2 ~ p_2 - p
-        v[7] = u[7] * 10 - 10  # \delta p_3 ~ p_3 - p_2
-        v[8] = u[8] * Artery.duration + 1/Artery.duration  # 1/\gamma for s.s.
-        v[9] = u[9] * 0.75 + 0.25  # f_2
-        v[10] = u[10] * 0.5  # f_3
-        v[11] = u[11] * 0.25  # f_{ss}
-        v[12] = u[12] * 4 + 0.5  # A is amplitude adjustment
-        v[13] = u[13] * Artery.sigma  # sigma ~ fraction of M0
-        return v
-
-    @staticmethod
-    def prior_transform_default(u):
-        v = u
-        v[0] = u[0] * 60  # t_0
-        v[1] = u[1] * 60  # \tau_2 ~ t_2 - t_0
-        v[2] = u[2] * 60  # \tau_3 ~ t_3 - t_2
-        v[3] = u[3] * 20  # \alpha - 1
-        v[4] = u[4] * 30 + 1  # 1/\beta
-        v[5] = u[5] * 9.75 + 0.25  # p
-        v[6] = u[6] * 10 - 10  # \delta p_2 ~ p_2 - p
-        v[7] = u[7] * 10 - 10  # \delta p_3 ~ p_3 - p_2
-        v[8] = u[8] * Artery.duration + 1/Artery.duration  # 1/\gamma for s.s.
-        v[9] = u[9] * 0.5  # f_2
-        v[10] = u[10] * 0.25  # f_3
-        v[11] = u[11] * 0.25  # f_{ss}
-        v[12] = u[12] * 4 + 0.5  # A is amplitude adjustment
-        v[13] = u[13] * Artery.sigma  # sigma ~ fraction of M0
-        return v
 
     @staticmethod
     def solution_1bolus(t, t_0, a, b, p):

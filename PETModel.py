@@ -21,16 +21,12 @@
 # SOFTWARE.
 
 from DynestyModel import DynestyModel
-from DynestySolver import DynestySolver
-from dynesty import utils as dyutils
-from dynesty import plotting as dyplot
 
 # general & system functions
-from abc import abstractmethod
+from abc import ABC
 import os
 import sys
 from copy import deepcopy
-import traceback
 import inspect
 
 # basic numeric setup
@@ -41,33 +37,11 @@ import pandas as pd
 import json
 import nibabel as nib
 
-# plotting
-import matplotlib
-matplotlib.use('Agg')
-from matplotlib import pyplot as plt
 
-# re-defining plotting defaults
-from matplotlib import rcParams
-
-rcParams.update({"xtick.major.pad": "7.0"})
-rcParams.update({"xtick.major.size": "7.5"})
-rcParams.update({"xtick.major.width": "1.5"})
-rcParams.update({"xtick.minor.pad": "7.0"})
-rcParams.update({"xtick.minor.size": "3.5"})
-rcParams.update({"xtick.minor.width": "1.0"})
-rcParams.update({"ytick.major.pad": "7.0"})
-rcParams.update({"ytick.major.size": "7.5"})
-rcParams.update({"ytick.major.width": "1.5"})
-rcParams.update({"ytick.minor.pad": "7.0"})
-rcParams.update({"ytick.minor.size": "3.5"})
-rcParams.update({"ytick.minor.width": "1.0"})
-rcParams.update({"font.size": 30})
-
-
-class PETModel(DynestyModel):
+class PETModel(DynestyModel, ABC):
+    """
     """
 
-    """
     def __init__(self,
                  home=os.getcwd(),
                  sample="rslice",
@@ -75,19 +49,47 @@ class PETModel(DynestyModel):
                  rstate=np.random.default_rng(916301),
                  time_last=None,
                  tag=""):
-        self.home = home
-        self.solver = DynestySolver(model=self,
-                                    sample=sample,
-                                    nlive=nlive,
-                                    rstate=rstate)
-        self.NLIVE = nlive
+        super().__init__(sample=sample,
+                         nlive=nlive,
+                         rstate=rstate,
+                         tag=tag)
+        self.HOME = home
         self.TIME_LAST = time_last
-        self.TAG = tag
 
-    @property
-    @abstractmethod
-    def ndim(self):
-        pass
+    @staticmethod
+    def data2t(data: dict):
+        timesMid = data["timesMid"]
+        taus = data["taus"]
+        t0 = timesMid[0] - taus[0] / 2
+        tF = timesMid[-1] + taus[-1] / 2
+        t = np.arange(t0, tF)
+        return t
+
+    @staticmethod
+    def data2taus(data: dict):
+        timesMid = data["timesMid"]
+        times = data["times"]
+        return 2 * (timesMid - times)
+
+    @staticmethod
+    def data2timesMid(data: dict):
+        times = data["times"]
+        taus = data["taus"]
+        return times + taus / 2
+
+    @staticmethod
+    def decay_correct(tac: dict):
+        _tac = deepcopy(tac)
+        img = _tac["img"] * np.power(2, _tac["timesMid"] / _tac["halflife"])
+        _tac["img"] = img
+        return _tac
+
+    @staticmethod
+    def decay_uncorrect(tac: dict):
+        _tac = deepcopy(tac)
+        img = _tac["img"] * np.power(2, -_tac["timesMid"] / _tac["halflife"])
+        _tac["img"] = img
+        return _tac
 
     def load_nii(self, fqfn):
         if not os.path.isfile(fqfn):
@@ -126,49 +128,26 @@ class PETModel(DynestyModel):
             niid = self.trim_nii_dict(niid, self.TIME_LAST)
         return deepcopy(niid)
 
-    def plot_results(self, res: dyutils.Results, tag="", parc_index=None):
+    @staticmethod
+    def parse_halflife(fqfp: str):
+        iso = PETModel.parse_isotope(fqfp)
+        if iso == "15O":
+            return 122.2416  # sec
+        if iso == "11C":
+            return 20.340253 * 60  # sec
+        if iso == "18F":
+            return 1.82951 * 3600  # sec
+        raise ValueError(f"tracer and halflife not identifiable from fqfp {fqfp}")
 
-        if not tag and parc_index:
-            tag = f"parc{parc_index}"
-        if tag:
-            tag = "-" + tag
-        fqfp1 = self.fqfp_results + tag
-        qm, _, _ = self.solver.quantile(res)
-
-        try:
-            self.plot_truths(qm, parc_index=parc_index)
-            plt.savefig(fqfp1 + "-results.png")
-            plt.savefig(fqfp1 + "-results.svg")
-        except Exception as e:
-            print("PETModel.plot_results: caught an Exception: ", str(e))
-            traceback.print_exc()
-
-        try:
-            dyplot.runplot(res)
-            plt.tight_layout()
-            plt.savefig(fqfp1 + "-runplot.png")
-            plt.savefig(fqfp1 + "-runplot.svg")
-        except ValueError as e:
-            print(f"PETModel.plot_results.dyplot.runplot: caught a ValueError: {e}")
-
-        try:
-            fig, axes = dyplot.traceplot(res, labels=self.labels, truths=qm, title_fmt=".5f",
-                                         fig=plt.subplots(self.ndim, 2, figsize=(16, 25)))
-            plt.ticklabel_format(axis='x', style='sci', scilimits=(-3, 3))
-            fig.tight_layout()
-            plt.savefig(fqfp1 + "-traceplot.png")
-            plt.savefig(fqfp1 + "-traceplot.svg")
-        except ValueError as e:
-            print(f"PETModel.plot_results.dyplot.traceplot: caught a ValueError: {e}")
-
-        try:
-            dyplot.cornerplot(res, truths=qm, title_fmt=".5f", show_titles=True,
-                              title_kwargs={"y": 1.04}, labels=self.labels,
-                              fig=plt.subplots(self.ndim, self.ndim, figsize=(100, 100)))
-            plt.savefig(fqfp1 + "-cornerplot.png")
-            plt.savefig(fqfp1 + "-cornerplot.svg")
-        except ValueError as e:
-            print(f"PETModel.plot_results.dyplot.cornerplot: caught a ValueError: {e}")
+    @staticmethod
+    def parse_isotope(name: str):
+        if "trc-co" in name or "trc-oc" in name or "trc-oo" in name or "trc-ho" in name:
+            return "15O"
+        if "trc-cglc" in name or "trc-cs1p1" in name:
+            return "11C"
+        if "trc-fdg" in name or "trc-tz3108" in name or "trc-asem" in name or "trc-azan" in name or "trc-vat" in name:
+            return "18F"
+        raise ValueError(f"tracer and isotope not identifiable from name {name}")
 
     def save_csv(self, data: dict, fqfn=None):
         """ """
@@ -223,48 +202,6 @@ class PETModel(DynestyModel):
             print(f"{cname}.{mname}: caught Exception {e}, but proceeding", file=sys.stderr)
 
     @staticmethod
-    def data2t(data: dict):
-        timesMid = data["timesMid"]
-        taus = data["taus"]
-        t0 = timesMid[0] - taus[0] / 2
-        tF = timesMid[-1] + taus[-1] / 2
-        t = np.arange(t0, tF)
-        return t
-
-    @staticmethod
-    def data2taus(data: dict):
-        timesMid = data["timesMid"]
-        times = data["times"]
-        return 2 * (timesMid - times)
-
-    @staticmethod
-    def data2timesMid(data: dict):
-        times = data["times"]
-        taus = data["taus"]
-        return times + taus / 2
-
-    @staticmethod
-    def parse_halflife(fqfp: str):
-        iso = PETModel.parse_isotope(fqfp)
-        if iso == "15O":
-            return 122.2416  # sec
-        if iso == "11C":
-            return 20.340253 * 60  # sec
-        if iso == "18F":
-            return 1.82951 * 3600  # sec
-        raise ValueError(f"tracer and halflife not identifiable from fqfp {fqfp}")
-
-    @staticmethod
-    def parse_isotope(name: str):
-        if "trc-co" in name or "trc-oc" in name or "trc-oo" in name or "trc-ho" in name:
-            return "15O"
-        if "trc-cglc" in name or "trc-cs1p1" in name:
-            return "11C"
-        if "trc-fdg" in name or "trc-tz3108" in name or "trc-asem" in name or "trc-azan" in name or "trc-vat" in name:
-            return "18F"
-        raise ValueError(f"tracer and isotope not identifiable from name {name}")
-
-    @staticmethod
     def slide(rho, t, dt, halflife=None):
         if abs(dt) < 0.1:
             return rho
@@ -291,8 +228,8 @@ class PETModel(DynestyModel):
             selected = viable
         if img.ndim == 1:
             _niid.update({"img": img[selected], "timesMid": timesMid[selected], "taus": taus[selected],
-                         "times": times[selected]})
+                          "times": times[selected]})
         else:
             _niid.update({"img": img[:, selected], "timesMid": timesMid[selected], "taus": taus[selected],
-                         "times": times[selected]})
+                          "times": times[selected]})
         return _niid

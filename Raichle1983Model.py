@@ -38,7 +38,7 @@ class Raichle1983Model(TCModel):
         input_function (function): The input function that describes the tracer kinetics.
         pet_measurement (dict): The PET measurement data.
         truths (dict, optional): The ground truth values for the parameters. Defaults to None.
-        home (str, optional): The home directory. Defaults to the current working directory.
+        home (str, optional): The HOME directory. Defaults to the current working directory.
         sample (str, optional): The sampling method. Defaults to "rslice".
         nlive (int, optional): The number of live points for sampling. Defaults to 1000.
         rstate (numpy.random.Generator, optional): The random state. Defaults to np.random.default_rng(916301).

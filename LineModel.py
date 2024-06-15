@@ -31,6 +31,7 @@ import numpy as np
 
 class LineModel(TCModel):
     """ """
+
     def __init__(self,
                  input_function,
                  pet_measurement,

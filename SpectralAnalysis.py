@@ -40,7 +40,7 @@ class SpectralAnalysis(TCModel):
     - input_function: The input function of the model.
     - pet_measurement: The PET measurement data.
     - truths: A dictionary containing the ground truth values for the model parameters. (optional)
-    - home: The home directory where the output files will be saved. (default: current working directory)
+    - HOME: The HOME directory where the output files will be saved. (default: current working directory)
     - sample: The type of sampling to be used. (default: "rslice")
     - nlive: The number of live points for the Nested Sampling algorithm. (default: 1000)
     - rstate: The random state for reproducibility. (default: np.random.default_rng(916301))

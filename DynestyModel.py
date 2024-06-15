@@ -20,115 +20,56 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+
+from DynestyInterface import DynestyInterface
+from DynestySolver import DynestySolver
+from dynesty import utils as dyutils, plotting as dyplot
+
 # general & system functions
-from abc import ABC, abstractmethod
+from abc import abstractmethod
+import traceback
+
+# basic numeric setup
+import numpy as np
+
+# plotting
+import matplotlib
+from matplotlib import pyplot as plt
+from matplotlib import rcParams
+
+# re-defining plotting defaults
+matplotlib.use('Agg')
+rcParams.update({"xtick.major.pad": "7.0"})
+rcParams.update({"xtick.major.size": "7.5"})
+rcParams.update({"xtick.major.width": "1.5"})
+rcParams.update({"xtick.minor.pad": "7.0"})
+rcParams.update({"xtick.minor.size": "3.5"})
+rcParams.update({"xtick.minor.width": "1.0"})
+rcParams.update({"ytick.major.pad": "7.0"})
+rcParams.update({"ytick.major.size": "7.5"})
+rcParams.update({"ytick.major.width": "1.5"})
+rcParams.update({"ytick.minor.pad": "7.0"})
+rcParams.update({"ytick.minor.size": "3.5"})
+rcParams.update({"ytick.minor.width": "1.0"})
+rcParams.update({"font.size": 30})
 
 
-class DynestyModel(ABC):
+class DynestyModel(DynestyInterface):
+    """
     """
 
-    :class: DynestyModel
+    def __init__(self,
+                 sample="rslice",
+                 nlive=1000,
+                 rstate=np.random.default_rng(916301),
+                 tag=""):
+        self.solver = DynestySolver(model=self,
+                                    sample=sample,
+                                    nlive=nlive,
+                                    rstate=rstate)
+        self.NLIVE = nlive
+        self.TAG = tag
 
-    Abstract Base Class for implementing a Dynesty model.
-
-    .. attribute:: fqfp
-
-        Full qualified file prefix (fqfp) of the model.
-
-    .. attribute:: fqfp_results
-
-        Full qualified file prefix (fqfp) of the results.
-
-    .. attribute:: labels
-
-        List of parameter labels.
-
-    .. attribute:: truths
-
-        List of parameter truths.
-
-    .. method:: plot_results(res, parc_index)
-
-        Plots the results of the model.
-
-        :param res: The results of the model.
-        :type res: unknown
-
-        :param parc_index: The parameter index.
-        :type parc_index: int
-
-    .. method:: plot_truths(truths, parc_index)
-
-        Plots the parameter truths.
-
-        :param truths: The parameter truths.
-        :type truths: unknown
-
-        :param parc_index: The parameter index.
-        :type parc_index: int
-
-    .. method:: plot_variations(tindex0, tmin, tmax, truths)
-
-        Plots the variations of parameters.
-
-        :param tindex0: Unknown parameter.
-        :type tindex0: unknown
-
-        :param tmin: Minimum parameter value.
-        :type tmin: float
-
-        :param tmax: Maximum parameter value.
-        :type tmax: float
-
-        :param truths: The parameter truths.
-        :type truths: unknown
-
-    .. method:: run_nested(checkpoint_file)
-
-        Runs the nested sampler.
-
-        :param checkpoint_file: The checkpoint file.
-        :type checkpoint_file: str
-
-    .. method:: save_results(res, tag)
-
-        Saves the results of the model.
-
-        :param res: The results of the model.
-        :type res: unknown
-
-        :param tag: The results tag.
-        :type tag: str
-
-    .. staticmethod:: data(v)
-
-        Unknown method.
-
-        :param v: Unknown parameter.
-        :type v: unknown
-
-    .. staticmethod:: loglike(v)
-
-        Unknown method.
-
-        :param v: Unknown parameter.
-        :type v: unknown
-
-    .. staticmethod:: prior_transform(tag)
-
-        Unknown method.
-
-        :param tag: The prior transform tag.
-        :type tag: unknown
-
-    .. staticmethod:: signalmodel(data)
-
-        Creates a signal model based on the given data.
-
-        :param data: The data to create the signal model.
-        :type data: dict
-
-    """
     @property
     @abstractmethod
     def fqfp(self):
@@ -146,27 +87,12 @@ class DynestyModel(ABC):
 
     @property
     @abstractmethod
+    def ndim(self):
+        pass
+
+    @property
+    @abstractmethod
     def truths(self):
-        pass
-
-    @abstractmethod
-    def plot_results(self, res, parc_index):
-        pass
-
-    @abstractmethod
-    def plot_truths(self, truths, parc_index):
-        pass
-
-    @abstractmethod
-    def plot_variations(self, tindex0, tmin, tmax, truths):
-        pass
-
-    @abstractmethod
-    def run_nested(self, checkpoint_file):
-        pass
-
-    @abstractmethod
-    def save_results(self, res, tag):
         pass
 
     @staticmethod
@@ -179,9 +105,69 @@ class DynestyModel(ABC):
     def loglike(v):
         pass
 
+    def plot_results(self, res: dyutils.Results, tag="", parc_index=None):
+
+        if not tag and parc_index:
+            tag = f"parc{parc_index}"
+        if tag:
+            tag = "-" + tag
+        fqfp1 = self.fqfp_results + tag
+        qm, _, _ = self.solver.quantile(res)
+
+        try:
+            self.plot_truths(qm, parc_index=parc_index)
+            plt.savefig(fqfp1 + "-results.png")
+            plt.savefig(fqfp1 + "-results.svg")
+        except Exception as e:
+            print("PETModel.plot_results: caught an Exception: ", str(e))
+            traceback.print_exc()
+
+        try:
+            dyplot.runplot(res)
+            plt.tight_layout()
+            plt.savefig(fqfp1 + "-runplot.png")
+            plt.savefig(fqfp1 + "-runplot.svg")
+        except ValueError as e:
+            print(f"PETModel.plot_results.dyplot.runplot: caught a ValueError: {e}")
+
+        try:
+            fig, axes = dyplot.traceplot(res, labels=self.labels, truths=qm, title_fmt=".5f",
+                                         fig=plt.subplots(self.ndim, 2, figsize=(16, 25)))
+            plt.ticklabel_format(axis='x', style='sci', scilimits=(-3, 3))
+            fig.tight_layout()
+            plt.savefig(fqfp1 + "-traceplot.png")
+            plt.savefig(fqfp1 + "-traceplot.svg")
+        except ValueError as e:
+            print(f"PETModel.plot_results.dyplot.traceplot: caught a ValueError: {e}")
+
+        try:
+            dyplot.cornerplot(res, truths=qm, title_fmt=".5f", show_titles=True,
+                              title_kwargs={"y": 1.04}, labels=self.labels,
+                              fig=plt.subplots(self.ndim, self.ndim, figsize=(100, 100)))
+            plt.savefig(fqfp1 + "-cornerplot.png")
+            plt.savefig(fqfp1 + "-cornerplot.svg")
+        except ValueError as e:
+            print(f"PETModel.plot_results.dyplot.cornerplot: caught a ValueError: {e}")
+
+    @abstractmethod
+    def plot_truths(self, truths, parc_index):
+        pass
+
+    @abstractmethod
+    def plot_variations(self, tindex0, tmin, tmax, truths):
+        pass
+
     @staticmethod
     @abstractmethod
     def prior_transform(tag):
+        pass
+
+    @abstractmethod
+    def run_nested(self, checkpoint_file):
+        pass
+
+    @abstractmethod
+    def save_results(self, res, tag):
         pass
 
     @staticmethod

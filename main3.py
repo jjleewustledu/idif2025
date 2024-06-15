@@ -8,7 +8,7 @@ from Boxcar import Boxcar
 from RadialArtery import RadialArtery
 from multiprocessing import Pool
 
-singularity = "/home/usr/jjlee/mnt/CHPC_scratch/Singularity"
+singularity = "/HOME/usr/jjlee/mnt/CHPC_scratch/Singularity"
 template = [
     os.path.join(singularity,
         "CCIR_01211", "derivatives", "sub-108293", "ses-20210421144815", "pet",

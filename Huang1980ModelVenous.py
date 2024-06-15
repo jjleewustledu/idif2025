@@ -40,7 +40,7 @@ class Huang1980ModelVenous(TCModel):
     - input_function (function): The input function used in the model.
     - pet_measurement (array-like): The PET measurement data.
     - truths (dict, optional): The ground truth values for the model parameters. Default is None.
-    - home (str, optional): The directory to save the analysis results. Default is the current working directory.
+    - HOME (str, optional): The directory to save the analysis results. Default is the current working directory.
     - sample (str, optional): The sample name for saving files. Default is "rslice".
     - nlive (int, optional): The number of live points for the nested sampling algorithm. Default is 1000.
     - rstate (MersenneTwister or PCG64, optional): The random number generator state. Default is numpy's default RNG with seed 916301.

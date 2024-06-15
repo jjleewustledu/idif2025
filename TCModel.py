@@ -20,33 +20,31 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from abc import ABC, abstractmethod
-
-from PETModel import PETModel
 from Boxcar import Boxcar
+from PETModel import PETModel
 from RadialArtery import RadialArtery
 from TrivialArtery import TrivialArtery
 
 # general & system functions
 import glob
+import inspect
 import os
-import sys
 import pickle
+import sys
+import warnings
+from abc import ABC
 from copy import deepcopy
 from pprint import pprint
-import warnings
-import inspect
 
 # basic numeric setup
 import numpy as np
 
 # plotting
-from matplotlib import pyplot as plt
 from matplotlib import cm
-
-# re-defining plotting defaults
+from matplotlib import pyplot as plt
 from matplotlib import rcParams
 
+# re-defining plotting defaults
 rcParams.update({"xtick.major.pad": "7.0"})
 rcParams.update({"xtick.major.size": "7.5"})
 rcParams.update({"xtick.major.width": "1.5"})
@@ -67,7 +65,7 @@ def kernel_fqfn(artery_fqfn: str):
     :param artery_fqfn: The fully qualified file name of an artery.
     :return: The corresponding fully qualified file name of the kernel to use for that artery.
     """
-    sourcedata = os.path.join(os.getenv("SINGULARITY_HOME"), "CCIR_01211", "sourcedata",)
+    sourcedata = os.path.join(os.getenv("SINGULARITY_HOME"), "CCIR_01211", "sourcedata", )
     if "sub-108293" in artery_fqfn:
         return os.path.join(sourcedata, "kernel_hct=46.8.nii.gz")
     if "sub-108237" in artery_fqfn:
@@ -86,24 +84,9 @@ def kernel_fqfn(artery_fqfn: str):
 
 
 class TCModel(PETModel, ABC):
-    """Class documentation for TCModel.
-
-    :class: TCModel
-    :inheritance: PETModel, ABC
-
-    This class represents a TC Model used for PET imaging analysis.
-
-    Attributes:
-        _input_function (str): The fully qualified file path to the input function file.
-        _pet_measurement (str or dict): The fully qualified file path to the PET measurement file or a dictionary containing the PET measurement data.
-        truths (list, optional): A list of ground truth values.
-        home (str): The home directory for the model (default: current working directory).
-        sample (str): The sample type (default: "rslice").
-        nlive (int): The number of live points for dynesty sampling (default: 1000).
-        rstate (np.random.Generator): The random state for dynesty sampling (default: np.random.default_rng(916301)).
-        tag (str): A tag for the model (default: "").
-
     """
+    """
+
     sigma = None  # class attribute needed by dynesty
 
     def __init__(self,
@@ -235,7 +218,8 @@ class TCModel(PETModel, ABC):
 
         # use existing twilite data
         if isinstance(self.ARTERY, RadialArtery):
-            to_glob = subject_path + f"/**/*-createNiftiMovingAvgFrames-schaeffer-Raichle1983Artery-{self.TAG}-qm.nii.gz"
+            to_glob = (subject_path +
+                       f"/**/*-createNiftiMovingAvgFrames-schaeffer-Raichle1983Artery-{self.TAG}-qm.nii.gz")
             matches = glob.glob(to_glob, recursive=True)
             if matches and matches[0]:
                 return self.load_nii(matches[0])
@@ -335,9 +319,14 @@ class TCModel(PETModel, ABC):
         self._input_function = niid
         return deepcopy(self._input_function)
 
+    @staticmethod
+    def is_sequence(obj):
+        """ a sequence cannot be multiplied by floating point """
+        return isinstance(obj, (list, tuple, type(None)))
+
     def loglike(self, v):
         data = self.data(v)
-        rho_pred, _, _, _ = self.signalmodel(data)
+        rho_pred, _, _, _ = self.signalmodel(data)  # has 4 returned objects compared to Artery.loglike()
         sigma = v[-1]
         residsq = (rho_pred - data["rho"]) ** 2 / sigma ** 2
         loglike = -0.5 * np.sum(residsq + np.log(2 * np.pi * sigma ** 2))
@@ -358,8 +347,9 @@ class TCModel(PETModel, ABC):
         if parc_index:
             petm_hat = petm["img"][parc_index]
         else:
+            # evaluates mean of petm["img"] for spatial dimensions only
             selected_axes = tuple(np.arange(petm["img"].ndim - 1))
-            petm_hat = np.median(petm["img"], axis=selected_axes)  # evaluates mean of petm["img"] for spatial dimensions only
+            petm_hat = np.median(petm["img"], axis=selected_axes)
         M0 = np.max(petm["img"]) / np.max(rho_pred)
 
         inputf = self.input_function()
@@ -395,8 +385,8 @@ class TCModel(PETModel, ABC):
         for tidx, t in enumerate(trange):
             _truths[tindex] = t
             data = self.data(_truths)
-            rho, timesMid, _, _ = self.signalmodel(data)
-            plt.plot(timesMid, rho, color=viridis(tidx))
+            rho, timesMid, _, _ = self.signalmodel(data)  # distinct from Artery.plot_variations()
+            plt.plot(timesMid, rho, color=viridis(tidx))  # distinct from Artery.plot_variations()
 
         # plt.xlim([-0.1,])
         plt.xlabel("time of mid-frame (s)")
@@ -423,6 +413,85 @@ class TCModel(PETModel, ABC):
             "LineModel": self.prior_transform_test,
         }.get(self.__class__.__name__, self.prior_transform_huang)
         # default is self.prior_transform_huang for 2-tissue compartment models
+
+    @staticmethod
+    def prior_transform_huang(u):
+        v = u
+        v[0] = u[0] * 2  # k_1 (1/s)
+        v[1] = u[1] * 0.5 + 0.00001  # k_2 (1/s)
+        v[2] = u[2] * 0.05 + 0.00001  # k_3 (1/s)
+        v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
+        v[4] = u[4] * 20  # t_0 (s)
+        v[5] = u[5] * 120 - 60  # \tau_a (s)
+        v[6] = u[6] * TCModel.sigma  # sigma ~ fraction of M0
+        return v
+
+    @staticmethod
+    def prior_transform_ichise(u):
+        v = u
+        v[0] = u[0] * 2  # k_1 (1/s)
+        v[1] = u[1] * 0.5 + 0.00001  # k_2 (1/s)
+        v[2] = u[2] * 0.05 + 0.00001  # k_3 (1/s)
+        v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
+        v[4] = u[4] * 999.9 + 0.1  # V (mL/cm^{-3}) is total volume := V_N + V_S
+        v[5] = u[5] * 120 - 60  # \tau_a (s)
+        # v[5] = u[5] * 20  # t_0 (s)
+        v[6] = u[6] * TCModel.sigma  # sigma ~ fraction of M0
+        return v
+
+    @staticmethod
+    def prior_transform_ichise_vasc(u):
+        v = u
+        v[0] = u[0] * 2  # k_1 (1/s)
+        v[1] = u[1] * 0.5 + 0.00001  # k_2 (1/s)
+        v[2] = u[2] * 0.05 + 0.00001  # k_3 (1/s)
+        v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
+        v[4] = u[4] * 0.099 + 0.001  # V_P (mL/cm^{-3})
+        v[5] = u[5] * 9999.9 + 0.1  # V^\star (mL/cm^{-3}) is total volume := V_P + V_N + V_S
+        v[6] = u[6] * 120 - 60  # \tau_a (s)
+        # v[6] = u[6] * 20  # t_0 (s)
+        v[7] = u[7] * TCModel.sigma  # sigma ~ fraction of M0
+        return v
+
+    @staticmethod
+    def prior_transform_ichise_posthoc(u):
+        raise NotImplementedError(
+            f"{TCModel.prior_transform_ichise_posthoc.__name__} requires overriding by class Ichise2002PosthocModel.")
+
+    @staticmethod
+    def prior_transform_martin(u):
+        v = u
+        return v
+
+    @staticmethod
+    def prior_transform_mintun(u):
+        v = u
+        v[0] = u[0] * 0.6 + 0.2  # OEF
+        v[1] = u[1] * 1.8 + 0.1  # frac. water of metab. at 90 s
+        v[2] = 0.835  # (v_{post} + 0.5 v_{cap}) / v_1
+        v[3] = u[3] * 20  # t_0 (s)
+        v[4] = u[4] * (-60) + 20  # \tau_a (s)
+        v[5] = u[5] * TCModel.sigma  # sigma ~ fraction of M0
+        return v
+
+    @staticmethod
+    def prior_transform_raichle(u):
+        v = u
+        v[0] = u[0] * 0.016 + 0.0011  # f (1/s)
+        v[1] = u[1] * 1.95 + 0.05  # \lambda (cm^3/mL)
+        v[2] = u[2] * 0.0272 + 0.0011  # ps (mL cm^{-3}s^{-1})
+        v[3] = u[3] * 20  # t_0 (s)
+        v[4] = u[4] * (-60) + 20  # \tau_a (s)
+        v[5] = u[5] * TCModel.sigma  # sigma ~ fraction of M0
+        return v
+
+    @staticmethod
+    def prior_transform_test(u):
+        v = u
+        v[0] = u[0] * 2  # intercept
+        v[1] = u[1] * 0.5 + 0.00001  # slope
+        v[2] = u[2] * TCModel.sigma  # sigma ~ fraction of M0
+        return v
 
     def run_nested(self, checkpoint_file=None, print_progress=False, resume=False):
         """ default: checkpoint_file=self.fqfp+"_dynesty-ModelClass-yyyyMMddHHmmss.save") """
@@ -580,6 +649,7 @@ class TCModel(PETModel, ABC):
         with open(fqfp1 + "-res.pickle", 'wb') as f:
             pickle.dump(res_dict["res"], f, pickle.HIGHEST_PROTOCOL)
 
+    # noinspection DuplicatedCode
     def save_results(self, res_dict: dict, tag=""):
         """"""
 
@@ -637,101 +707,3 @@ class TCModel(PETModel, ABC):
         # product = deepcopy(petm)
         # product["img"] = res_dict["raichleks"]
         # self.save_nii(product, fqfp1 + "-raichleks.nii.gz")
-
-    @staticmethod
-    def is_sequence(obj):
-        """ a sequence cannot be multiplied by floating point """
-        return isinstance(obj, (list, tuple, type(None)))
-
-    @staticmethod
-    def decay_correct(tac: dict):
-        _tac = deepcopy(tac)
-        img = _tac["img"] * np.power(2, _tac["timesMid"] / _tac["halflife"])
-        _tac["img"] = img
-        return _tac
-
-    @staticmethod
-    def decay_uncorrect(tac: dict):
-        _tac = deepcopy(tac)
-        img = _tac["img"] * np.power(2, -_tac["timesMid"] / _tac["halflife"])
-        _tac["img"] = img
-        return _tac
-
-    @staticmethod
-    def prior_transform_martin(u):
-        v = u
-        return v
-
-    @staticmethod
-    def prior_transform_raichle(u):
-        v = u
-        v[0] = u[0] * 0.016 + 0.0011  # f (1/s)
-        v[1] = u[1] * 1.95 + 0.05  # \lambda (cm^3/mL)
-        v[2] = u[2] * 0.0272 + 0.0011  # ps (mL cm^{-3}s^{-1})
-        v[3] = u[3] * 20  # t_0 (s)
-        v[4] = u[4] * (-60) + 20  # \tau_a (s)
-        v[5] = u[5] * TCModel.sigma  # sigma ~ fraction of M0
-        return v
-
-    @staticmethod
-    def prior_transform_mintun(u):
-        v = u
-        v[0] = u[0] * 0.6 + 0.2  # OEF
-        v[1] = u[1] * 1.8 + 0.1  # frac. water of metab. at 90 s
-        v[2] = 0.835  # (v_{post} + 0.5 v_{cap}) / v_1
-        v[3] = u[3] * 20  # t_0 (s)
-        v[4] = u[4] * (-60) + 20  # \tau_a (s)
-        v[5] = u[5] * TCModel.sigma  # sigma ~ fraction of M0
-        return v
-
-    @staticmethod
-    def prior_transform_huang(u):
-        v = u
-        v[0] = u[0] * 2  # k_1 (1/s)
-        v[1] = u[1] * 0.5 + 0.00001  # k_2 (1/s)
-        v[2] = u[2] * 0.05 + 0.00001  # k_3 (1/s)
-        v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
-        v[4] = u[4] * 20  # t_0 (s)
-        v[5] = u[5] * 120 - 60  # \tau_a (s)
-        v[6] = u[6] * TCModel.sigma  # sigma ~ fraction of M0
-        return v
-
-    @staticmethod
-    def prior_transform_ichise(u):
-        v = u
-        v[0] = u[0] * 2  # k_1 (1/s)
-        v[1] = u[1] * 0.5 + 0.00001  # k_2 (1/s)
-        v[2] = u[2] * 0.05 + 0.00001  # k_3 (1/s)
-        v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
-        v[4] = u[4] * 999.9 + 0.1  # V (mL/cm^{-3}) is total volume := V_N + V_S
-        v[5] = u[5] * 120 - 60  # \tau_a (s)
-        # v[5] = u[5] * 20  # t_0 (s)
-        v[6] = u[6] * TCModel.sigma  # sigma ~ fraction of M0
-        return v
-
-    @staticmethod
-    def prior_transform_ichise_vasc(u):
-        v = u
-        v[0] = u[0] * 2  # k_1 (1/s)
-        v[1] = u[1] * 0.5 + 0.00001  # k_2 (1/s)
-        v[2] = u[2] * 0.05 + 0.00001  # k_3 (1/s)
-        v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
-        v[4] = u[4] * 0.099 + 0.001  # V_P (mL/cm^{-3})
-        v[5] = u[5] * 9999.9 + 0.1  # V^\star (mL/cm^{-3}) is total volume := V_P + V_N + V_S
-        v[6] = u[6] * 120 - 60  # \tau_a (s)
-        # v[6] = u[6] * 20  # t_0 (s)
-        v[7] = u[7] * TCModel.sigma  # sigma ~ fraction of M0
-        return v
-
-    @staticmethod
-    def prior_transform_ichise_posthoc(u):
-        raise NotImplementedError(
-            f"{TCModel.prior_transform_ichise_posthoc.__name__} requires overriding by class Ichise2002PosthocModel.")
-
-    @staticmethod
-    def prior_transform_test(u):
-        v = u
-        v[0] = u[0] * 2  # intercept
-        v[1] = u[1] * 0.5 + 0.00001  # slope
-        v[2] = u[2] * TCModel.sigma  # sigma ~ fraction of M0
-        return v

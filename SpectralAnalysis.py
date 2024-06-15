@@ -58,14 +58,14 @@ class SpectralAnalysis(TissueModel):
                          delta_time=delta_time)
         SpectralAnalysis.sigma = 0.2
 
-    def loglike(self, v):
-        data = self.data(v)
-        rho_pred, _, _, _ = self.signalmodel(data)  # has 4 returned objects compared to Artery.loglike()
-        sigma = v[-1]
-        residsq = (rho_pred - data["rho"]) ** 2 / sigma ** 2
-        loglike = -0.5 * np.sum(residsq + np.log(2 * np.pi * sigma ** 2))
+    @property
+    def labels(self):
+        pass
 
-        if not np.isfinite(loglike):
-            loglike = -1e300
+    @staticmethod
+    def prior_transform(tag):
+        pass
 
-        return loglike
+    @staticmethod
+    def signalmodel(data: dict):
+        pass

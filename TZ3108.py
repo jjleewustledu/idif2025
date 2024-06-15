@@ -22,6 +22,7 @@
 
 from Huang1980Model import Huang1980Model
 from Ichise2002Model import Ichise2002Model
+from Ichise2002PosthocModel import Ichise2002PosthocModel
 from Ichise2002VascModel import Ichise2002VascModel
 from LineModel import LineModel
 
@@ -45,8 +46,30 @@ class TZ3108:
                  rstate=np.random.default_rng(916301),
                  tag="",
                  model=None,
-                 delta_time=8):
-        if "Ichise2002VascModel" in model:
+                 delta_time=4):
+        if "SpectralAnalysis" in model:
+            self._strategy = SpectralAnalysis(
+                input_function,
+                pet_measurement,
+                truths=truths,
+                home=home,
+                sample=sample,
+                nlive=nlive,
+                rstate=rstate,
+                tag=tag,
+                delta_time=delta_time)
+        if "Ichise2002PosthocModel" in model:
+            self._strategy = Ichise2002PosthocModel(
+                input_function,
+                pet_measurement,
+                truths=truths,
+                home=home,
+                sample=sample,
+                nlive=nlive,
+                rstate=rstate,
+                tag=tag,
+                delta_time=delta_time)
+        elif "Ichise2002VascModel" in model:
             self._strategy = Ichise2002VascModel(
                 input_function,
                 pet_measurement,

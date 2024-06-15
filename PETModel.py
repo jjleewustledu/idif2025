@@ -42,6 +42,8 @@ import json
 import nibabel as nib
 
 # plotting
+import matplotlib
+matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 
 # re-defining plotting defaults
@@ -136,6 +138,7 @@ class PETModel(DynestyModel):
         try:
             self.plot_truths(qm, parc_index=parc_index)
             plt.savefig(fqfp1 + "-results.png")
+            plt.savefig(fqfp1 + "-results.svg")
         except Exception as e:
             print("PETModel.plot_results: caught an Exception: ", str(e))
             traceback.print_exc()
@@ -144,22 +147,26 @@ class PETModel(DynestyModel):
             dyplot.runplot(res)
             plt.tight_layout()
             plt.savefig(fqfp1 + "-runplot.png")
+            plt.savefig(fqfp1 + "-runplot.svg")
         except ValueError as e:
             print(f"PETModel.plot_results.dyplot.runplot: caught a ValueError: {e}")
 
         try:
-            fig, axes = dyplot.traceplot(res, labels=self.labels, truths=qm,
-                                         fig=plt.subplots(self.ndim, 2, figsize=(16, 50)))
+            fig, axes = dyplot.traceplot(res, labels=self.labels, truths=qm, title_fmt=".5f",
+                                         fig=plt.subplots(self.ndim, 2, figsize=(16, 25)))
+            plt.ticklabel_format(axis='x', style='sci', scilimits=(-3, 3))
             fig.tight_layout()
             plt.savefig(fqfp1 + "-traceplot.png")
+            plt.savefig(fqfp1 + "-traceplot.svg")
         except ValueError as e:
             print(f"PETModel.plot_results.dyplot.traceplot: caught a ValueError: {e}")
 
         try:
-            dyplot.cornerplot(res, truths=qm, show_titles=True,
+            dyplot.cornerplot(res, truths=qm, title_fmt=".5f", show_titles=True,
                               title_kwargs={"y": 1.04}, labels=self.labels,
                               fig=plt.subplots(self.ndim, self.ndim, figsize=(100, 100)))
             plt.savefig(fqfp1 + "-cornerplot.png")
+            plt.savefig(fqfp1 + "-cornerplot.svg")
         except ValueError as e:
             print(f"PETModel.plot_results.dyplot.cornerplot: caught a ValueError: {e}")
 

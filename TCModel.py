@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from abc import ABC
+from abc import ABC, abstractmethod
 
 from PETModel import PETModel
 from Boxcar import Boxcar
@@ -360,7 +360,7 @@ class TCModel(PETModel, ABC):
         else:
             selected_axes = tuple(np.arange(petm["img"].ndim - 1))
             petm_hat = np.median(petm["img"], axis=selected_axes)  # evaluates mean of petm["img"] for spatial dimensions only
-        M0 = np.max(petm["img"])
+        M0 = np.max(petm["img"]) / np.max(rho_pred)
 
         inputf = self.input_function()
         t_inputf = inputf["timesMid"]
@@ -419,6 +419,7 @@ class TCModel(PETModel, ABC):
             "Huang1980Model": self.prior_transform_huang,
             "Ichise2002Model": self.prior_transform_ichise,
             "Ichise2002VascModel": self.prior_transform_ichise_vasc,
+            "Ichise2002PosthocModel": self.prior_transform_ichise_posthoc,
             "LineModel": self.prior_transform_test,
         }.get(self.__class__.__name__, self.prior_transform_huang)
         # default is self.prior_transform_huang for 2-tissue compartment models
@@ -493,8 +494,8 @@ class TCModel(PETModel, ABC):
                                                        checkpoint_file=checkpoint_file,
                                                        print_progress=print_progress,
                                                        resume=resume)
-                if print_progress:
-                    self.plot_results(_res, tag=f"parc{tidx}", parc_index=tidx)
+                # if print_progress:
+                self.plot_results(_res, tag=f"parc{tidx}", parc_index=tidx)
                 res.append(_res)
                 rd = _res.asdict()
                 logz.append(rd["logz"][-1])
@@ -546,8 +547,8 @@ class TCModel(PETModel, ABC):
             print_progress=print_progress,
             resume=resume)
 
-        if print_progress:
-            self.plot_results(_res, tag=f"parc{tidx}", parc_index=tidx)
+        # if print_progress:
+        self.plot_results(_res, tag=f"parc{tidx}", parc_index=tidx)
 
         _rd = _res.asdict()
         _qm, _ql, _qh = self.solver.quantile(_res)
@@ -698,11 +699,11 @@ class TCModel(PETModel, ABC):
     @staticmethod
     def prior_transform_ichise(u):
         v = u
-        v[0] = u[0] * 2  # K_1 (mL/cm^{-3}s^{-1})
+        v[0] = u[0] * 2  # k_1 (1/s)
         v[1] = u[1] * 0.5 + 0.00001  # k_2 (1/s)
         v[2] = u[2] * 0.05 + 0.00001  # k_3 (1/s)
         v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
-        v[4] = u[4] * 99.9 + 0.1  # V (mL/cm^{-3}) is total volume := V_N + V_S
+        v[4] = u[4] * 999.9 + 0.1  # V (mL/cm^{-3}) is total volume := V_N + V_S
         v[5] = u[5] * 120 - 60  # \tau_a (s)
         # v[5] = u[5] * 20  # t_0 (s)
         v[6] = u[6] * TCModel.sigma  # sigma ~ fraction of M0
@@ -711,16 +712,21 @@ class TCModel(PETModel, ABC):
     @staticmethod
     def prior_transform_ichise_vasc(u):
         v = u
-        v[0] = u[0] * 2  # K_1 (mL/cm^{-3}s^{-1})
+        v[0] = u[0] * 2  # k_1 (1/s)
         v[1] = u[1] * 0.5 + 0.00001  # k_2 (1/s)
         v[2] = u[2] * 0.05 + 0.00001  # k_3 (1/s)
         v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
         v[4] = u[4] * 0.099 + 0.001  # V_P (mL/cm^{-3})
-        v[5] = u[5] * 99.9 + 0.1  # V^\star (mL/cm^{-3}) is total volume := V_P + V_N + V_S
+        v[5] = u[5] * 9999.9 + 0.1  # V^\star (mL/cm^{-3}) is total volume := V_P + V_N + V_S
         v[6] = u[6] * 120 - 60  # \tau_a (s)
         # v[6] = u[6] * 20  # t_0 (s)
         v[7] = u[7] * TCModel.sigma  # sigma ~ fraction of M0
         return v
+
+    @staticmethod
+    def prior_transform_ichise_posthoc(u):
+        raise NotImplementedError(
+            f"{TCModel.prior_transform_ichise_posthoc.__name__} requires overriding by class Ichise2002PosthocModel.")
 
     @staticmethod
     def prior_transform_test(u):

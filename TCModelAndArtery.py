@@ -118,12 +118,16 @@ class TCModelAndArtery(TCModel, ABC):
 
     def prior_transform(self):
         return {
-            "Martin1987ModelAndArtery": self.prior_transform_martin,
-            "Raichle1983ModelAndArtery": self.prior_transform_raichle,
-            "Mintun1984ModelAndArtery": self.prior_transform_mintun,
-            "Huang1980ModelAndArtery": self.prior_transform_huang,
+            "Martin1987Model": self.prior_transform_martin,
+            "Raichle1983Model": self.prior_transform_raichle,
+            "Mintun1984Model": self.prior_transform_mintun,
+            "Huang1980ModelVenous": self.prior_transform_huang,
+            "Huang1980Model": self.prior_transform_huang,
             "Ichise2002Model": self.prior_transform_ichise,
-        }.get(self.__class__.__name__, self.prior_transform_ichise_vasc)
+            "Ichise2002VascModel": self.prior_transform_ichise_vasc,
+            "Ichise2002PosthocModel": self.prior_transform_ichise_posthoc,
+            "LineModel": self.prior_transform_test,
+        }.get(self.__class__.__name__, self.prior_transform_huang)
 
     # def save_results(self, res_dict: dict):
     #     super().save_results(res_dict)

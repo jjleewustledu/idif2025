@@ -134,16 +134,6 @@ class TissueModel(PETModel, ABC):
     def truths(self):
         return self._truths_internal.copy()
 
-    def data(self, v):
-        rhoUsesBoxcar = self.TAUS[2] > self.TIMES_MID[2] - self.TIMES_MID[1]
-        return deepcopy({
-            "halflife": self.HALFLIFE,
-            "rho": self.RHO, "rhos": self.RHOS, "timesMid": self.TIMES_MID, "taus": self.TAUS,
-            "times": (self.TIMES_MID - self.TAUS / 2), "inputFuncInterp": self.INPUTF_INTERP,
-            "v": v,
-            "rhoUsesBoxcar": rhoUsesBoxcar,
-            "delta_time": self.DELTA_TIME})
-
     def adjusted_input_function(self):
         """input function read from filesystem, never updated during dynesty operations"""
 
@@ -187,6 +177,16 @@ class TissueModel(PETModel, ABC):
         self._input_function = niid
         return deepcopy(self._input_function)
 
+    def data(self, v):
+        rhoUsesBoxcar = self.TAUS[2] > self.TIMES_MID[2] - self.TIMES_MID[1]
+        return deepcopy({
+            "halflife": self.HALFLIFE,
+            "rho": self.RHO, "rhos": self.RHOS, "timesMid": self.TIMES_MID, "taus": self.TAUS,
+            "times": (self.TIMES_MID - self.TAUS / 2), "inputFuncInterp": self.INPUTF_INTERP,
+            "v": v,
+            "rhoUsesBoxcar": rhoUsesBoxcar,
+            "delta_time": self.DELTA_TIME})
+
     @staticmethod
     def is_sequence(obj):
         """ a sequence cannot be multiplied by floating point """
@@ -227,7 +227,7 @@ class TissueModel(PETModel, ABC):
             # evaluates mean of petm["img"] for spatial dimensions only
             selected_axes = tuple(np.arange(petm["img"].ndim - 1))
             petm_hat = np.median(petm["img"], axis=selected_axes)
-        M0 = np.max(petm["img"]) / np.max(rho_pred)
+        M0 = np.max(petm["img"])
 
         inputf = self.adjusted_input_function()
         t_inputf = inputf["timesMid"]

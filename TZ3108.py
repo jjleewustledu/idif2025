@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from SpectralAnalysis import SpectralAnalysis
 from Huang1980Model import Huang1980Model
 from Ichise2002Model import Ichise2002Model
 from Ichise2002PosthocModel import Ichise2002PosthocModel
@@ -46,7 +47,8 @@ class TZ3108:
                  rstate=np.random.default_rng(916301),
                  tag="",
                  model=None,
-                 delta_time=4):
+                 delta_time=4,
+                 M=1):
         if "SpectralAnalysis" in model:
             self._strategy = SpectralAnalysis(
                 input_function,
@@ -57,8 +59,9 @@ class TZ3108:
                 nlive=nlive,
                 rstate=rstate,
                 tag=tag,
-                delta_time=delta_time)
-        if "Ichise2002PosthocModel" in model:
+                delta_time=delta_time,
+                M=M)
+        elif "Ichise2002PosthocModel" in model:
             self._strategy = Ichise2002PosthocModel(
                 input_function,
                 pet_measurement,

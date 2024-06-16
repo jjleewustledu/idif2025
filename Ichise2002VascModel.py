@@ -78,6 +78,7 @@ class Ichise2002VascModel(TCModel):
         return [
             r"$k_1$", r"$k_2$", r"$k_3$", r"$k_4$", r"$V_P$", r"$V^*$", r"$\tau_a$", r"$\sigma$"]
 
+    # noinspection DuplicatedCode
     @staticmethod
     def signalmodel(data: dict, verbose=False):
 
@@ -116,9 +117,9 @@ class Ichise2002VascModel(TCModel):
 
             int4 = integrate.trapezoid(_rho_p_interval, _time_interval)
             int3 = integrate.trapezoid(_rho_interval, _time_interval)
-            int2 = 0.5 * integrate.trapezoid(
+            int2 = integrate.trapezoid(
                 integrate.cumulative_trapezoid(_rho_interval, _time_interval), _time_interval[:-1])
-            int1 = 0.5 * integrate.trapezoid(
+            int1 = integrate.trapezoid(
                 integrate.cumulative_trapezoid(_rho_p_interval, _time_interval), _time_interval[:-1])
 
             rho_t[tidx] = g3 * int3 + g4star * int4 + g1 * int1 + g2 * int2

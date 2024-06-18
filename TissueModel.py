@@ -90,13 +90,13 @@ class TissueModel(PETModel, ABC):
         self.TIMES_MID = apetm["timesMid"]
 
         # use adjusted_input_function()
+        self.ARTERY = None
         self.DELTA_TIME = np.round(delta_time)  # required by adjusted_input_function()
         inputf_timesMid = self.adjusted_input_function()["timesMid"]
         inputf_timesMidInterp = np.arange(0, apetm["timesMid"][-1], self.DELTA_TIME)
         self.INPUTF_INTERP = self.adjusted_input_function()["img"] / np.max(apetm["img"])
         self.INPUTF_INTERP = np.interp(inputf_timesMidInterp, inputf_timesMid, self.INPUTF_INTERP)
 
-        self.ARTERY = None
         self.HALFLIFE = self.adjusted_input_function()["halflife"]
         self.RECOVERY_COEFFICIENT = recovery_coefficient
 
@@ -106,7 +106,7 @@ class TissueModel(PETModel, ABC):
 
     @property
     def fqfp_results(self):
-        fqfp1 = self.fqfp + "-" + self.__class__.__name__ + self.ARTERY.__class__.__name__
+        fqfp1 = self.fqfp + "-" + self.__class__.__name__ + self.ARTERY.__class__.__name__ + "-" + self.TAG
         fqfp1 = fqfp1.replace("ParcSchaeffer-reshape-to-schaeffer-", "")
         fqfp1 = fqfp1.replace("ModelAndArtery", "")
         fqfp1 = fqfp1.replace("Model", "")
@@ -206,7 +206,7 @@ class TissueModel(PETModel, ABC):
 
     def pickle_results(self, res_dict: dict, tag=""):
 
-        if tag:
+        if tag and "-" not in tag:
             tag = "-" + tag
         fqfp1 = self.fqfp_results + tag
 
@@ -393,7 +393,7 @@ class TissueModel(PETModel, ABC):
     def save_results(self, res_dict: dict, tag=""):
         """  """
 
-        if tag:
+        if tag and "-" not in tag:
             tag = "-" + tag
         fqfp1 = self.fqfp_results + tag
 
@@ -435,11 +435,6 @@ class TissueModel(PETModel, ABC):
                 product = deepcopy(apetm)
                 product["img"] = res_dict["resid"]
                 self.save_nii(product, fqfp1 + "-resid.nii.gz")
-
-            if not TissueModel.is_sequence(res_dict["martinv1"]):
-                product = deepcopy(apetm)
-                product["img"] = res_dict["martinv1"]
-                self.save_nii(product, fqfp1 + "-martinv1.nii.gz")
         except Exception as e:
             # catch any error to enable graceful exit while sequentially writing NIfTI files
             print(f"{TissueModel.save_results.__name__}: caught Exception {e}, but proceeding", file=sys.stderr)

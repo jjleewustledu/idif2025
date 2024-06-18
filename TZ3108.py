@@ -48,7 +48,7 @@ class TZ3108:
                  tag="",
                  model=None,
                  delta_time=4,
-                 M=1):
+                 M=4):
         if "SpectralAnalysis" in model:
             self._strategy = SpectralAnalysis(
                 input_function,
@@ -177,6 +177,9 @@ class TZ3108:
 
     def parse_isotope(self, fqfp):
         return self._strategy.parse_isotope(fqfp)
+
+    def pickle_results(self, *args, **kwargs):
+        return self._strategy.pickle_results(*args, **kwargs)
 
     def plot_results(self, *args, **kwargs):
         return self._strategy.plot_results(*args, **kwargs)

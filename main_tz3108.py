@@ -22,8 +22,8 @@ def the_tag(nlive: float, tag_model: str):
     # __file__ gives the relative path of the script
     file_path = __file__
     file_name = os.path.basename(file_path)
-    tag, _ = os.path.splitext(file_name)
-    return f"{tag}-{nlive}-{tag_model}"
+    a_tag, _ = os.path.splitext(file_name)
+    return f"{a_tag}"
 
 
 def work(tidx, data: dict):
@@ -38,10 +38,12 @@ def work(tidx, data: dict):
         _tcm = TZ3108(
             data["input_function"],
             data["pet_measurement"],
-            truths=[0.5, 0.002, 0.005, 0.0001, 9.066, -43.959, 0.021],
+            truths=[0.0023, 0.016, 0.00069, 0.0034, 0.012, 0.00012, 0.0074, 0.020],
             nlive=_nlive,
             tag=_tag,
-            model=_model)
+            model=_model,
+            delta_time=4,
+            M=3)
     else:
         return {}
         # raise RuntimeError(__name__ + ".work: data['pet_measurement'] -> " + data["pet_measurement"])
@@ -75,7 +77,7 @@ if __name__ == '__main__':
     try:
         Nlive = int(sys.argv[4])
     except ValueError:
-        Nlive = 100
+        Nlive = 1000
     try:
         model = sys.argv[5]
     except ValueError:

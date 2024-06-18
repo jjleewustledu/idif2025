@@ -107,10 +107,10 @@ class DynestyModel(DynestyInterface):
 
     def plot_results(self, res: dyutils.Results, tag="", parc_index=None):
 
-        if not tag and parc_index:
-            tag = f"parc{parc_index}"
-        if tag:
+        if tag and "-" not in tag:
             tag = "-" + tag
+        if parc_index and f"-parc{parc_index}" not in tag:
+            tag = tag + f"-parc{parc_index}"
         fqfp1 = self.fqfp_results + tag
         qm, _, _ = self.solver.quantile(res)
 

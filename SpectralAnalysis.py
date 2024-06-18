@@ -70,6 +70,8 @@ class SpectralAnalysis(TissueModel):
         SpectralAnalysis.TAU_A = tau_a
         if "-m" not in self.TAG:
             self.TAG = self.TAG + f"-m{M}"
+        if "-nlive" not in self.TAG:
+            self.TAG = self.TAG + f"-nlive{nlive}"
         self._labels = None
 
     @property
@@ -97,10 +99,10 @@ class SpectralAnalysis(TissueModel):
         M = SpectralAnalysis.M
         T = 2 * M + 1
         v = u
-        v[0] = u[0] * 0.1
-        v[1] = u[1] * 0.01
+        v[0] = u[0]
+        v[1] = u[1] * 0.05 + 0.00003  # 1/(3*T_{end}) < \beta < 3/T_{in}
         for m in np.arange(1, M, 1):
-            v[2 * m] = u[2 * m] * 0.1  # \alpha_1 ~ K_1
+            v[2 * m] = u[2 * m]  # \alpha_1 ~ K_1
             v_max = v[2 * m - 1] - np.finfo(float).eps
             v[2 * m + 1] = u[2 * m + 1] * v_max  # \beta_1 ~ k_2; \beta_2 < \beta_1
         v[2 * M] = u[2 * M] * 0.05  # \alpha_0 ~ V_p

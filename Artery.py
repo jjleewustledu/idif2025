@@ -248,6 +248,26 @@ class Artery(PETModel, ABC):
         v[13] = u[13] * Artery.sigma  # sigma ~ fraction of M0
         return v
 
+    # noinspection DuplicatedCode
+    @staticmethod
+    def prior_transform_extended(u):
+        v = u
+        v[0] = u[0] * 60  # t_0
+        v[1] = u[1] * 60  # \tau_2 ~ t_2 - t_0
+        v[2] = u[2] * 3600 + 60  # 1/\beta_{extended}, a time param
+        v[3] = u[3] * 20  # \alpha - 1
+        v[4] = u[4] * 30 + 1  # 1/\beta, a time param
+        v[5] = u[5] * 9.75 + 0.25  # p
+        v[6] = u[6] * 10 - 10  # \delta p_2 ~ p_2 - p
+        v[7] = u[7] * 2.5 - 0.5  # p_{extended}
+        v[8] = u[8] * Artery.duration + 1/Artery.duration  # 1/\gamma for s.s., a time param
+        v[9] = u[9] * 0.75 + 0.25  # f_2
+        v[10] = u[10] * 0.5  # f_{extended}
+        v[11] = u[11] * 0.25  # f_{ss}
+        v[12] = u[12] * 4 + 0.5  # A is amplitude adjustment
+        v[13] = u[13] * Artery.sigma  # sigma ~ fraction of M0
+        return v
+
     @staticmethod
     def prior_transform_default(u):
         v = u
@@ -409,6 +429,19 @@ class Artery(PETModel, ABC):
         f_2_ = f_2
         rho = (f_1_ * Artery.solution_1bolus(t, t_0, a, b, p) +
                f_2_ * Artery.solution_1bolus(t, t_0 + tau_2, a, b, max(0.25, p + dp_2)) +
+               f_ss_ * Artery.solution_ss(t, t_0, g))
+        return rho
+
+    @staticmethod
+    def solution_3bolus_extended(t, t_0, tau_2, b_ext, a, b, p, dp_2, p_ext, g, f_2, f_ext, f_ss):
+        """ two sequential generalized gamma distributions + global decay + extended generalized gamma """
+
+        f_ss_ = f_ss * (1 - f_2)
+        f_1_ = (1 - f_ss) * (1 - f_2)
+        f_2_ = f_2
+        rho = (f_1_ * Artery.solution_1bolus(t, t_0, a, b, p) +
+               f_2_ * Artery.solution_1bolus(t, t_0 + tau_2, a, b, max(0.25, p + dp_2)) +
+               f_ext * Artery.solution_1bolus(t, t_0, 0, b_ext, p_ext) +
                f_ss_ * Artery.solution_ss(t, t_0, g))
         return rho
 

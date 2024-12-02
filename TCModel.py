@@ -229,9 +229,10 @@ class TCModel(TissueModel, ABC):
     @staticmethod
     def prior_transform_mintun(u):
         v = u
-        v[0] = u[0] * 0.6 + 0.2  # OEF
+        v[0] = u[0] * 0.8 + 0.1  # OEF
         v[1] = u[1] * 1.8 + 0.1  # frac. water of metab. at 90 s
-        v[2] = 0.835  # (v_{post} + 0.5 v_{cap}) / v_1
+        # v[2] = 0.835  # (v_{post} + 0.5 v_{cap}) / v_1
+        v[2] = u[2] * 0.9 + 0.1  # {v_{post} + 0.5 v_{cap}} / v_1
         v[3] = u[3] * 20  # t_0 (s)
         v[4] = u[4] * (-60) + 20  # \tau_a (s)
         v[5] = u[5] * TCModel.sigma  # sigma ~ fraction of M0

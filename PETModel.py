@@ -28,6 +28,7 @@ import os
 import sys
 from copy import deepcopy
 import inspect
+import warnings
 
 # basic numeric setup
 import numpy as np
@@ -147,7 +148,8 @@ class PETModel(DynestyModel, ABC):
             return "11C"
         if "trc-fdg" in name or "trc-tz3108" in name or "trc-asem" in name or "trc-azan" in name or "trc-vat" in name:
             return "18F"
-        raise ValueError(f"tracer and isotope not identifiable from name {name}")
+        warnings.warn(f"tracer and isotope not identifiable from name {name}", RuntimeWarning)
+        return "18F"
 
     def save_csv(self, data: dict, fqfn=None):
         """ """

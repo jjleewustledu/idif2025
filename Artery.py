@@ -254,7 +254,7 @@ class Artery(PETModel, ABC):
         v = u
         v[0] = u[0] * 60  # t_0
         v[1] = u[1] * 60  # \tau_2 ~ t_2 - t_0
-        v[2] = u[2] * 3600 + 60  # 1/\beta_{extended}, a time param
+        v[2] = u[2] * 7200 + 60  # 1/\beta_{extended}, a time param
         v[3] = u[3] * 20  # \alpha - 1
         v[4] = u[4] * 30 + 1  # 1/\beta, a time param
         v[5] = u[5] * 9.75 + 0.25  # p

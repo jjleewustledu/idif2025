@@ -27,6 +27,7 @@ import os
 from copy import deepcopy
 
 # basic numeric setup
+import math
 import numpy as np
 import nibabel as nib
 
@@ -138,7 +139,8 @@ class ExtendedRadialArtery(Artery):
 
     @staticmethod
     def signalmodel(data: dict):
-        t_ideal = np.arange(data["rho"].size)
+        t_interp = data["timesMid"][0] + np.arange(data["timesMid"][-1])
+        t_ideal = np.floor(data["timesMid"] - data["timesMid"][0]).astype(int)
         v = data["v"]
         t_0 = v[0]
         tau_2 = v[1]
@@ -157,11 +159,11 @@ class ExtendedRadialArtery(Artery):
         # rho_ = A * ExtendedRadialArtery.solution_1bolus(t_ideal, t_0, a, b, p)
         # rho_ = A * ExtendedRadialArtery.solution_2bolus(t_ideal, t_0, a, b, p, g, f_ss)
         # rho_ = A * ExtendedRadialArtery.solution_3bolus(t_ideal, t_0, tau_2, a, b, p, dp_2, g, f_2, f_ss)
-        rho_ = A * ExtendedRadialArtery.solution_3bolus_extended(t_ideal, t_0, tau_2, b_ext, a, b, p, dp_2, p_ext, g, f_2, f_ext, f_ss)
-        rho = ExtendedRadialArtery.apply_dispersion(rho_, data)
-        A_qs = 1 / max(rho)
-        signal = A_qs * rho
-        ideal = A_qs * rho_
+        rho_interp = A * ExtendedRadialArtery.solution_3bolus_extended(t_interp, t_0, tau_2, b_ext, a, b, p, dp_2, p_ext, g, f_2, f_ext, f_ss)
+        rho_disp = ExtendedRadialArtery.apply_dispersion(rho_interp, data)
+        A_qs = 1 / max(rho_disp)
+        signal = A_qs * rho_disp[t_ideal]
+        ideal = A_qs * rho_interp[t_ideal]
         return signal, ideal, t_ideal
 
     @staticmethod

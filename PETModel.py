@@ -108,8 +108,7 @@ class PETModel(DynestyModel, ABC):
             j = json.load(f)
 
         # assemble dict
-        if img.shape[0] == 1:
-            img = np.array(img, dtype=float).ravel()
+        img = np.squeeze(img)  # all singleton dimensions removed
         niid = {
             "fqfp": fqfp,
             "nii": nii,
@@ -125,9 +124,8 @@ class PETModel(DynestyModel, ABC):
             niid["martinv1"] = np.array(j["martinv1"])
         if "raichleks" in j:
             niid["raichleks"] = np.array(j["raichleks"])
-        if self.TIME_LAST:
-            niid = self.trim_nii_dict(niid, self.TIME_LAST)
-        return deepcopy(niid)
+        niid = self.trim_nii_dict(niid, self.TIME_LAST)
+        return niid
 
     @staticmethod
     def parse_halflife(fqfp: str):
@@ -224,23 +222,28 @@ class PETModel(DynestyModel, ABC):
 
     @staticmethod
     def trim_nii_dict(niid: dict, time_last=None):
-        if not isinstance(niid, dict):
-            raise TypeError(f"niid must be a dict but had type {type(niid)}.")
+        """ examines niid and
+            (i) removes inviable temporal samples indicated by np.isnan(timesMid)
+            (ii) removes temporal samples occurring after time_last
+            (iii) trims all niid contents that appear to have temporal samples """
 
-        _niid = deepcopy(niid)
-        img = _niid["img"]
-        timesMid = _niid["timesMid"]
-        taus = _niid["taus"]
-        times = _niid["times"]
+        if not isinstance(niid, dict):
+            raise TypeError(f"Expected niid to be dict but it has type {type(niid)}.")
+
+        img = niid["img"]
+        timesMid = niid["timesMid"]
+        taus = niid["taus"]
+        times = niid["times"]
         viable = ~np.isnan(timesMid)
+        
         if time_last is not None:
-            selected = viable * (timesMid <= time_last)
-        else:
-            selected = viable
-        if img.ndim == 1:
-            _niid.update({"img": img[selected], "timesMid": timesMid[selected], "taus": taus[selected],
-                          "times": times[selected]})
-        else:
-            _niid.update({"img": img[:, selected], "timesMid": timesMid[selected], "taus": taus[selected],
-                          "times": times[selected]})
-        return _niid
+            viable = viable * (timesMid <= time_last)
+
+        if img.ndim == 1 and len(img) == len(timesMid):
+            niid.update({"img": img[viable], "timesMid": timesMid[viable], "taus": taus[viable],
+                          "times": times[viable]})
+        elif img.ndim == 2 and img.shape[1] == len(timesMid):
+            niid.update({"img": img[:, viable], "timesMid": timesMid[viable], "taus": taus[viable],
+                          "times": times[viable]})
+
+        return niid

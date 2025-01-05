@@ -87,7 +87,8 @@ class Raichle1983Model(TCModel):
         tau_a = v[4]
         E = 1 - np.exp(-ps / f)
         n = len(input_func_interp) * data["delta_time"]
-        times = np.arange(n, data["delta_time"])
+        tf_interp = n * data["delta_time"]
+        times = np.arange(0, tf_interp, data["delta_time"])
         kernel = np.exp(-E * f * times / lamb - 0.005670305 * times)
         input_func_interp = Raichle1983Model.slide(input_func_interp, times, tau_a, hl)
         rho_t = E * f * np.convolve(kernel, input_func_interp, mode="full")

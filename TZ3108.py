@@ -184,7 +184,7 @@ class TZ3108:
     def plot_results(self, *args, **kwargs):
         return self._strategy.plot_results(*args, **kwargs)
 
-    def plot_truths(self, *args, activity_units="kBq/cm$^3$", **kwargs):
+    def plot_truths(self, *args, activity_units="kBq/mL$", **kwargs):
         return self._strategy.plot_truths(*args, activity_units=activity_units, **kwargs)
 
     def plot_variations(self, *args, **kwargs):

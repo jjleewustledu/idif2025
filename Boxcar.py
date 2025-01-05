@@ -103,5 +103,8 @@ class Boxcar(Artery):
 
         vec_sampled = np.full(times0.shape, np.nan)
         for idx, (t0, tF) in enumerate(zip(times0, timesF)):
-            vec_sampled[idx] = np.mean(vec[int(t0):int(tF)])
+            if not np.isnan(t0) and not np.isnan(tF):
+                vec_sampled[idx] = np.mean(vec[int(t0):int(tF)])
+            else:
+                vec_sampled[idx] = np.nan
         return vec_sampled

@@ -90,6 +90,7 @@ class TissueModel(PETModel, ABC):
         self.TIMES_MID = apetm["timesMid"]
 
         # use adjusted_input_function()
+        self.RECOVERY_COEFFICIENT = recovery_coefficient
         self.ARTERY = None
         self.DELTA_TIME = np.round(delta_time)  # required by adjusted_input_function()
         inputf_timesMid = self.adjusted_input_function()["timesMid"]
@@ -98,7 +99,6 @@ class TissueModel(PETModel, ABC):
         self.INPUTF_INTERP = np.interp(inputf_timesMidInterp, inputf_timesMid, self.INPUTF_INTERP)
 
         self.HALFLIFE = self.adjusted_input_function()["halflife"]
-        self.RECOVERY_COEFFICIENT = recovery_coefficient
 
     @property
     def fqfp(self):
@@ -213,7 +213,7 @@ class TissueModel(PETModel, ABC):
         with open(fqfp1 + "-res.pickle", 'wb') as f:
             pickle.dump(res_dict["res"], f, pickle.HIGHEST_PROTOCOL)
 
-    def plot_truths(self, truths=None, parc_index=None, activity_units="Bq/cm^3"):
+    def plot_truths(self, truths=None, parc_index=None, activity_units="kBq/mL"):
         if truths is None:
             truths = self.truths
         data = self.data(truths)
@@ -234,17 +234,19 @@ class TissueModel(PETModel, ABC):
         inputf_hat = inputf["img"]
         I0 = M0 / np.max(inputf_hat)
 
+        scaling = 0.001 if activity_units.startswith("k") else 1
+
         plt.figure(figsize=(12, 8))
-        p1, = plt.plot(t_inputf, I0 * inputf_hat, color="black", linewidth=2, alpha=0.7,
+        p1, = plt.plot(t_inputf, scaling * I0 * inputf_hat, color="black", linewidth=2, alpha=0.7,
                        label=f"input function x {I0:.3}")
-        p2, = plt.plot(t_petm, petm_hat, color="black", marker="+", ls="none", alpha=0.9, markersize=16,
+        p2, = plt.plot(t_petm, scaling * petm_hat, color="black", marker="+", ls="none", alpha=0.9, markersize=16,
                        label=f"measured TAC, parcel {parc_index}")
-        p3, = plt.plot(t_pred, M0 * rho_pred, marker="o", color="red", ls="none", alpha=0.8,
+        p3, = plt.plot(t_pred, scaling * M0 * rho_pred, marker="o", color="red", ls="none", alpha=0.8,
                        label=f"predicted TAC, parcel {parc_index}")
         width = np.max((np.max(t_petm), np.max(t_inputf)))
         plt.xlim((-0.1 * width, 1.1 * width))
         plt.xlabel("time of mid-frame (s)")
-        plt.ylabel("activity (" + activity_units + ")")
+        plt.ylabel(f"activity ({activity_units})")
         plt.legend(handles=[p1, p2, p3], loc="right", fontsize=12)
         plt.tight_layout()
 

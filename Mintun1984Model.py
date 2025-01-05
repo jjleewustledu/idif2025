@@ -117,7 +117,8 @@ class Mintun1984Model(TCModel):
             raise RuntimeError(Mintun1984Model.signalmodel.__name__+": raichleks.ndim->"+raichleks.ndim)
         m = 1 - np.exp(-PS / f)
         n = len(input_func_interp) * data["delta_time"]
-        times = np.arange(n, data["delta_time"])
+        tf_interp = n * data["delta_time"]
+        times = np.arange(0, tf_interp, data["delta_time"])
         input_func_interp = Mintun1984Model.slide(input_func_interp, times, tau_a, hl)
         indices = np.where(input_func_interp > 0.05 * max(input_func_interp))
         try:

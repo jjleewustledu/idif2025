@@ -151,7 +151,7 @@ class Artery(PETModel, ABC):
 
         return loglike
 
-    def plot_truths(self, truths=None, parc_index=None):
+    def plot_truths(self, truths=None, parc_index=None, activity_units="kBq/mL"):
         if truths is None:
             truths = self.truths
         data = self.data(truths)
@@ -162,14 +162,16 @@ class Artery(PETModel, ABC):
         rho = ifm["img"]
         M0 = np.max(rho)
 
+        scaling = 0.001 if activity_units.startswith("k") else 1
+
         plt.figure(figsize=(12, 8))
-        plt.plot(tM, rho, color="black", marker="+",
+        plt.plot(tM, scaling * rho, color="black", marker="+",
                  ls="none", alpha=0.9, markersize=16)
-        plt.plot(tM, M0 * rho_pred, marker="o", color="red", ls="none", alpha=0.8)
-        plt.plot(t_ideal, M0 * rho_ideal, color="dodgerblue", linewidth=2, alpha=0.7)
+        plt.plot(tM, scaling * M0 * rho_pred, marker="o", color="red", ls="none", alpha=0.8)
+        plt.plot(t_ideal, scaling * M0 * rho_ideal, color="dodgerblue", linewidth=2, alpha=0.7)
         plt.xlim([-0.1, 1.1 * np.max(tM)])
         plt.xlabel("time of mid-frame (s)")
-        plt.ylabel("activity (Bq/mL)")
+        plt.ylabel(f"activity ({activity_units})")
         plt.tight_layout()
 
     def plot_variations(self, tindex=0, tmin=None, tmax=None, truths=None):

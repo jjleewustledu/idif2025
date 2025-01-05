@@ -80,11 +80,11 @@ class TCModelAndArtery(TCModel, ABC):
     def loglike(self, v: np.array):
         return super().loglike(v) + self.ARTERY.loglike(v[:14])
 
-    def plot_truths(self, truths=None, parc_index=None):
-        self.plot_truths_with_ARTERY(truths=truths, parc_index=parc_index)
-        self.ARTERY.plot_truths(truths=truths, parc_index=parc_index)
+    def plot_truths(self, **kwargs):
+        self.plot_truths_with_ARTERY(**kwargs)
+        self.ARTERY.plot_truths(**kwargs)
 
-    def plot_truths_with_ARTERY(self, truths=None, parc_index=None):
+    def plot_truths_with_ARTERY(self, truths=None, parc_index=None, activity_units="kBq/mL"):
         if truths is None:
             truths = self.truths
         data = self.data(truths)
@@ -103,16 +103,18 @@ class TCModelAndArtery(TCModel, ABC):
         _, rho_inputf, t_inputf = self.ARTERY.signalmodel(data_for_ARTERY)
         I0 = M0 / np.max(rho_inputf)
 
+        scaling = 0.001 if activity_units.startswith("k") else 1
+
         plt.figure(figsize=(12, 8))
-        p1, = plt.plot(t_inputf, I0 * rho_inputf, color="black", linewidth=2, alpha=0.7,
+        p1, = plt.plot(t_inputf, scaling * I0 * rho_inputf, color="black", linewidth=2, alpha=0.7,
                        label=f"input function x {I0:.3}")
-        p2, = plt.plot(t_petm, rho_petm, color="black", marker="+", ls="none", alpha=0.9, markersize=16,
+        p2, = plt.plot(t_petm, scaling * rho_petm, color="black", marker="+", ls="none", alpha=0.9, markersize=16,
                        label=f"measured TAC, parcel {parc_index}")
-        p3, = plt.plot(t_pred, M0 * rho_pred, marker="o", color="red", ls="none", alpha=0.8,
+        p3, = plt.plot(t_pred, scaling * M0 * rho_pred, marker="o", color="red", ls="none", alpha=0.8,
                        label=f"predicted TAC, parcel {parc_index}")
         plt.xlim([-0.1, 1.1 * np.max([np.max(t_petm), np.max(t_inputf)])])
         plt.xlabel("time of mid-frame (s)")
-        plt.ylabel("activity (Bq/mL)")
+        plt.ylabel(f"activity ({activity_units})")
         plt.legend(handles=[p1, p2, p3], loc="right", fontsize=12)
         plt.tight_layout()
 

@@ -55,7 +55,13 @@ rcParams.update({"font.size": 30})
 
 
 class Artery(PETModel, ABC):
-    """
+    """ Artery supports input functions:
+        - Boxcar for image-derived
+        - RadialArtery for automated arterial samples
+        - TrivialArtery for testing.
+
+        Internally, it represents time series as 1 x N_time arrays.  See also ArteryIO for 
+        adaptations to filesystem formats such as NIfTI, CIfTI, json, csv, log, etc. 
     """
 
     duration = None  # class attribute used by input function models

@@ -23,16 +23,16 @@
 import unittest
 import os
 from pprint import pprint
-from TestPreliminaries import TestPreliminaries
+from Boxcar import Boxcar
+from RadialArtery import RadialArtery
+from TestPreliminaries import TestPreliminaries 
 
 
-class TestPETModel(TestPreliminaries):
-
-    def setUp(self):
-        os.chdir(self.petdir())
+class TestArtery(TestPreliminaries):
 
     def test_something(self):
         self.assertEqual(True, True)  # add assertion here
 
 if __name__ == '__main__':
     unittest.main()
+    

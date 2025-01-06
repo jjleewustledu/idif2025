@@ -20,19 +20,26 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import unittest
+import unittest 
 import os
 from pprint import pprint
-from TestPreliminaries import TestPreliminaries
+from Mintun1984Model import Mintun1984Model
+from TestPreliminaries import TestPreliminaries 
 
 
-class TestPETModel(TestPreliminaries):
+class TestMintun1984Model(TestPreliminaries):
 
-    def setUp(self):
-        os.chdir(self.petdir())
+    _mintun_obj = []
+    _mintun_artery_obj = []
 
     def test_something(self):
         self.assertEqual(True, True)  # add assertion here
+
+    def test_ctor_Mintun(self):
+        ifm = os.path.join(self.petdir("oo1"), "sub-108293_ses-20210421150523_trc-oo_proc-MipIdif_idif.nii.gz")
+        pet = os.path.join(self.petdir("oo1"), "sub-108293_ses-20210421150523_trc-oo_proc-BrainMoCo2-createNiftiMovingAvgFrames-ParcWmparc-reshape-to-wmparc-select-all.nii.gz")
+        self._mintun_obj = Mintun1984Model(ifm, pet, nlive=100)
+        pprint(self._mintun_obj)
 
 if __name__ == '__main__':
     unittest.main()

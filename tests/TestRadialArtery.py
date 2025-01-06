@@ -23,16 +23,22 @@
 import unittest
 import os
 from pprint import pprint
-from TestPreliminaries import TestPreliminaries
+from RadialArtery import RadialArtery
+from TestPreliminaries import TestPreliminaries 
 
 
-class TestPETModel(TestPreliminaries):
+class TestRadialArtery(TestPreliminaries):
 
-    def setUp(self):
-        os.chdir(self.petdir())
+    _radial_artery_obj = []
 
     def test_something(self):
         self.assertEqual(True, True)  # add assertion here
+
+    def test_ctor_RadialArtery(self):
+        ifm = os.path.join(self.petdir("oo1"), "sub-108293_ses-20210421150523_trc-oo_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc.nii.gz")
+        km = self.kernel_fqfn(hct=46.8)
+        self._radial_artery_obj = RadialArtery(ifm, km, nlive=100)
+        pprint(self._boxcar_obj)
 
 if __name__ == '__main__':
     unittest.main()

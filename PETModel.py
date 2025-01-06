@@ -108,7 +108,7 @@ class PETModel(DynestyModel, ABC):
             j = json.load(f)
 
         # assemble dict
-        img = np.squeeze(img)  # all singleton dimensions removed
+        # img = np.squeeze(img)  # all singleton dimensions removed
         niid = {
             "fqfp": fqfp,
             "nii": nii,
@@ -202,19 +202,19 @@ class PETModel(DynestyModel, ABC):
             print(f"{cname}.{mname}: caught Exception {e}, but proceeding", file=sys.stderr)
 
     def slice_parc(self, img: np.array, xindex: int):
-        img1 = img.copy()
-        if img1.ndim == 1:
-            return img1
-        elif img1.ndim == 2:
-            return img1[xindex]
-        else:
-            raise RuntimeError(self.__class__.__name__ + ".__slice_parc: img1.ndim -> " + img1.ndim)
+        """ slices img that is N_parc x N_time by the xindex for the parcel of interest,
+            returns a vector of length N_time. """
+        
+        assert img.ndim <= 2, "img must be 1D or 2D"
+        return img[xindex].copy()
 
     @staticmethod
     def slide(rho, t, dt, halflife=None):
+        """ slides rho by dt seconds, optionally decays it by halflife. """
+
         if abs(dt) < 0.1:
             return rho
-        rho = np.interp(t - dt, t, rho)
+        rho = np.interp(t - dt, t, rho)  # copy of rho array
         if halflife:
             return rho * np.power(2, -dt / halflife)
         else:
@@ -222,20 +222,23 @@ class PETModel(DynestyModel, ABC):
 
     @staticmethod
     def trim_nii_dict(niid: dict, time_last=None):
-        """ examines niid and
-            (i) removes inviable temporal samples indicated by np.isnan(timesMid)
-            (ii) removes temporal samples occurring after time_last
-            (iii) trims all niid contents that appear to have temporal samples """
+        """ examines niid and trims copies of its contents to
+            (i) remove inviable temporal samples indicated by np.isnan(timesMid)
+            (ii) remove temporal samples occurring after time_last
+            (iii) trim all niid contents that appear to have temporal samples. """
 
         if not isinstance(niid, dict):
             raise TypeError(f"Expected niid to be dict but it has type {type(niid)}.")
 
-        img = niid["img"]
-        timesMid = niid["timesMid"]
-        taus = niid["taus"]
-        times = niid["times"]
-        viable = ~np.isnan(timesMid)
-        
+        img = niid["img"].copy()
+        assert img.ndim <= 2, "img must be 1D or 2D"
+
+        timesMid = niid["timesMid"].copy()
+        taus = niid["taus"].copy()
+        times = niid["times"].copy()
+
+        # adjust viability with time_last
+        viable = ~np.isnan(timesMid)        
         if time_last is not None:
             viable = viable * (timesMid <= time_last)
 

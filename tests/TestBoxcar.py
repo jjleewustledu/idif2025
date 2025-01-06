@@ -23,16 +23,21 @@
 import unittest
 import os
 from pprint import pprint
-from TestPreliminaries import TestPreliminaries
+from Boxcar import Boxcar
+from TestPreliminaries import TestPreliminaries 
 
 
-class TestPETModel(TestPreliminaries):
+class TestBoxcar(TestPreliminaries):
 
-    def setUp(self):
-        os.chdir(self.petdir())
+    _boxcar_obj = []
 
     def test_something(self):
         self.assertEqual(True, True)  # add assertion here
+
+    def test_ctor_Boxcar(self):
+        ifm = os.path.join(self.petdir("oo1"), "sub-108293_ses-20210421150523_trc-oo_proc-MipIdif_idif.nii.gz")
+        self._boxcar_obj = Boxcar(ifm, nlive=100)
+        pprint(self._boxcar_obj)
 
 if __name__ == '__main__':
     unittest.main()

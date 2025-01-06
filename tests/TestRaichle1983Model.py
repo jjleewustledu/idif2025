@@ -23,16 +23,23 @@
 import unittest
 import os
 from pprint import pprint
-from TestPreliminaries import TestPreliminaries
+from Raichle1983Model import Raichle1983Model
+from TestPreliminaries import TestPreliminaries 
 
 
-class TestPETModel(TestPreliminaries):
+class TestRaichle1983Model(TestPreliminaries): 
 
-    def setUp(self):
-        os.chdir(self.petdir())
+    _raichle_obj = []
+    _raichle_artery_obj = []
 
     def test_something(self):
-        self.assertEqual(True, True)  # add assertion here
+        self.assertEqual(True, True)  # add assertion here 
+
+    def test_ctor_Raichle(self):
+        ifm = os.path.join(self.petdir("ho"), "sub-108293_ses-20210421152358_trc-ho_proc-MipIdif_idif.nii.gz")
+        pet = os.path.join(self.petdir("ho"), "sub-108293_ses-20210421152358_trc-ho_proc-BrainMoCo2-createNiftiMovingAvgFrames-ParcWmparc-reshape-to-wmparc-select-all.nii.gz")
+        self._raichle_obj = Raichle1983Model(ifm, pet, nlive=100)
+        pprint(self._raichle_obj)
 
 if __name__ == '__main__':
     unittest.main()

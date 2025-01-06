@@ -23,16 +23,29 @@
 import unittest
 import os
 from pprint import pprint
-from TestPreliminaries import TestPreliminaries
 
 
-class TestPETModel(TestPreliminaries):
+class TestPreliminaries(unittest.TestCase):
+    
+    def kernel_fqfn(self, hct=44.5):
+        fqfn = os.path.join(
+            os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2024", "data", "kernels", f"kernel_hct={hct}.nii.gz")
+        if not os.path.exists(fqfn):
+            raise FileNotFoundError(f"Kernel file not found: {fqfn}")
+        return fqfn
+    
+    def petdir(self, tracer="oo1"):
 
-    def setUp(self):
-        os.chdir(self.petdir())
+        if tracer == "co":
+            ses = "ses-20210421144815"
+        elif tracer == "oo1":
+            ses = "ses-20210421150523"
+        elif tracer == "ho":
+            ses = "ses-20210421152358"
+        elif tracer == "oo2":
+            ses = "ses-20210421154248"
+        elif tracer == "fdg":
+            ses = "ses-20210421155709"
 
-    def test_something(self):
-        self.assertEqual(True, True)  # add assertion here
-
-if __name__ == '__main__':
-    unittest.main()
+        return os.path.join(
+            os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2024", "data", ses, "pet")

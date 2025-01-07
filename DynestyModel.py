@@ -134,7 +134,7 @@ class DynestyModel(DynestyInterface):
 
         try:
             fig, axes = dyplot.traceplot(res, labels=self.labels, truths=qm, title_fmt=".5f",
-                                         fig=plt.subplots(self.ndim, 2, figsize=(16, 25)))
+                                         fig=plt.subplots(self.ndim, 2, figsize=(16, 16 * self.ndim / 2)))
             plt.ticklabel_format(axis='x', style='sci', scilimits=(-3, 3))
             fig.tight_layout()
             plt.savefig(fqfp1 + "-traceplot.png")

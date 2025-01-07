@@ -165,18 +165,19 @@ class TCModel(TissueModel, ABC):
             "rhoUsesBoxcar": rhoUsesBoxcar,
             "delta_time": self.DELTA_TIME})
 
+    # @staticmethod
     def prior_transform(self):
         return {
-            "Martin1987Model": self.prior_transform_martin,
-            "Raichle1983Model": self.prior_transform_raichle,
-            "Mintun1984Model": self.prior_transform_mintun,
-            "Huang1980ModelVenous": self.prior_transform_huang,
-            "Huang1980Model": self.prior_transform_huang,
-            "Ichise2002Model": self.prior_transform_ichise,
-            "Ichise2002VascModel": self.prior_transform_ichise_vasc,
-            "Ichise2002PosthocModel": self.prior_transform_ichise_posthoc,
-            "LineModel": self.prior_transform_test,
-        }.get(self.__class__.__name__, self.prior_transform_huang)
+            "Martin1987Model": TCModel.prior_transform_martin,
+            "Raichle1983Model": TCModel.prior_transform_raichle,
+            "Mintun1984Model": TCModel.prior_transform_mintun,
+            "Huang1980ModelVenous": TCModel.prior_transform_huang,
+            "Huang1980Model": TCModel.prior_transform_huang,
+            "Ichise2002Model": TCModel.prior_transform_ichise,
+            "Ichise2002VascModel": TCModel.prior_transform_ichise_vasc,
+            "Ichise2002PosthocModel": TCModel.prior_transform_ichise_posthoc,
+            "LineModel": TCModel.prior_transform_test,
+        }.get(self.__class__.__name__, TCModel.prior_transform_huang)
         # default is self.prior_transform_huang for 2-tissue compartment models
 
     @staticmethod

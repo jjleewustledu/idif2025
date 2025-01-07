@@ -26,6 +26,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 from abc import ABC
+from functools import partial
 import sys
 from datetime import datetime
 
@@ -70,9 +71,12 @@ class DynestySolver(ABC):
         if resume:
             sampler = dynesty.DynamicNestedSampler.restore(checkpoint_file)
         else:
-            __prior_transform = mdl.prior_transform()
-            sampler = dynesty.DynamicNestedSampler(mdl.loglike, __prior_transform, ndim,
-                                                   sample=self.sample, nlive=self.nlive,
+            prior_transform_with_data = mdl.prior_transform()
+            sampler = dynesty.DynamicNestedSampler(mdl.loglike, 
+                                                   prior_transform_with_data, 
+                                                   ndim,
+                                                   sample=self.sample, 
+                                                   nlive=self.nlive,
                                                    rstate=self.rstate)
         sampler.run_nested(checkpoint_file=checkpoint_file, print_progress=print_progress, resume=resume)
         # for posterior > evidence, use wt_kwargs={"pfrac": 1.0}
@@ -105,9 +109,12 @@ class DynestySolver(ABC):
         if resume:
             sampler = dynesty.DynamicNestedSampler.restore(checkpoint_file)
         else:
-            __prior_transform = mdl.prior_transform()
-            sampler = dynesty.DynamicNestedSampler(mdl.loglike, __prior_transform, ndim,
-                                                   sample=self.sample, nlive=self.nlive,
+            prior_transform_with_data = mdl.prior_transform()
+            sampler = dynesty.DynamicNestedSampler(mdl.loglike, 
+                                                   prior_transform_with_data, 
+                                                   ndim,
+                                                   sample=self.sample, 
+                                                   nlive=self.nlive,
                                                    rstate=self.rstate)
         sampler.run_nested(checkpoint_file=checkpoint_file, print_progress=print_progress, resume=resume)
         # for posterior > evidence, use wt_kwargs={"pfrac": 1.0}

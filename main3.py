@@ -3,10 +3,13 @@
 # Press ⌃R to execute it or replace it with your code.
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
 
+from __future__ import absolute_import
+from __future__ import print_function
 import time, sys, os, re
 from Boxcar import Boxcar
 from RadialArtery import RadialArtery
 from multiprocessing import Pool
+from six.moves import range
 
 singularity = "/HOME/usr/jjlee/mnt/CHPC_scratch/Singularity"
 template = [
@@ -126,7 +129,7 @@ def work(idx):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    data = range(30)
+    data = list(range(30))
     with Pool() as p:
         p.map(work, data)
 

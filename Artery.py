@@ -211,6 +211,7 @@ class Artery(PETModel, ABC):
 
         plt.tight_layout()
 
+    # @staticmethod
     def prior_transform(self):
         return {
             "co": Artery.prior_transform_co,
@@ -242,9 +243,9 @@ class Artery(PETModel, ABC):
     @staticmethod
     def prior_transform_oo(u):
         v = u
-        v[0] = u[0] * 60  # t_0
-        v[1] = u[1] * 60  # \tau_2 ~ t_2 - t_0
-        v[2] = u[2] * 60  # \tau_3 ~ t_3 - t_2
+        v[0] = u[0] * 30  # t_0
+        v[1] = u[1] * 30  # \tau_2 ~ t_2 - t_0
+        v[2] = u[2] * 30  # \tau_3 ~ t_3 - t_2
         v[3] = u[3] * 20  # \alpha - 1
         v[4] = u[4] * 30 + 1  # 1/\beta
         v[5] = u[5] * 9.75 + 0.25  # p
@@ -420,15 +421,51 @@ class Artery(PETModel, ABC):
 
     @staticmethod
     def solution_1bolus(t, t_0, a, b, p):
-        """ generalized gamma distribution """
+        """Generalized gamma distribution.
 
+        Args:
+            t (array_like): Time points
+            t_0 (float): Time offset
+            a (float): Shape parameter
+            b (float): Scale parameter
+            p (float): KWW shape parameter
+
+        Returns:
+            ndarray: Normalized gamma distribution values
+        """
         t_ = np.array(t - t_0, dtype=complex)
         t_ = t_.clip(min=0)
         rho = np.power(t_, a) * np.exp(-np.power((b * t_), p))
         rho = np.real(rho)
         rho = rho.clip(min=0)
-        rho = rho / np.max(rho)
-        return rho
+        max_val = np.max(rho)
+        if max_val > 0:
+            rho /= max_val
+        return np.nan_to_num(rho, 0)
+    
+        # # Pre-allocate array with correct type
+        # t_ = np.empty_like(t, dtype=np.complex128)
+        
+        # # Vectorized operations
+        # np.subtract(t, t_0, out=t_)
+        # np.clip(t_, 0, None, out=t_)
+        
+        # # Avoid temporary arrays by using out parameter
+        # bt = np.multiply(b, t_, out=t_)
+        # np.power(bt, p, out=bt)
+        # np.negative(bt, out=bt)
+        # np.exp(bt, out=bt)
+        
+        # ta = np.power(t_, a)
+        # rho = np.multiply(ta, bt)
+        
+        # # Final processing
+        # rho = np.real(rho)
+        # np.clip(rho, 0, None, out=rho)
+        # max_val = np.max(rho)
+        # if max_val > 0:
+        #     rho /= max_val
+        # return np.nan_to_num(rho, 0)
 
     @staticmethod
     def solution_2bolus(t, t_0, a, b, p, g, f_ss):
@@ -478,8 +515,8 @@ class Artery(PETModel, ABC):
         return rho
 
     @staticmethod
-    def solution_ss(t, t_0, g):
-        """ global exponential decay coincident with first-appearing bolus """
+    def solution_ss_proposed(t, t_0, g):
+        """ global exponential decay coincident with first-appearing bolus; but may break Boxcar """
 
         a = 1
         p = 1
@@ -492,7 +529,7 @@ class Artery(PETModel, ABC):
         return rho
 
     @staticmethod
-    def solution_ss_ori(t, t_0, g):
+    def solution_ss(t, t_0, g):
         """ global exponential rise coincident with first-appearing bolus """
 
         t_ = np.array(t - t_0)

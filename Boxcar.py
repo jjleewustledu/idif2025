@@ -22,10 +22,11 @@
 
 from __future__ import absolute_import
 from Artery import Artery
+from IOImplementations import BaseIO
 
 # basic numeric setup
 import numpy as np
-from six.moves import zip
+#from six.moves import zip
 
 
 class Boxcar(Artery):
@@ -72,7 +73,7 @@ class Boxcar(Artery):
 
     @staticmethod
     def signalmodel(data: dict):
-        t_ideal = Boxcar.data2t(data)
+        t_ideal = BaseIO.data2t(data)
         v = data["v"]
         t_0 = v[0]
         tau_2 = v[1]
@@ -105,8 +106,5 @@ class Boxcar(Artery):
 
         vec_sampled = np.full(times0.shape, np.nan)
         for idx, (t0, tF) in enumerate(zip(times0, timesF)):
-            if not np.isnan(t0) and not np.isnan(tF):
-                vec_sampled[idx] = np.mean(vec[int(t0):int(tF)])
-            else:
-                vec_sampled[idx] = np.nan
-        return vec_sampled
+            vec_sampled[idx] = np.mean(vec[int(t0):int(tF)])        
+        return np.nan_to_num(vec_sampled, 0)

@@ -20,11 +20,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from __future__ import absolute_import
 import unittest
 import os
 from pprint import pprint
 from Raichle1983Model import Raichle1983Model
-from TestPreliminaries import TestPreliminaries 
+from testPreliminaries import TestPreliminaries 
 
 
 class TestRaichle1983Model(TestPreliminaries): 

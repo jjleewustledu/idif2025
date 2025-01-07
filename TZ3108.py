@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from __future__ import absolute_import
 from SpectralAnalysis import SpectralAnalysis
 from Huang1980Model import Huang1980Model
 from Ichise2002Model import Ichise2002Model

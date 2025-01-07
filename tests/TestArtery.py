@@ -20,12 +20,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from __future__ import absolute_import
 import unittest
 import os
 from pprint import pprint
 from Boxcar import Boxcar
 from RadialArtery import RadialArtery
-from TestPreliminaries import TestPreliminaries 
+from testPreliminaries import TestPreliminaries 
 
 
 class TestArtery(TestPreliminaries):
@@ -35,4 +36,3 @@ class TestArtery(TestPreliminaries):
 
 if __name__ == '__main__':
     unittest.main()
-    

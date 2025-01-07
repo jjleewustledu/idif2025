@@ -20,11 +20,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from __future__ import absolute_import
 import unittest
 import os
 from pprint import pprint
 from RadialArtery import RadialArtery
-from TestPreliminaries import TestPreliminaries 
+from testPreliminaries import TestPreliminaries 
 
 
 class TestRadialArtery(TestPreliminaries):

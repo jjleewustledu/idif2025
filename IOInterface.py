@@ -20,71 +20,30 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# general & system functions
 from __future__ import absolute_import
 from abc import ABC, abstractmethod
+import os
+import json
+import numpy as np
+import nibabel as nib
+import pandas as pd
+from copy import deepcopy
 
 
-class DynestyInterface(ABC):
-    """
-    """
+class IOInterface(ABC):
+    """Abstract interface class for filesystem I/O operations."""
 
-    @property
     @abstractmethod
-    def fqfp(self):
-        pass
-
-    @property
-    @abstractmethod
-    def fqfp_results(self):
-        pass
-
-    @property
-    @abstractmethod
-    def labels(self):
-        pass
-
-    @property
-    @abstractmethod
-    def truths(self):
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def data(v):
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def loglike(v):
+    def load_nii(self, fqfn: str) -> dict:
+        """Load a NIfTI file and associated metadata."""
         pass
 
     @abstractmethod
-    def plot_results(self, res, parc_index):
+    def save_nii(self, data: dict, fqfn: str = None):
+        """Save data to a NIfTI file and associated metadata."""
         pass
 
     @abstractmethod
-    def plot_truths(self, truths, parc_index):
-        pass
-
-    @abstractmethod
-    def plot_variations(self, tindex0, tmin, tmax, truths):
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def prior_transform(tag):
-        pass
-
-    @abstractmethod
-    def run_nested(self, checkpoint_file):
-        pass
-
-    @abstractmethod
-    def save_results(self, res, tag):
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def signalmodel(data: dict):
+    def save_csv(self, data: dict, fqfn: str = None):
+        """Save data to a CSV file."""
         pass

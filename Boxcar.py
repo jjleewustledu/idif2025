@@ -20,10 +20,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from __future__ import absolute_import
 from Artery import Artery
 
 # basic numeric setup
 import numpy as np
+from six.moves import zip
 
 
 class Boxcar(Artery):

@@ -20,8 +20,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from __future__ import absolute_import
 from TissueModel import TissueModel
 from RadialArtery import RadialArtery
+from PETData import PETData
 
 # general & system functions
 import glob
@@ -67,11 +69,11 @@ class TCModel(TissueModel, ABC):
         TCModel.sigma = 0.2
         self.V1_ASSUMED = np.array(0.05)
         try:
-            self.MARTIN_V1 = self.slice_parc(self.martin_v1_measurement["img"], 0)
+            self.MARTIN_V1 = PETData.slice_parc(self.martin_v1_measurement["img"], 0)
         except (FileNotFoundError, TypeError, KeyError):
             self.MARTIN_V1 = self.V1_ASSUMED
         try:
-            self.RAICHLE_KS = self.slice_parc(self.raichle_ks_measurement["img"], 0)
+            self.RAICHLE_KS = PETData.slice_parc(self.raichle_ks_measurement["img"], 0)
         except (FileNotFoundError, TypeError, KeyError):
             self.RAICHLE_KS = None  # needed by implementations of Raichle1983Model
 
@@ -314,11 +316,11 @@ class TCModel(TissueModel, ABC):
             for tidx, tac in enumerate(self.RHOS):
                 self.RHO = tac
                 try:
-                    self.MARTIN_V1 = self.slice_parc(self.martin_v1_measurement["img"], tidx)
+                    self.MARTIN_V1 = PETData.slice_parc(self.martin_v1_measurement["img"], tidx)
                 except (FileNotFoundError, TypeError, KeyError):
                     self.MARTIN_V1 = self.V1_ASSUMED
                 try:
-                    self.RAICHLE_KS = self.slice_parc(self.raichle_ks_measurement["img"], tidx)
+                    self.RAICHLE_KS = PETData.slice_parc(self.raichle_ks_measurement["img"], tidx)
                 except (FileNotFoundError, TypeError, KeyError):
                     self.RAICHLE_KS = None
 
@@ -366,11 +368,11 @@ class TCModel(TissueModel, ABC):
 
         self.RHO = self.RHOS[tidx]
         try:
-            self.MARTIN_V1 = self.slice_parc(self.martin_v1_measurement["img"], tidx)
+            self.MARTIN_V1 = PETData.slice_parc(self.martin_v1_measurement["img"], tidx)
         except (FileNotFoundError, TypeError, KeyError):
             self.MARTIN_V1 = self.V1_ASSUMED
         try:
-            self.RAICHLE_KS = self.slice_parc(self.raichle_ks_measurement["img"], tidx)
+            self.RAICHLE_KS = PETData.slice_parc(self.raichle_ks_measurement["img"], tidx)
         except (FileNotFoundError, TypeError, KeyError):
             self.RAICHLE_KS = None
         _res = self.solver.run_nested_for_list(

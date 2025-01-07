@@ -3,6 +3,7 @@
 # Press ⌃R to execute it or replace it with your code.
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
 
+from __future__ import absolute_import
 import os
 import sys
 from pprint import pprint
@@ -12,6 +13,7 @@ import numpy as np
 from Raichle1983ModelAndArtery import Raichle1983ModelAndArtery
 from Mintun1984ModelAndArtery import Mintun1984ModelAndArtery
 from Huang1980ModelAndArtery import Huang1980ModelAndArtery
+from six.moves import range
 
 
 def the_tag():

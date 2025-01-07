@@ -1,4 +1,5 @@
 # This is a sample Python script.
+from __future__ import absolute_import
 import logging
 # Press ⌃R to execute it or replace it with your code.
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
@@ -14,6 +15,7 @@ import numpy as np
 from Raichle1983Model import Raichle1983Model
 from Mintun1984Model import Mintun1984Model
 from Huang1980ModelVenous import Huang1980ModelVenous
+from six.moves import range
 
 
 def the_tag(nlive: float, tag_rc="rc1p85", tag_vrc="vrc1"):

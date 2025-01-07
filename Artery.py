@@ -20,6 +20,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from __future__ import absolute_import
+from __future__ import print_function
 from abc import ABC
 from PETModel import PETModel
 
@@ -393,11 +395,19 @@ class Artery(PETModel, ABC):
         rho_signal, rho_ideal, timesUnif = self.signalmodel(data)
 
         self.save_nii(
-            {"timesMid": timesMid, "taus": taus, "img": M0 * rho_signal, "nii": nii, "fqfp": fqfp},
+            {"timesMid": timesMid, 
+             "taus": taus, 
+             "img": M0 * rho_signal, 
+             "nii": nii, 
+             "fqfp": fqfp},
             fqfp1 + "-signal.nii.gz")
 
         self.save_nii(
-            {"times": timesUnif, "taus": np.ones(timesUnif.shape), "img": M0 * rho_ideal, "nii": nii, "fqfp": fqfp},
+            {"times": timesUnif, 
+             "taus": np.ones(timesUnif.shape), 
+             "img": M0 * rho_ideal, 
+             "nii": nii, 
+             "fqfp": fqfp},
             fqfp1 + "-ideal.nii.gz")
 
         d_quantiles = {

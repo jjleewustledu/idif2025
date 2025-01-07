@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from PETData import PETData
 from PETModel import PETModel
 from Boxcar import Boxcar
 from RadialArtery import RadialArtery
@@ -85,7 +86,7 @@ class TissueModel(PETModel, ABC):
         # use adjusted_pet_measurement()
         apetm = self.adjusted_pet_measurement
         self.RHOS = apetm["img"] / np.max(apetm["img"])
-        self.RHO = self.slice_parc(self.RHOS, 0)
+        self.RHO = PETData.slice_parc(self.RHOS, 0)
         self.TAUS = apetm["taus"]
         self.TIMES_MID = apetm["timesMid"]
 
@@ -96,7 +97,7 @@ class TissueModel(PETModel, ABC):
         inputf_timesMid = self.adjusted_input_function()["timesMid"]
         inputf_timesMidInterp = np.arange(0, apetm["timesMid"][-1], self.DELTA_TIME)
         self.INPUTF_INTERP = self.adjusted_input_function()["img"] / np.max(apetm["img"])
-        self.INPUTF_INTERP = np.interp(inputf_timesMidInterp, inputf_timesMid, self.INPUTF_INTERP)
+        self.INPUTF_INTERP = self.interpimg(inputf_timesMidInterp, inputf_timesMid, self.INPUTF_INTERP)
 
         self.HALFLIFE = self.adjusted_input_function()["halflife"]
 
@@ -171,8 +172,8 @@ class TissueModel(PETModel, ABC):
 
         # interpolate to timing domain of pet_measurements
         petm = self.adjusted_pet_measurement
-        tMI = np.arange(0, round(petm["timesMid"][-1]), self.DELTA_TIME)
-        niid["img"] = np.interp(tMI, niid["timesMid"], niid["img"])
+        tMI = np.arange(0, round(petm["timesMid"][-1]), self.DELTA_TIME)  # tMI ~ timesMid interpolated
+        niid["img"] = self.interpimg(tMI, niid["timesMid"], niid["img"])
         niid["timesMid"] = tMI
         self._input_function = niid
         return deepcopy(self._input_function)

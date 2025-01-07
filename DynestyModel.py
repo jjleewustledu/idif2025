@@ -21,6 +21,8 @@
 # SOFTWARE.
 
 
+from __future__ import absolute_import
+from __future__ import print_function
 from DynestyInterface import DynestyInterface
 from DynestySolver import DynestySolver
 from dynesty import utils as dyutils, plotting as dyplot
@@ -119,7 +121,7 @@ class DynestyModel(DynestyInterface):
             plt.savefig(fqfp1 + "-results.png")
             plt.savefig(fqfp1 + "-results.svg")
         except Exception as e:
-            print("PETModel.plot_results: caught an Exception: ", str(e))
+            print(("PETModel.plot_results: caught an Exception: ", str(e)))
             traceback.print_exc()
 
         try:

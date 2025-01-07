@@ -31,12 +31,17 @@ import inspect
 import warnings
 
 # basic numeric setup
+from numpy.typing import NDArray
 import numpy as np
 import pandas as pd
+from scipy.interpolate import interp1d
 
 # NIfTI support
 import json
 import nibabel as nib
+
+from IOImplementations import BaseIO
+from PETData import PETData
 
 
 class PETModel(DynestyModel, ABC):
@@ -56,197 +61,38 @@ class PETModel(DynestyModel, ABC):
                          tag=tag)
         self.HOME = home
         self.TIME_LAST = time_last
-
-    @staticmethod
-    def data2t(data: dict):
-        timesMid = data["timesMid"]
-        taus = data["taus"]
-        t0 = timesMid[0] - taus[0] / 2
-        tF = timesMid[-1] + taus[-1] / 2
-        t = np.arange(t0, tF)
-        return t
-
-    @staticmethod
-    def data2taus(data: dict):
-        timesMid = data["timesMid"]
-        times = data["times"]
-        return 2 * (timesMid - times)
-
-    @staticmethod
-    def data2timesMid(data: dict):
-        times = data["times"]
-        taus = data["taus"]
-        return times + taus / 2
+        self.io = BaseIO()
 
     @staticmethod
     def decay_correct(tac: dict):
-        _tac = deepcopy(tac)
-        img = _tac["img"] * np.power(2, _tac["timesMid"] / _tac["halflife"])
-        _tac["img"] = img
-        return _tac
+        return PETData.decay_correct(tac)
 
     @staticmethod
     def decay_uncorrect(tac: dict):
-        _tac = deepcopy(tac)
-        img = _tac["img"] * np.power(2, -_tac["timesMid"] / _tac["halflife"])
-        _tac["img"] = img
-        return _tac
+        return PETData.decay_uncorrect(tac)
+    
+    @staticmethod
+    def interpimg(timesNew: NDArray, times: NDArray, img: NDArray, kind: str="linear") -> NDArray:
+        return PETData.interpimg(timesNew, times, img, kind)
 
     def load_nii(self, fqfn):
-        if not os.path.isfile(fqfn):
-            return {}
-
-        # load img
-        nii = nib.load(fqfn)
-        img = nii.get_fdata()
-
-        # find json fields of interest
-        base, _ = os.path.splitext(fqfn)
-        fqfp, _ = os.path.splitext(base)
-        jfile = fqfp + ".json"
-        with open(jfile, "r") as f:
-            j = json.load(f)
-
-        # assemble dict
-        # img = np.squeeze(img)  # all singleton dimensions removed
-        niid = {
-            "fqfp": fqfp,
-            "nii": nii,
-            "img": img,
-            "halflife": self.parse_halflife(fqfp)}
-        if "timesMid" in j:
-            niid["timesMid"] = np.array(j["timesMid"], dtype=float).ravel()
-        if "taus" in j:
-            niid["taus"] = np.array(j["taus"], dtype=float).ravel()
-        if "times" in j:
-            niid["times"] = np.array(j["times"], dtype=float).ravel()
-        if "martinv1" in j:
-            niid["martinv1"] = np.array(j["martinv1"])
-        if "raichleks" in j:
-            niid["raichleks"] = np.array(j["raichleks"])
-        niid = self.trim_nii_dict(niid, self.TIME_LAST)
-        return niid
+        return self.io.load_nii(fqfn)
 
     @staticmethod
     def parse_halflife(fqfp: str):
-        iso = PETModel.parse_isotope(fqfp)
-        if iso == "15O":
-            return 122.2416  # sec
-        if iso == "11C":
-            return 20.340253 * 60  # sec
-        if iso == "18F":
-            return 1.82951 * 3600  # sec
-        raise ValueError(f"tracer and halflife not identifiable from fqfp {fqfp}")
+        return PETData.parse_halflife(fileprefix=fqfp)
 
     @staticmethod
     def parse_isotope(name: str):
-        if "trc-co" in name or "trc-oc" in name or "trc-oo" in name or "trc-ho" in name:
-            return "15O"
-        if "trc-cglc" in name or "trc-cs1p1" in name:
-            return "11C"
-        if "trc-fdg" in name or "trc-tz3108" in name or "trc-asem" in name or "trc-azan" in name or "trc-vat" in name:
-            return "18F"
-        warnings.warn(f"tracer and isotope not identifiable from name {name}", RuntimeWarning)
-        return "18F"
+        return PETData.parse_isotope(fileprefix=name)
 
     def save_csv(self, data: dict, fqfn=None):
-        """ """
-        if not fqfn:
-            fqfn = self.fqfp + "_dynesty-" + self.__class__.__name__ + ".csv"
-        d_nii = {
-            "taus": data["taus"],
-            "timesMid": data["timesMid"],
-            "times": data["times"],
-            "img": data["img"]}
-        df = pd.DataFrame(d_nii)
-        df.to_csv(fqfn)
+        self.io.save_csv(data, fqfn)
 
     def save_nii(self, data: dict, fqfn=None):
-        if not fqfn:
-            fqfn = self.fqfp + "_dynesty-" + self.__class__.__name__ + ".nii.gz"
-
-        # useful for  warnings, exceptions
-        cname = self.__class__.__name__
-        mname = inspect.currentframe().f_code.co_name
-
-        try:
-            # load img
-            _data = deepcopy(data)
-            nii = _data["nii"]  # paranoia
-            nii = nib.Nifti1Image(_data["img"], nii.affine, nii.header)
-            nib.save(nii, fqfn)
-
-            # find json fields of interest
-            jfile = _data["fqfp"] + ".json"  # from previously loaded tindices
-            with open(jfile, "r") as f:
-                j = json.load(f)
-            if "timesMid" in _data:
-                j["timesMid"] = _data["timesMid"].tolist()
-            else:
-                j["timesMid"] = self.data2timesMid(_data).tolist()
-            if "taus" in _data:
-                j["taus"] = _data["taus"].tolist()
-            else:
-                j["taus"] = self.data2taus(_data).tolist()
-            if "times" in _data:
-                j["times"] = _data["times"].tolist()
-            else:
-                j["times"] = self.data2t(_data).tolist()
-            base, _ = os.path.splitext(fqfn)  # remove .nii.gz
-            fqfp, _ = os.path.splitext(base)
-            jfile1 = fqfp + ".json"
-            with open(jfile1, "w") as f:
-                json.dump(j, f, indent=4)
-        except Exception as e:
-            # catch any error to enable graceful exit while sequentially writing NIfTI files
-            print(f"{cname}.{mname}: caught Exception {e}, but proceeding", file=sys.stderr)
-
-    def slice_parc(self, img: np.array, xindex: int):
-        """ slices img that is N_parc x N_time by the xindex for the parcel of interest,
-            returns a vector of length N_time. """
-        
-        assert img.ndim <= 2, "img must be 1D or 2D"
-        return img[xindex].copy()
+        self.io.save_nii(data, fqfn)
 
     @staticmethod
     def slide(rho, t, dt, halflife=None):
-        """ slides rho by dt seconds, optionally decays it by halflife. """
-
-        if abs(dt) < 0.1:
-            return rho
-        rho = np.interp(t - dt, t, rho)  # copy of rho array
-        if halflife:
-            return rho * np.power(2, -dt / halflife)
-        else:
-            return rho
-
-    @staticmethod
-    def trim_nii_dict(niid: dict, time_last=None):
-        """ examines niid and trims copies of its contents to
-            (i) remove inviable temporal samples indicated by np.isnan(timesMid)
-            (ii) remove temporal samples occurring after time_last
-            (iii) trim all niid contents that appear to have temporal samples. """
-
-        if not isinstance(niid, dict):
-            raise TypeError(f"Expected niid to be dict but it has type {type(niid)}.")
-
-        img = niid["img"].copy()
-        assert img.ndim <= 2, "img must be 1D or 2D"
-
-        timesMid = niid["timesMid"].copy()
-        taus = niid["taus"].copy()
-        times = niid["times"].copy()
-
-        # adjust viability with time_last
-        viable = ~np.isnan(timesMid)        
-        if time_last is not None:
-            viable = viable * (timesMid <= time_last)
-
-        if img.ndim == 1 and len(img) == len(timesMid):
-            niid.update({"img": img[viable], "timesMid": timesMid[viable], "taus": taus[viable],
-                          "times": times[viable]})
-        elif img.ndim == 2 and img.shape[1] == len(timesMid):
-            niid.update({"img": img[:, viable], "timesMid": timesMid[viable], "taus": taus[viable],
-                          "times": times[viable]})
-
-        return niid
+        return PETData.slide(rho, t, dt, halflife)
+    

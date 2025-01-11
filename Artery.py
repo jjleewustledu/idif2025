@@ -34,6 +34,7 @@ import pickle
 # basic numeric setup
 import numpy as np
 import pandas as pd
+from numba import njit
 
 # plotting
 from matplotlib import pyplot as plt
@@ -54,7 +55,6 @@ rcParams.update({"ytick.minor.pad": "7.0"})
 rcParams.update({"ytick.minor.size": "3.5"})
 rcParams.update({"ytick.minor.width": "1.0"})
 rcParams.update({"font.size": 30})
-
 
 class Artery(PETModel, ABC):
     """ Artery supports input functions:
@@ -187,7 +187,7 @@ class Artery(PETModel, ABC):
             truths = self.truths
         _truths = truths.copy()
 
-        plt.figure(figsize=(12, 7.4))
+        fig, ax = plt.subplots(figsize=(12, 7.4))  # Create figure and axes explicitly
 
         ncolors: int = 75
         viridis = cm.get_cmap("viridis", ncolors)
@@ -197,17 +197,15 @@ class Artery(PETModel, ABC):
             _truths[tindex] = t
             data = self.data(_truths)
             _, rho_ideal, t_ideal = self.signalmodel(data)
-            plt.plot(t_ideal, rho_ideal, color=viridis(tidx))
+            ax.plot(t_ideal, rho_ideal, color=viridis(tidx))
 
-        # plt.xlim([-0.1,])
-        plt.xlabel("time of mid-frame (s)")
-        plt.ylabel("activity (arbitrary)")
+        ax.set_xlabel("time of mid-frame (s)")
+        ax.set_ylabel("activity (arbitrary)")
 
         # Add a colorbar to understand colors
-        # First create a mappable object with the same colormap
         sm = plt.cm.ScalarMappable(cmap=viridis)
         sm.set_array(trange)
-        plt.colorbar(sm, label="Varying " + self.labels[tindex])
+        plt.colorbar(sm, ax=ax, label="Varying " + self.labels[tindex])  # Pass the ax argument
 
         plt.tight_layout()
 
@@ -247,14 +245,14 @@ class Artery(PETModel, ABC):
         v[1] = u[1] * 30  # \tau_2 ~ t_2 - t_0
         v[2] = u[2] * 30  # \tau_3 ~ t_3 - t_2
         v[3] = u[3] * 20  # \alpha - 1
-        v[4] = u[4] * 30 + 1  # 1/\beta
-        v[5] = u[5] * 9.75 + 0.25  # p
-        v[6] = u[6] * 10 - 10  # \delta p_2 ~ p_2 - p
-        v[7] = u[7] * 10 - 10  # \delta p_3 ~ p_3 - p_2
-        v[8] = u[8] * Artery.duration + 1/Artery.duration  # 1/\gamma for s.s.
-        v[9] = u[9] * 0.75 + 0.25  # f_2
+        v[4] = u[4] * 30 + 3  # 1/\beta
+        v[5] = u[5] * 2.382 + 0.618  # p
+        v[6] = u[6] * 3 - 3  # \delta p_2 ~ p_2 - p
+        v[7] = u[7] * 3 - 3  # \delta p_3 ~ p_3 - p_2
+        v[8] = u[8] * 5 * Artery.duration  # 1/\gamma for s.s.
+        v[9] = u[9] * 0.5 # f_2
         v[10] = u[10] * 0.5  # f_3
-        v[11] = u[11] * 0.25  # f_{ss}
+        v[11] = u[11] * 0.5  # f_{ss}
         v[12] = u[12] * 4 + 0.5  # A is amplitude adjustment
         v[13] = u[13] * Artery.sigma  # sigma ~ fraction of M0
         return v
@@ -339,7 +337,7 @@ class Artery(PETModel, ABC):
                    "rho_pred": np.squeeze(np.array(rho_pred)),
                    "resid": np.array(resid)}
 
-        self.save_results(package, tag=self.TAG)
+        self.save_results(package, tag=self.tag)
         return package
 
     # noinspection DuplicatedCode
@@ -347,7 +345,7 @@ class Artery(PETModel, ABC):
         """ conforms with behaviors and interfaces of TCModel.py """
 
         if not tag:
-            tag = self.TAG
+            tag = self.tag
         if tag:
             tag = "-" + tag
         fqfp1 = self.fqfp_results + tag
@@ -421,7 +419,18 @@ class Artery(PETModel, ABC):
 
     @staticmethod
     def solution_1bolus(t, t_0, a, b, p):
-        """Generalized gamma distribution.
+        """Generalized gamma distribution, using numpy with optimized memory allocation.
+
+        Original, tested numerical implementation:        
+            t_ = np.array(t - t_0, dtype=complex)
+            t_ = t_.clip(min=0)
+            rho = np.power(t_, a) * np.exp(-np.power((b * t_), p))
+            rho = np.real(rho)
+            rho = rho.clip(min=0)
+            max_val = np.max(rho)
+            if max_val > 0:
+                rho /= max_val
+            return np.nan_to_num(rho, 0)
 
         Args:
             t (array_like): Time points
@@ -433,6 +442,7 @@ class Artery(PETModel, ABC):
         Returns:
             ndarray: Normalized gamma distribution values
         """
+
         t_ = np.array(t - t_0, dtype=complex)
         t_ = t_.clip(min=0)
         rho = np.power(t_, a) * np.exp(-np.power((b * t_), p))
@@ -469,7 +479,7 @@ class Artery(PETModel, ABC):
 
     @staticmethod
     def solution_2bolus(t, t_0, a, b, p, g, f_ss):
-        """ generalized gamma distributions + global decay """
+        """ generalized gamma distributions + global accumulation """
         f_1 = 1 - f_ss
         rho = (f_1 * Artery.solution_1bolus(t, t_0, a, b, p) +
                f_ss * Artery.solution_ss(t, t_0, g))
@@ -477,7 +487,7 @@ class Artery(PETModel, ABC):
 
     @staticmethod
     def solution_3bolus(t, t_0, tau_2, a, b, p, dp_2, g, f_2, f_ss):
-        """ two sequential generalized gamma distributions + global decay """
+        """ two sequential generalized gamma distributions + global accumulation """
 
         f_ss_ = f_ss * (1 - f_2)
         f_1_ = (1 - f_ss) * (1 - f_2)
@@ -485,11 +495,23 @@ class Artery(PETModel, ABC):
         rho = (f_1_ * Artery.solution_1bolus(t, t_0, a, b, p) +
                f_2_ * Artery.solution_1bolus(t, t_0 + tau_2, a, b, max(0.25, p + dp_2)) +
                f_ss_ * Artery.solution_ss(t, t_0, g))
+        return rho    
+
+    @staticmethod
+    def solution_3bolus_series(t, t_0, tau_2, tau_3, a, b, p, dp_2, dp_3, g, f_2, f_3):
+        """ three sequential generalized gamma distributions """
+
+        f_1_ = (1 - f_3) * (1 - f_2)
+        f_2_ = (1 - f_3/2) * f_2
+        f_3_ = (1 - f_2/2) * f_3 
+        rho = (f_1_ * Artery.solution_1bolus(t, t_0, a, b, p) +
+               f_2_ * Artery.solution_1bolus(t, t_0 + tau_2, a, b, max(0.618, p + dp_2)) +
+               f_3_ * Artery.solution_1bolus(t, t_0, a, b + g, max(0.618, p + dp_2 + dp_3)))
         return rho
 
     @staticmethod
     def solution_3bolus_extended(t, t_0, tau_2, b_ext, a, b, p, dp_2, p_ext, g, f_2, f_ext, f_ss):
-        """ two sequential generalized gamma distributions + global decay + extended generalized gamma """
+        """ two sequential generalized gamma distributions + global accumulation + extended generalized gamma """
 
         f_ss_ = f_ss * (1 - f_2)
         f_1_ = (1 - f_ss) * (1 - f_2)
@@ -498,11 +520,11 @@ class Artery(PETModel, ABC):
                f_2_ * Artery.solution_1bolus(t, t_0 + tau_2, a, b, max(0.25, p + dp_2)) +
                f_ext * Artery.solution_1bolus(t, t_0, 0, b_ext, p_ext) +
                f_ss_ * Artery.solution_ss(t, t_0, g))
-        return rho
+        return rho 
 
     @staticmethod
     def solution_4bolus(t, t_0, tau_2, tau_3, a, b, p, dp_2, dp_3, g, f_2, f_3, f_ss):
-        """ three sequential generalized gamma distributions + global decay """
+        """ three sequential generalized gamma distributions + global accumulation """
 
         f_ss_ = f_ss * (1 - f_2) * (1 - f_3)
         f_1_ = (1 - f_ss) * (1 - f_2) * (1 - f_3)
@@ -512,20 +534,6 @@ class Artery(PETModel, ABC):
                f_2_ * Artery.solution_1bolus(t, t_0 + tau_2, a, b, max(0.25, p + dp_2)) +
                f_3_ * Artery.solution_1bolus(t, t_0 + tau_2 + tau_3, a, b, max(0.25, p + dp_2 + dp_3)) +
                f_ss_ * Artery.solution_ss(t, t_0, g))
-        return rho
-
-    @staticmethod
-    def solution_ss_proposed(t, t_0, g):
-        """ global exponential decay coincident with first-appearing bolus; but may break Boxcar """
-
-        a = 1
-        p = 1
-        t_ = np.array(t - t_0, dtype=complex)
-        t_ = t_.clip(min=0)
-        rho = np.power(t_, a) * np.exp(-np.power((g * t_), p))
-        rho = np.real(rho)
-        rho = rho.clip(min=0)
-        rho = rho / np.max(rho)
         return rho
 
     @staticmethod

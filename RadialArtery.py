@@ -30,6 +30,7 @@ from copy import deepcopy
 # basic numeric setup
 import numpy as np
 import nibabel as nib
+from numba import njit
 
 
 def kernel_fqfn(artery_fqfn: str):
@@ -145,11 +146,11 @@ class RadialArtery(Artery):
         tau_2 = v[1]
         tau_3 = v[2]
         a = v[3]
-        b = 1 / v[4]
+        b = 1 / v[4]  # \beta <- 1/\beta    
         p = v[5]
         dp_2 = v[6]
         dp_3 = v[7]
-        g = 1 / v[8]
+        g = 1 / v[8]  # \gamma <- 1/\gamma
         f_2 = v[9]
         f_3 = v[10]
         f_ss = v[11]
@@ -158,7 +159,8 @@ class RadialArtery(Artery):
         # rho_ = A * RadialArtery.solution_1bolus(t_ideal, t_0, a, b, p)
         # rho_ = A * RadialArtery.solution_2bolus(t_ideal, t_0, a, b, p, g, f_ss)
         # rho_ = A * RadialArtery.solution_3bolus(t_ideal, t_0, tau_2, a, b, p, dp_2, g, f_2, f_ss)
-        rho_ = A * RadialArtery.solution_4bolus(t_ideal, t_0, tau_2, tau_3, a, b, p, dp_2, dp_3, g, f_2, f_3, f_ss)
+        # rho_ = A * RadialArtery.solution_4bolus(t_ideal, t_0, tau_2, tau_3, a, b, p, dp_2, dp_3, g, f_2, f_3, f_ss)
+        rho_ = A * RadialArtery.solution_3bolus_series(t_ideal, t_0, tau_2, tau_3, a, b, p, dp_2, dp_3, g, f_2, f_3)
         rho = RadialArtery.apply_dispersion(rho_, data)
         A_qs = 1 / max(rho)
         signal = A_qs * rho
@@ -167,7 +169,6 @@ class RadialArtery(Artery):
 
     @staticmethod
     def apply_dispersion(vec, data: dict):
-        k = data["kernel"].copy()
-        k = k.T
+        k = data["kernel"]
         vec_sampled = np.convolve(vec, k, mode="full")
         return vec_sampled[:vec.size]

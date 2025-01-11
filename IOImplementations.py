@@ -40,8 +40,16 @@ class BaseIO(IOInterface):
     """Base implementation of IOInterface with common functionality."""
 
     @staticmethod
+    def data2tinterp(data: dict) -> np.ndarray:
+        """Retrieve times array from data dictionary and interpolate to 1-second resolution."""
+        tinterp0 = data["times"][0]  # sec
+        tinterpF = data["times"][-1] + data["taus"][-1]  # sec  
+        N_tinterp = (tinterpF - tinterp0 + 1).astype(int)  # N of 1-sec samples
+        return np.linspace(tinterp0, tinterpF, N_tinterp)  # e.g., [0.1, 1.1, 2.1, ..., N_tinterp+0.1]
+
+    @staticmethod
     def data2t(data: dict) -> np.ndarray:
-        """Retrieve time array from data dictionary."""
+        """Retrieve times array from data dictionary."""
         if "times" in data:
             return data["times"]
         timesMid = data["timesMid"]

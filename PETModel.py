@@ -48,19 +48,10 @@ class PETModel(DynestyModel, ABC):
     """
     """
 
-    def __init__(self,
-                 home=os.getcwd(),
-                 sample="rslice",
-                 nlive=1000,
-                 rstate=np.random.default_rng(916301),
-                 time_last=None,
-                 tag=""):
-        super().__init__(sample=sample,
-                         nlive=nlive,
-                         rstate=rstate,
-                         tag=tag)
-        self.HOME = home
-        self.TIME_LAST = time_last
+    def __init__(self, home=os.getcwd(), time_last=None, **kwargs):
+        super().__init__(**kwargs)
+        self.home = home
+        self.time_last = time_last
         self.io = BaseIO()
 
     @staticmethod

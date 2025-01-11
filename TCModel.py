@@ -43,29 +43,8 @@ class TCModel(TissueModel, ABC):
 
     sigma = None  # class attribute needed by dynesty
 
-    def __init__(self,
-                 input_function,
-                 pet_measurement,
-                 truths=None,
-                 home=os.getcwd(),
-                 sample="rslice",
-                 nlive=1000,
-                 recovery_coefficient=1.8509,
-                 rstate=np.random.default_rng(916301),
-                 time_last=None,
-                 tag="",
-                 delta_time=1):
-        super().__init__(input_function,
-                         pet_measurement,
-                         truths=truths,
-                         home=home,
-                         sample=sample,
-                         nlive=nlive,
-                         recovery_coefficient=recovery_coefficient,
-                         rstate=rstate,
-                         time_last=time_last,
-                         tag=tag,
-                         delta_time=delta_time)
+    def __init__(self, input_function, pet_measurement, **kwargs):
+        super().__init__(input_function, pet_measurement, **kwargs)
         TCModel.sigma = 0.2
         self.V1_ASSUMED = np.array(0.05)
         try:

@@ -58,27 +58,8 @@ class Ichise2002PosthocModel(TCModel):
     k4 = None
     tau_a = None
 
-    def __init__(self,
-                 input_function,
-                 pet_measurement,
-                 truths=None,
-                 home=os.getcwd(),
-                 sample="rslice",
-                 nlive=1000,
-                 rstate=np.random.default_rng(916301),
-                 time_last=None,
-                 tag="",
-                 delta_time=1):
-        super().__init__(input_function,
-                         pet_measurement,
-                         truths=truths,
-                         home=home,
-                         sample=sample,
-                         nlive=nlive,
-                         rstate=rstate,
-                         time_last=time_last,
-                         tag=tag,
-                         delta_time=delta_time)
+    def __init__(self, input_function, pet_measurement, **kwargs):
+        super().__init__(input_function, pet_measurement, **kwargs)
         Ichise2002PosthocModel.k1 = truths[0]
         Ichise2002PosthocModel.k2 = truths[1]
         Ichise2002PosthocModel.k3 = truths[2]

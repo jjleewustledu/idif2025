@@ -41,30 +41,8 @@ class SpectralAnalysis(TissueModel):
     T_0 = None
     TAU_A = None
 
-    def __init__(self,
-                 input_function,
-                 pet_measurement,
-                 truths=None,
-                 home=os.getcwd(),
-                 sample="rslice",
-                 nlive=1000,
-                 rstate=np.random.default_rng(916301),
-                 time_last=None,
-                 tag="",
-                 delta_time=1,
-                 M=1,
-                 t_0=10,
-                 tau_a=0):
-        super().__init__(input_function,
-                         pet_measurement,
-                         truths=truths,
-                         home=home,
-                         sample=sample,
-                         nlive=nlive,
-                         rstate=rstate,
-                         time_last=time_last,
-                         tag=tag,
-                         delta_time=delta_time)
+    def __init__(self, input_function, pet_measurement, M=1, t_0=10, tau_a=0, **kwargs):
+        super().__init__(input_function, pet_measurement, **kwargs)
         SpectralAnalysis.sigma = 0.2
         SpectralAnalysis.M = M
         SpectralAnalysis.T_0 = t_0

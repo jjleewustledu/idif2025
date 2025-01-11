@@ -55,26 +55,9 @@ class Huang1980Model(TCModel):
     Note: This class does not define any additional methods or attributes beyond those inherited from the `TCModel` class.
 
     """
-    def __init__(self,
-                 input_function,
-                 pet_measurement,
-                 truths=None,
-                 home=os.getcwd(),
-                 sample="rslice",
-                 nlive=1000,
-                 rstate=np.random.default_rng(916301),
-                 tag="",
-                 delta_time=1):
-        super().__init__(input_function,
-                         pet_measurement,
-                         truths=truths,
-                         home=home,
-                         sample=sample,
-                         nlive=nlive,
-                         rstate=rstate,
-                         time_last=None,
-                         tag=tag,
-                         delta_time=delta_time)
+    def __init__(self, input_function, pet_measurement, **kwargs):
+        kwargs.setdefault('time_last', None)
+        super().__init__(input_function, pet_measurement, **kwargs)
 
     @property
     def labels(self):

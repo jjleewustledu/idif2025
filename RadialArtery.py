@@ -91,27 +91,11 @@ class RadialArtery(Artery):
         apply_dispersion(vec, data: dict) -> np.array: Apply dispersion to a vector.
 
     """
-    def __init__(self, input_func_measurement,
-                 kernel_measurement=None,
-                 remove_baseline=True,
-                 tracer=None,
-                 truths=None,
-                 sample="rslice",
-                 nlive=1000,
-                 rstate=np.random.default_rng(916301),
-                 times_last=None,
-                 tag=""):
-        super().__init__(input_func_measurement,
-                         tracer=tracer,
-                         truths=truths,
-                         sample=sample,
-                         nlive=nlive,
-                         rstate=rstate,
-                         times_last=times_last,
-                         tag=tag)
+    def __init__(self, input_func_measurement, kernel_measurement=None, remove_baseline=True, **kwargs):
+        super().__init__(input_func_measurement, **kwargs)
 
         self.__kernel_measurement = kernel_measurement  # set with fqfn
-        self.KERNEL = self.kernel_measurement["img"].copy()  # get dict conforming to nibabel
+        self.KERNEL = self.kernel_measurement["img"].copy().T  # get dict conforming to nibabel
         self.__remove_baseline = remove_baseline
         Artery.sigma = 0.1
 

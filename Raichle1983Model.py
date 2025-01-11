@@ -48,25 +48,8 @@ class Raichle1983Model(TCModel):
     Attributes:
         labels (list): The labels for the parameters.
     """
-    def __init__(self,
-                 input_function,
-                 pet_measurement,
-                 truths=None,
-                 home=os.getcwd(),
-                 sample="rslice",
-                 nlive=1000,
-                 rstate=np.random.default_rng(916301),
-                 time_last=180,
-                 tag=""):
-        super().__init__(input_function,
-                         pet_measurement,
-                         truths=truths,
-                         home=home,
-                         sample=sample,
-                         nlive=nlive,
-                         rstate=rstate,
-                         time_last=time_last,
-                         tag=tag)
+    def __init__(self, input_function, pet_measurement, **kwargs):
+        super().__init__(input_function, pet_measurement, **kwargs)
 
     @property
     def labels(self):

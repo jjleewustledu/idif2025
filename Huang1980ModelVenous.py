@@ -53,25 +53,9 @@ class Huang1980ModelVenous(TCModel):
     - signalmodel(data: dict) -> tuple: Computes the model signal using the given data and returns the results.
 
     """
-    def __init__(self,
-                 input_function,
-                 pet_measurement,
-                 truths=None,
-                 home=os.getcwd(),
-                 sample="rslice",
-                 nlive=1000,
-                 rstate=np.random.default_rng(916301),
-                 tag="",
-                 venous_recovery_coefficient=1):
-        super().__init__(input_function,
-                         pet_measurement,
-                         truths=truths,
-                         home=home,
-                         sample=sample,
-                         nlive=nlive,
-                         rstate=rstate,
-                         time_last=None,
-                         tag=tag)
+    def __init__(self, input_function, pet_measurement, venous_recovery_coefficient=1, **kwargs):
+        kwargs.setdefault('time_last', None)
+        super().__init__(input_function, pet_measurement, **kwargs)
 
         # self.RECOVERY_COEFFICIENT = self.RECOVERY_COEFFICIENT * venous_recovery_coefficient
 

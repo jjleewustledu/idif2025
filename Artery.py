@@ -73,18 +73,8 @@ class Artery(PETModel, ABC):
                  input_func_measurement,
                  tracer=None,
                  truths=None,
-                 home=os.getcwd(),
-                 sample="rslice",
-                 nlive=1000,
-                 rstate=np.random.default_rng(916301),
-                 times_last=None,
-                 tag=""):
-        super().__init__(home=home,
-                         sample=sample,
-                         nlive=nlive,
-                         rstate=rstate,
-                         time_last=times_last,
-                         tag=tag)
+                 **kwargs):
+        super().__init__(**kwargs)
 
         self._truths_internal = truths
 

@@ -53,22 +53,8 @@ class Boxcar(Artery):
         Applies the boxcar transformation to the vector.
 
     """
-    def __init__(self, input_func_measurement,
-                 tracer=None,
-                 truths=None,
-                 sample="rslice",
-                 nlive=1000,
-                 rstate=np.random.default_rng(916301),
-                 times_last=None,
-                 tag=""):
-        super().__init__(input_func_measurement,
-                         tracer=tracer,
-                         truths=truths,
-                         sample=sample,
-                         nlive=nlive,
-                         rstate=rstate,
-                         times_last=times_last,
-                         tag=tag)
+    def __init__(self, input_func_measurement, **kwargs):
+        super().__init__(input_func_measurement, **kwargs)
 
         Artery.sigma = 0.01
 

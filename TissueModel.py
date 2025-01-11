@@ -64,21 +64,11 @@ class TissueModel(PETModel, ABC):
     def __init__(self,
                  input_function,
                  pet_measurement,
-                 truths=None,
-                 home=os.getcwd(),
-                 sample="rslice",
-                 nlive=1000,
                  recovery_coefficient=1.8509,
-                 rstate=np.random.default_rng(916301),
-                 time_last=None,
-                 tag="",
-                 delta_time=1):
-        super().__init__(home=home,
-                         sample=sample,
-                         nlive=nlive,
-                         rstate=rstate,
-                         time_last=time_last,
-                         tag=tag)
+                 delta_time=1,
+                 truths=None,
+                 **kwargs):
+        super().__init__(**kwargs)
         self._input_function = input_function  # fqfn to be converted to dict by property
         self._pet_measurement = pet_measurement  # fqfn to be converted to dict by property
         self._truths_internal = truths

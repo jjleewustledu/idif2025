@@ -32,27 +32,9 @@ import numpy as np
 
 class LineModel(TCModel):
     """ """
-
-    def __init__(self,
-                 input_function,
-                 pet_measurement,
-                 truths=None,
-                 home=os.getcwd(),
-                 sample="rslice",
-                 nlive=1000,
-                 rstate=np.random.default_rng(916301),
-                 tag="",
-                 delta_time=1):
-        super().__init__(input_function,
-                         pet_measurement,
-                         truths=truths,
-                         home=home,
-                         sample=sample,
-                         nlive=nlive,
-                         rstate=rstate,
-                         time_last=None,
-                         tag=tag,
-                         delta_time=delta_time)
+    def __init__(self, input_function, pet_measurement, **kwargs):
+        kwargs["time_last"] = None
+        super().__init__(input_function, pet_measurement, **kwargs)
 
     @property
     def labels(self):

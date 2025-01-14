@@ -55,7 +55,7 @@ class TrivialArtery(PETModel, ABC):
         self.__input_func_measurement = input_func_measurement  # set with fqfn
         ifm = self.input_func_measurement  # get dict conforming to nibabel
         self.HALFLIFE = ifm["halflife"]
-        self.RHO = ifm["img"] / np.max(ifm["img"])
+        self.RHOS = ifm["img"] / np.max(ifm["img"])
         self.TAUS = ifm["taus"]
         self.TIMES_MID = ifm["timesMid"]
 
@@ -74,7 +74,7 @@ class TrivialArtery(PETModel, ABC):
         return self.input_func_measurement["fqfp"]
 
     @property
-    def fqfp_results(self):
+    def results_fqfp(self):
         return self.fqfp + "-" + self.__class__.__name__
 
     @property

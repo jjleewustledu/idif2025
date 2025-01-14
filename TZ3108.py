@@ -125,8 +125,8 @@ class TZ3108:
         return self._strategy.fqfp
 
     @property
-    def fqfp_results(self):
-        return self._strategy.fqfp_results
+    def results_fqfp(self):
+        return self._strategy.results_fqfp
 
     @property
     def labels(self):
@@ -154,15 +154,6 @@ class TZ3108:
 
     def data(self, v):
         return self._strategy.data(v)
-
-    def data2t(self, data):
-        return self._strategy.data2t(data)
-
-    def data2taus(self, data):
-        return self._strategy.data2taus(data)
-
-    def data2timesMid(self, data):
-        return self._strategy.data2timesMid(data)
 
     def input_function(self):
         return self._strategy.adjusted_input_function()

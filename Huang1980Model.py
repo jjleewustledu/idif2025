@@ -101,7 +101,7 @@ class Huang1980Model(TCModel):
 
         rho_t = v1 * (input_func_interp + q2 + q3)
         rho_t = Huang1980Model.slide(rho_t, times, t_0, None)
-        if data["rhoUsesBoxcar"]:
+        if data["rho_experiences_boxcar"]:
             rho = Boxcar.apply_boxcar(rho_t, data)
         else:
             rho = np.interp(timesMid, times, rho_t)

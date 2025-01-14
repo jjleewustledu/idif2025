@@ -47,10 +47,10 @@ class SpectralAnalysis(TissueModel):
         SpectralAnalysis.M = M
         SpectralAnalysis.T_0 = t_0
         SpectralAnalysis.TAU_A = tau_a
-        if "-m" not in self.TAG:
-            self.TAG = self.TAG + f"-m{M}"
-        if "-nlive" not in self.TAG:
-            self.TAG = self.TAG + f"-nlive{nlive}"
+        if "-m" not in self.tag:
+            self.tag = self.tag + f"-m{M}"
+        if "-nlive" not in self.tag:
+            self.tag = self.tag + f"-nlive{nlive}"
         self._labels = None
 
     @property
@@ -117,7 +117,7 @@ class SpectralAnalysis(TissueModel):
         rho_t = rho_t[:n] + a_0 * integrate.cumulative_trapezoid(input_func_interp1, times1)
         rho_t = SpectralAnalysis.slide(rho_t, times, t_0, None)
 
-        if data["rhoUsesBoxcar"]:
+        if data["rho_experiences_boxcar"]:
             rho = Boxcar.apply_boxcar(rho_t, data)
         else:
             rho = np.interp(timesMid, times, rho_t)

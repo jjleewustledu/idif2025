@@ -36,12 +36,12 @@ class DynestyInterface(ABC):
 
     @property
     @abstractmethod
-    def fqfp_results(self):
+    def labels(self):
         pass
 
     @property
     @abstractmethod
-    def labels(self):
+    def results_fqfp(self):
         pass
 
     @property

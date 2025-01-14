@@ -47,7 +47,7 @@ def kernel_fqfn(artery_fqfn: str):
         kernel_file = kernel_fqfn(artery_file)
         print(kernel_file)  # /path/to/CCIR_01211/sourcedata/kernel_hct=46.8.nii.gz
     """
-    sourcedata = os.path.join(os.getenv("SINGULARITY_HOME"), "CCIR_01211", "sourcedata",)
+    sourcedata = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2024", "data", "kernels")
     if "sub-108293" in artery_fqfn:
         return os.path.join(sourcedata, "kernel_hct=46.8.nii.gz")
     if "sub-108237" in artery_fqfn:
@@ -95,7 +95,7 @@ class RadialArtery(Artery):
         super().__init__(input_func_measurement, **kwargs)
 
         self.__kernel_measurement = kernel_measurement  # set with fqfn
-        self.KERNEL = self.kernel_measurement["img"].copy().T  # get dict conforming to nibabel
+        self.KERNEL = self.kernel_measurement["img"].copy()
         self.__remove_baseline = remove_baseline
         Artery.sigma = 0.1
 
@@ -119,7 +119,7 @@ class RadialArtery(Artery):
         # assemble dict
         self.__kernel_measurement = {
             "fqfp": fqfp,
-            "img": np.array(img, dtype=float).reshape(-1)}
+            "img": np.array(img, dtype=float).squeeze()}
         return deepcopy(self.__kernel_measurement)
 
     @staticmethod

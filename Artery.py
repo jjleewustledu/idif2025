@@ -54,7 +54,7 @@ rcParams.update({"ytick.major.width": "1.5"})
 rcParams.update({"ytick.minor.pad": "7.0"})
 rcParams.update({"ytick.minor.size": "3.5"})
 rcParams.update({"ytick.minor.width": "1.0"})
-rcParams.update({"font.size": 30})
+rcParams.update({"font.size": 24})
 
 class Artery(PETModel, ABC):
     """ Artery supports input functions:
@@ -82,7 +82,7 @@ class Artery(PETModel, ABC):
         self.__input_func_measurement = input_func_measurement  # set with fqfn
         ifm = self.input_func_measurement  # get dict conforming to nibabel
         self.HALFLIFE = ifm["halflife"]
-        self.RHO = ifm["img"] / np.max(ifm["img"])
+        self.RHOS = ifm["img"] / np.max(ifm["img"])
         Artery.sigma = 0.1
         self.TAUS = ifm["taus"]
         self.TIMES_MID = ifm["timesMid"]
@@ -101,7 +101,7 @@ class Artery(PETModel, ABC):
         return self.input_func_measurement["fqfp"]
 
     @property
-    def fqfp_results(self):
+    def results_fqfp(self):
         return self.fqfp + "-" + self.__class__.__name__
 
     @property
@@ -133,7 +133,7 @@ class Artery(PETModel, ABC):
     def data(self, v):
         return deepcopy({
             "halflife": self.HALFLIFE,
-            "rho": self.RHO, "timesMid": self.TIMES_MID, "taus": self.TAUS, "times": (self.TIMES_MID - self.TAUS / 2),
+            "rho": self.rhos, "timesMid": self.TIMES_MID, "taus": self.TAUS, "times": (self.TIMES_MID - self.TAUS / 2),
             "kernel": self.KERNEL,
             "v": v})
 
@@ -162,11 +162,29 @@ class Artery(PETModel, ABC):
 
         scaling = 0.001 if activity_units.startswith("k") else 1
 
-        plt.figure(figsize=(12, 8))
-        plt.plot(tM, scaling * rho, color="black", marker="+",
-                 ls="none", alpha=0.9, markersize=16)
-        plt.plot(tM, scaling * M0 * rho_pred, marker="o", color="red", ls="none", alpha=0.8)
-        plt.plot(t_ideal, scaling * M0 * rho_ideal, color="dodgerblue", linewidth=2, alpha=0.7)
+        plt.figure(figsize=(12, 0.618*12))
+        plt.plot(
+            tM,
+            scaling * rho,
+            color="black",
+            marker="+", 
+            ls="none",
+            alpha=0.9,
+            markersize=16)
+        plt.plot(
+            tM,
+            scaling * M0 * rho_pred,
+            marker="o",
+            color="red",
+            ls="none", 
+            alpha=0.8,
+            markersize=6)
+        plt.plot(
+            t_ideal,
+            scaling * M0 * rho_ideal,
+            color="dodgerblue",
+            linewidth=3,
+            alpha=0.7)
         plt.xlim([-0.1, 1.1 * np.max(tM)])
         plt.xlabel("time of mid-frame (s)")
         plt.ylabel(f"activity ({activity_units})")
@@ -177,7 +195,7 @@ class Artery(PETModel, ABC):
             truths = self.truths
         _truths = truths.copy()
 
-        fig, ax = plt.subplots(figsize=(12, 7.4))  # Create figure and axes explicitly
+        fig, ax = plt.subplots(figsize=(12, 0.618*12))  # Create figure and axes explicitly
 
         ncolors: int = 75
         viridis = cm.get_cmap("viridis", ncolors)
@@ -297,7 +315,7 @@ class Artery(PETModel, ABC):
         qh = []
         rho_pred = []
         resid = []
-        tac = self.RHO
+        tac = self.rhos
 
         _res = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
                                                ndim=self.ndim,
@@ -338,7 +356,7 @@ class Artery(PETModel, ABC):
             tag = self.tag
         if tag:
             tag = "-" + tag
-        fqfp1 = self.fqfp_results + tag
+        fqfp1 = self.results_fqfp + tag
 
         ifm = self.input_func_measurement
         M0 = np.max(ifm["img"])
@@ -383,12 +401,19 @@ class Artery(PETModel, ABC):
         data = self.data(res_dict["qm"])
         rho_signal, rho_ideal, timesUnif = self.signalmodel(data)
 
+        json = ifm["json"]
+        if not np.array_equal(json["timesMid"], timesMid):
+            json["timesMid"] = timesMid.tolist()
+        if not np.array_equal(json["taus"], taus):
+            json["taus"] = taus.tolist()
+
         self.save_nii(
             {"timesMid": timesMid, 
              "taus": taus, 
              "img": M0 * rho_signal, 
              "nii": nii, 
-             "fqfp": fqfp},
+             "fqfp": fqfp,
+             "json": json},
             fqfp1 + "-signal.nii.gz")
 
         self.save_nii(
@@ -396,7 +421,8 @@ class Artery(PETModel, ABC):
              "taus": np.ones(timesUnif.shape), 
              "img": M0 * rho_ideal, 
              "nii": nii, 
-             "fqfp": fqfp},
+             "fqfp": fqfp,
+             "json": json},
             fqfp1 + "-ideal.nii.gz")
 
         d_quantiles = {
@@ -410,17 +436,6 @@ class Artery(PETModel, ABC):
     @staticmethod
     def solution_1bolus(t, t_0, a, b, p):
         """Generalized gamma distribution, using numpy with optimized memory allocation.
-
-        Original, tested numerical implementation:        
-            t_ = np.array(t - t_0, dtype=complex)
-            t_ = t_.clip(min=0)
-            rho = np.power(t_, a) * np.exp(-np.power((b * t_), p))
-            rho = np.real(rho)
-            rho = rho.clip(min=0)
-            max_val = np.max(rho)
-            if max_val > 0:
-                rho /= max_val
-            return np.nan_to_num(rho, 0)
 
         Args:
             t (array_like): Time points
@@ -442,30 +457,6 @@ class Artery(PETModel, ABC):
         if max_val > 0:
             rho /= max_val
         return np.nan_to_num(rho, 0)
-    
-        # # Pre-allocate array with correct type
-        # t_ = np.empty_like(t, dtype=np.complex128)
-        
-        # # Vectorized operations
-        # np.subtract(t, t_0, out=t_)
-        # np.clip(t_, 0, None, out=t_)
-        
-        # # Avoid temporary arrays by using out parameter
-        # bt = np.multiply(b, t_, out=t_)
-        # np.power(bt, p, out=bt)
-        # np.negative(bt, out=bt)
-        # np.exp(bt, out=bt)
-        
-        # ta = np.power(t_, a)
-        # rho = np.multiply(ta, bt)
-        
-        # # Final processing
-        # rho = np.real(rho)
-        # np.clip(rho, 0, None, out=rho)
-        # max_val = np.max(rho)
-        # if max_val > 0:
-        #     rho /= max_val
-        # return np.nan_to_num(rho, 0)
 
     @staticmethod
     def solution_2bolus(t, t_0, a, b, p, g, f_ss):
@@ -479,9 +470,9 @@ class Artery(PETModel, ABC):
     def solution_3bolus(t, t_0, tau_2, a, b, p, dp_2, g, f_2, f_ss):
         """ two sequential generalized gamma distributions + global accumulation """
 
-        f_ss_ = f_ss * (1 - f_2)
         f_1_ = (1 - f_ss) * (1 - f_2)
-        f_2_ = f_2
+        f_2_ = (1 - f_ss/2) * f_2
+        f_ss_ = (1 - f_2/2) * f_ss 
         rho = (f_1_ * Artery.solution_1bolus(t, t_0, a, b, p) +
                f_2_ * Artery.solution_1bolus(t, t_0 + tau_2, a, b, max(0.25, p + dp_2)) +
                f_ss_ * Artery.solution_ss(t, t_0, g))
@@ -503,9 +494,9 @@ class Artery(PETModel, ABC):
     def solution_3bolus_extended(t, t_0, tau_2, b_ext, a, b, p, dp_2, p_ext, g, f_2, f_ext, f_ss):
         """ two sequential generalized gamma distributions + global accumulation + extended generalized gamma """
 
-        f_ss_ = f_ss * (1 - f_2)
         f_1_ = (1 - f_ss) * (1 - f_2)
-        f_2_ = f_2
+        f_2_ = (1 - f_ss/2) * f_2
+        f_ss_ = (1 - f_2/2) * f_ss 
         rho = (f_1_ * Artery.solution_1bolus(t, t_0, a, b, p) +
                f_2_ * Artery.solution_1bolus(t, t_0 + tau_2, a, b, max(0.25, p + dp_2)) +
                f_ext * Artery.solution_1bolus(t, t_0, 0, b_ext, p_ext) +

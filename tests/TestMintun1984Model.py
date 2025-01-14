@@ -96,5 +96,7 @@ class TestMintun1984Model(TestPreliminaries):
         if self._mintun_twil_obj:
             self._mintun_twil_obj.run_nested_for_indexed_tac(self._parc_index, print_progress=True)
             plt.show()
+
+            
 if __name__ == '__main__':
     unittest.main()

@@ -109,7 +109,7 @@ class Ichise2002VascModel(TCModel):
         rho_t[rho_t < 0] = 0
         rho_t = rho_t + g5 * rho_p
         # rho_t = Ichise2002VascModel.slide(rho_t, times, t_0, None)
-        if data["rhoUsesBoxcar"]:
+        if data["rho_experiences_boxcar"]:
             rho = Boxcar.apply_boxcar(rho_t, data)
         else:
             rho = np.interp(timesMid, times, rho_t)

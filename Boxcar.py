@@ -22,7 +22,6 @@
 
 from __future__ import absolute_import
 from Artery import Artery
-from IOImplementations import BaseIO
 
 # basic numeric setup
 import numpy as np
@@ -55,12 +54,12 @@ class Boxcar(Artery):
     """
     def __init__(self, input_func_measurement, **kwargs):
         super().__init__(input_func_measurement, **kwargs)
-
         Artery.sigma = 0.01
 
     @staticmethod
     def signalmodel(data: dict):
-        t_interp = BaseIO.data2tinterp(data)
+        from IOImplementations import BoxcarIO
+        t_interp = BoxcarIO.data2tinterp(data)
         v = data["v"]
         t_0 = v[0]
         tau_2 = v[1]
@@ -89,16 +88,12 @@ class Boxcar(Artery):
 
     @staticmethod
     def apply_boxcar(vec, data: dict):
-        times0_int = (data["timesMid"] - data["taus"] / 2).astype(int)
-        timesF_int = (data["timesMid"] + data["taus"] / 2).astype(int)
 
         # Original implementation with loop
-        # vec_sampled = np.full(times0.shape, np.nan)
-        # for idx, (t0, tF) in enumerate(zip(times0, timesF)):
-        #     vec_sampled[idx] = np.mean(vec[int(t0):int(tF)])        
-        # return np.nan_to_num(vec_sampled, 0)
+        times0 = data["timesMid"] - data["taus"] / 2
+        timesF = data["timesMid"] + data["taus"] / 2
 
-        # Optimized implementation using cumsum, padding vec with 0 at beginning
-        cumsum = np.cumsum(np.pad(vec, (1, 0)))
-        vec_sampled = (cumsum[timesF_int + 1] - cumsum[times0_int]) / data["taus"]
+        vec_sampled = np.full(times0.shape, np.nan)
+        for idx, (t0, tF) in enumerate(zip(times0, timesF)):
+            vec_sampled[idx] = np.mean(vec[int(t0):int(tF)])
         return np.nan_to_num(vec_sampled, 0)

@@ -44,11 +44,13 @@ class DynestySolver(ABC):
                  model=None,
                  sample="rslice",
                  nlive=1000,
-                 rstate=np.random.default_rng(916301)):
+                 rstate=np.random.default_rng(916301),
+                 tag=""):
         self.model = model
         self.sample = sample
         self.nlive = nlive
         self.rstate = rstate
+        self.tag = tag
 
         # Set numpy error handling for numerical issues such as underflow/overflow/invalid
         np.seterr(under="ignore")

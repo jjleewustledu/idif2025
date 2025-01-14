@@ -144,7 +144,7 @@ class Mintun1984Model(TCModel):
 
         rho_t = rho1[:n] + rho2[:n]
         rho_t = Mintun1984Model.slide(rho_t, times, t_0, hl)
-        if data["rhoUsesBoxcar"]:
+        if data["rho_experiences_boxcar"]:
             rho = Boxcar.apply_boxcar(rho_t, data)
         else:
             rho = np.interp(timesMid, times, rho_t)

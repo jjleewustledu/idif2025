@@ -33,19 +33,20 @@ import inspect
 from pathlib import Path
 from copy import deepcopy
 
-from PETData import PETData
+from PETUtilities import PETUtilities
+from DynestyContext import DynestyContext
 
 
 class BaseIO(IOInterface):
     """Base implementation of IOInterface with common functionality."""
 
-    @staticmethod
-    def data2tinterp(data: dict) -> np.ndarray:
-        """Retrieve times array from data dictionary and interpolate to 1-second resolution."""
-        tinterp0 = data["times"][0]  # sec
-        tinterpF = data["times"][-1] + data["taus"][-1]  # sec  
-        N_tinterp = (tinterpF - tinterp0 + 1).astype(int)  # N of 1-sec samples
-        return np.linspace(tinterp0, tinterpF, N_tinterp)  # e.g., [0.1, 1.1, 2.1, ..., N_tinterp+0.1]
+    @property
+    def fqfp(self):
+        return None
+
+    @property
+    def results_fqfp(self):
+        return None
 
     @staticmethod
     def data2t(data: dict) -> np.ndarray:
@@ -77,6 +78,14 @@ class BaseIO(IOInterface):
         return times + taus / 2
     
     @staticmethod
+    def data2tinterp(data: dict) -> np.ndarray:
+        """Retrieve times array from data dictionary and interpolate to 1-second resolution."""
+        tinterp0 = data["times"][0]  # sec
+        tinterpF = data["times"][-1] + data["taus"][-1]  # sec  
+        N_tinterp = (tinterpF - tinterp0 + 1).astype(int)  # N of 1-sec samples
+        return np.linspace(tinterp0, tinterpF, N_tinterp)  # e.g., [0.1, 1.1, 2.1, ..., N_tinterp+0.1]
+
+    @staticmethod
     def fileparts(fqfn: str) -> tuple:
         """
         Extracts full path and basename without any extensions from a filepath.        
@@ -107,12 +116,15 @@ class BaseIO(IOInterface):
 
     def load_nii(self, fqfn: str) -> dict:
         """Load a NIfTI file and associated json."""
+        if not fqfn.endswith(".nii.gz"):
+            fqfn += ".nii.gz"
         if not os.path.isfile(fqfn):
-            return {}
+            raise FileNotFoundError(f"{fqfn} was not found")
 
         # defer to nibabel
         nii = nib.load(fqfn)
 
+        # load json
         jfile = self.fqfileprefix(fqfn) + ".json"
         with open(jfile) as f:
             j = json.load(f)
@@ -124,7 +136,7 @@ class BaseIO(IOInterface):
             "nii": nii,
             "img": nii.get_fdata().squeeze(),
             "json": j,
-            "halflife": PETData.parse_halflife(fqfp)}
+            "halflife": PETUtilities.parse_halflife(fqfp)}
         if "timesMid" in j:
             niid["timesMid"] = np.array(j["timesMid"], dtype=float).squeeze()
         if "taus" in j:
@@ -140,34 +152,28 @@ class BaseIO(IOInterface):
             
     def load_pickled(self, fqfn: str) -> Any:
         """Load data from a pickle file."""
-        if not fqfn:
-            return None
-            
         if not fqfn.endswith(".pickle"):
-            fqfn += ".pickle"
-            
+            fqfn += ".pickle"            
         if not os.path.isfile(fqfn):
-            return None
-            
+            raise FileNotFoundError(f"{fqfn} was not found")
         with open(fqfn, "rb") as f:
             return pickle.load(f)
         
     def save_csv(self, data: dict, fqfn: str = None) -> None:
         """Save data to a CSV file."""
         if not fqfn:
-            return
-        
+            raise ValueError("fqfn must be a valid filename")
         if not fqfn.endswith(".csv"):
             fqfn += ".csv"
-
         df = pd.DataFrame(data)
         df.to_csv(fqfn)
 
-    def save_nii(self, data: dict, fqfn: str = None) -> None:
+    def save_nii(self, data: dict, fqfn: str | None = None) -> None:
         """Save data to a NIfTI file and associated json."""
         if not fqfn:
-            return
-
+            raise ValueError("fqfn must be a valid filename")
+        if not fqfn.endswith(".nii.gz"):
+            fqfn += ".nii.gz"
         try:
             # defer to nibabel
             _data = deepcopy(data)
@@ -175,36 +181,29 @@ class BaseIO(IOInterface):
             nii = nib.Nifti1Image(_data["img"], nii.affine, nii.header)
             nib.save(nii, fqfn)
 
-            # stage previous json, then update
-            j = data["json"]
-            j["timesMid"] = self.data2timesMid(_data).tolist()
-            j["taus"] = self.data2taus(_data).tolist()
-            j["times"] = self.data2t(_data).tolist()
-
             # save updated json
             jfile1 = self.fqfileprefix(fqfn) + ".json"
             with open(jfile1, "w") as f:
-                json.dump(j, f, indent=4)
+                json.dump(data["json"], f, indent=4)
         except Exception as e:
             print(f"{self.__class__.__name__}.save_nii: caught Exception {e}, but proceeding", file=sys.stderr)
+            print(f"{fqfn} may be missing or malformed")
 
-    def save_pickled(self, data: Any, fqfn: str = None) -> None:
-        """Save by pickling."""
+    def save_pickled(self, data: Any, fqfn: str | None = None) -> None:
+        """Save by pickling."""        
         if not fqfn:
-            return
-        
+            raise ValueError("fqfn must be a valid filename")
         if not fqfn.endswith(".pickle"):
-            fqfn += ".pickle"
-        
+            fqfn += ".pickle"        
         with open(fqfn, "wb") as f:
             pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
         
     @staticmethod
     def trim_nii_dict(niid: dict, time_last: float = None) -> dict:
-        """ Examines niid and trims copies of its contents to
+        """ Examines niid and trims copies of its entries to
             (i) remove inviable temporal samples indicated by np.isnan(timesMid)
             (ii) remove temporal samples occurring after time_last
-            (iii) trim all niid contents that appear to have temporal samples. """
+            (iii) trim all niid entries that appear to be temporal samples. """
 
         if not isinstance(niid, dict):
             raise TypeError(f"Expected niid to be dict but it has type {type(niid)}.")
@@ -238,22 +237,29 @@ class BaseIO(IOInterface):
 
 class RadialArteryIO(BaseIO):
     """I/O operations specific to RadialArtery models."""
+    
+    def __init__(self, context: DynestyContext):
+        self.context = context
+    
+    @property
+    def fqfp(self):
+        return self.context.data.input_func_measurement["fqfp"]
+
+    @property
+    def results_fqfp(self):
+        return self.fqfp + "-" + self.__class__.__name__
 
     def load_kernel(self, fqfn: str) -> dict:
         """Load kernel measurement data."""
+        if not fqfn.endswith(".nii.gz"):
+            fqfn += ".nii.gz"
         if not os.path.isfile(fqfn):
-            return {}
-
-        base, ext = os.path.splitext(fqfn)
-        fqfp = os.path.splitext(base)[0]
-
-        # load img
+            raise FileNotFoundError(f"{fqfn} was not found")
         nii = nib.load(fqfn)
         img = nii.get_fdata()
-
         return {
-            "fqfp": fqfp,
-            "img": np.array(img, dtype=float).reshape(-1)
+            "fqfp": self.fqfileprefix(fqfn),
+            "img": np.array(img, dtype=float).squeeze()
         }
 
 
@@ -264,9 +270,38 @@ class TrivialArteryIO(BaseIO):
 
 class BoxcarIO(BaseIO):
     """I/O operations specific to Boxcar models."""
-    pass
+    
+    def __init__(self, context: DynestyContext):
+        self.context = context
+    
+    @property
+    def fqfp(self):
+        return self.context.data.input_func_measurement["fqfp"]
+
+    @property
+    def results_fqfp(self):
+        return self.fqfp + "-" + self.__class__.__name__
 
 
-class TissueModelIO(BaseIO):
+class TissueIO(BaseIO):
     """I/O operations specific to TissueModel models."""
-    pass
+
+    def __init__(self, context: DynestyContext):
+        self.context = context
+
+    @property
+    def fqfp(self):
+        return self.context.data.tissue_measurement["fqfp"]
+
+    @property
+    def results_fqfp(self):
+        fqfp1 = (
+            self.fqfp + "-" + 
+            self.__class__.__name__ + "-" + 
+            self.context.ARTERY.__class__.__name__ + "-" + 
+            self.context.data.tag)
+        fqfp1 = fqfp1.replace("ParcSchaeffer-reshape-to-schaeffer-", "")
+        fqfp1 = fqfp1.replace("ModelAndArtery", "")
+        fqfp1 = fqfp1.replace("Model", "")
+        fqfp1 = fqfp1.replace("Radial", "")
+        return fqfp1

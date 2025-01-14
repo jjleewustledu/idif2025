@@ -40,8 +40,7 @@ from scipy.interpolate import interp1d
 import json
 import nibabel as nib
 
-from IOImplementations import BaseIO
-from PETData import PETData
+from PETUtilities import PETUtilities
 
 
 class PETModel(DynestyModel, ABC):
@@ -50,33 +49,62 @@ class PETModel(DynestyModel, ABC):
 
     def __init__(self, home=os.getcwd(), time_last=None, **kwargs):
         super().__init__(**kwargs)
+        from IOImplementations import BaseIO
         self.home = home
         self.time_last = time_last
         self.io = BaseIO()
+        self.RHOS = None
+
+    @property
+    def rhos(self):
+        return self.RHOS
+    
+    @rhos.setter
+    def rhos(self, value):
+        self.RHOS = value
 
     @staticmethod
     def decay_correct(tac: dict):
-        return PETData.decay_correct(tac)
+        return PETUtilities.decay_correct(tac)
 
     @staticmethod
     def decay_uncorrect(tac: dict):
-        return PETData.decay_uncorrect(tac)
+        return PETUtilities.decay_uncorrect(tac)
     
     @staticmethod
     def interpimg(timesNew: NDArray, times: NDArray, img: NDArray, kind: str="linear") -> NDArray:
-        return PETData.interpimg(timesNew, times, img, kind)
+        return PETUtilities.interpimg(timesNew, times, img, kind)
 
     def load_nii(self, fqfn):
         return self.io.load_nii(fqfn)
 
     @staticmethod
     def parse_halflife(fqfp: str):
-        return PETData.parse_halflife(fileprefix=fqfp)
+        return PETUtilities.parse_halflife(fileprefix=fqfp)
 
     @staticmethod
     def parse_isotope(name: str):
-        return PETData.parse_isotope(fileprefix=name)
+        return PETUtilities.parse_isotope(filename=name)
 
+    def rho(self, pos_idx: int = 0) -> NDArray:
+        """
+        For 1-dimensional rhos, return the entire time-series irrespective of pos_idx. For multi-dimensional
+        rhos, return the slice at position pos_idx.
+        Args:
+            pos_idx (int, optional): Index of position to return. Defaults to 0.
+        Returns:
+            NDArray: The rho values for the specified position (or all values for 1-dimensional rhos)
+        Raises:
+            IndexError: If pos_idx is out of bounds for the rhos array shape
+        """
+        try:
+            if self.rhos.ndim == 1:
+                return self.rhos
+            else:
+                return self.rhos[pos_idx]
+        except IndexError as e:
+            raise IndexError(f"Unable to index rhos array of shape {self.rhos.shape} with index {pos_idx}") from e
+    
     def save_csv(self, data: dict, fqfn=None):
         self.io.save_csv(data, fqfn)
 
@@ -85,5 +113,5 @@ class PETModel(DynestyModel, ABC):
 
     @staticmethod
     def slide(rho, t, dt, halflife=None):
-        return PETData.slide(rho, t, dt, halflife)
+        return PETUtilities.slide(rho, t, dt, halflife)
     

@@ -23,7 +23,7 @@
 from __future__ import absolute_import
 from TissueModel import TissueModel
 from RadialArtery import RadialArtery
-from PETData import PETData
+from PETUtilities import PETUtilities
 
 # general & system functions
 import glob
@@ -48,11 +48,11 @@ class TCModel(TissueModel, ABC):
         TCModel.sigma = 0.2
         self.V1_ASSUMED = np.array(0.05)
         try:
-            self.MARTIN_V1 = PETData.slice_parc(self.martin_v1_measurement["img"], 0)
+            self.MARTIN_V1 = PETUtilities.slice_parc(self.martin_v1_measurement["img"], 0)
         except (FileNotFoundError, TypeError, KeyError):
             self.MARTIN_V1 = self.V1_ASSUMED
         try:
-            self.RAICHLE_KS = PETData.slice_parc(self.raichle_ks_measurement["img"], 0)
+            self.RAICHLE_KS = PETUtilities.slice_parc(self.raichle_ks_measurement["img"], 0)
         except (FileNotFoundError, TypeError, KeyError):
             self.RAICHLE_KS = None  # needed by implementations of Raichle1983Model
 
@@ -108,7 +108,7 @@ class TCModel(TissueModel, ABC):
         # use existing twilite data
         if isinstance(self.ARTERY, RadialArtery):
             to_glob = (subject_path +
-                       f"/**/*-createNiftiMovingAvgFrames-schaeffer-Raichle1983Artery-{self.TAG}-qm.nii.gz")
+                       f"/**/*-createNiftiMovingAvgFrames-schaeffer-Raichle1983Artery-{self.tag}-qm.nii.gz")
             matches = glob.glob(to_glob, recursive=True)
             if matches and matches[0]:
                 return self.load_nii(matches[0])
@@ -121,7 +121,7 @@ class TCModel(TissueModel, ABC):
                     UserWarning)
 
         # use existing idif data
-        to_glob = subject_path + f"/**/*-createNiftiMovingAvgFrames-schaeffer-Raichle1983Boxcar-{self.TAG}-qm.nii.gz"
+        to_glob = subject_path + f"/**/*-createNiftiMovingAvgFrames-schaeffer-Raichle1983Boxcar-{self.tag}-qm.nii.gz"
         matches = glob.glob(to_glob, recursive=True)
         if matches and matches[0]:
             niid = self.load_nii(matches[0])
@@ -134,14 +134,14 @@ class TCModel(TissueModel, ABC):
         return None
 
     def data(self, v):
-        rhoUsesBoxcar = self.TAUS[2] > self.TIMES_MID[2] - self.TIMES_MID[1]
+        rho_experiences_boxcar = self.TAUS[2] > self.TIMES_MID[2] - self.TIMES_MID[1]
         return deepcopy({
             "halflife": self.HALFLIFE,
-            "rho": self.RHO, "rhos": self.RHOS, "timesMid": self.TIMES_MID, "taus": self.TAUS,
+            "rho": self.RHO, "rhos": self.rhos, "timesMid": self.TIMES_MID, "taus": self.TAUS,
             "times": (self.TIMES_MID - self.TAUS / 2), "inputFuncInterp": self.INPUTF_INTERP,
             "martinv1": self.MARTIN_V1, "raichleks": self.RAICHLE_KS,
             "v": v,
-            "rhoUsesBoxcar": rhoUsesBoxcar,
+            "rho_experiences_boxcar": rho_experiences_boxcar,
             "delta_time": self.DELTA_TIME})
 
     # @staticmethod
@@ -253,8 +253,8 @@ class TCModel(TissueModel, ABC):
         rho_pred = []
         resid = []
 
-        if self.RHOS.ndim == 1:
-            self.RHO = self.RHOS
+        if self.rhos.ndim == 1:
+            self.RHO = self.rhos
             tac = self.RHO
             self.MARTIN_V1 = self.V1_ASSUMED
             self.RAICHLE_KS = None
@@ -292,15 +292,15 @@ class TCModel(TissueModel, ABC):
                 "rho_pred": np.array(rho_pred),
                 "resid": np.array(resid)}
 
-        elif self.RHOS.ndim == 2:
-            for tidx, tac in enumerate(self.RHOS):
+        elif self.rhos.ndim == 2:
+            for tidx, tac in enumerate(self.rhos):
                 self.RHO = tac
                 try:
-                    self.MARTIN_V1 = PETData.slice_parc(self.martin_v1_measurement["img"], tidx)
+                    self.MARTIN_V1 = PETUtilities.slice_parc(self.martin_v1_measurement["img"], tidx)
                 except (FileNotFoundError, TypeError, KeyError):
                     self.MARTIN_V1 = self.V1_ASSUMED
                 try:
-                    self.RAICHLE_KS = PETData.slice_parc(self.raichle_ks_measurement["img"], tidx)
+                    self.RAICHLE_KS = PETUtilities.slice_parc(self.raichle_ks_measurement["img"], tidx)
                 except (FileNotFoundError, TypeError, KeyError):
                     self.RAICHLE_KS = None
 
@@ -339,20 +339,20 @@ class TCModel(TissueModel, ABC):
                 "resid": np.array(resid)}
 
         else:
-            raise RuntimeError(self.__class__.__name__ + ": self.RHOS.ndim -> " + self.RHOS.ndim)
+            raise RuntimeError(self.__class__.__name__ + ": self.rhos.ndim -> " + self.rhos.ndim)
 
-        self.save_results(package, tag=self.TAG)
+        self.save_results(package, tag=self.tag)
         return package
 
     def run_nested_for_indexed_tac(self, tidx: int, checkpoint_file=None, print_progress=False, resume=False):
 
-        self.RHO = self.RHOS[tidx]
+        self.RHO = self.rhos[tidx]
         try:
-            self.MARTIN_V1 = PETData.slice_parc(self.martin_v1_measurement["img"], tidx)
+            self.MARTIN_V1 = PETUtilities.slice_parc(self.martin_v1_measurement["img"], tidx)
         except (FileNotFoundError, TypeError, KeyError):
             self.MARTIN_V1 = self.V1_ASSUMED
         try:
-            self.RAICHLE_KS = PETData.slice_parc(self.raichle_ks_measurement["img"], tidx)
+            self.RAICHLE_KS = PETUtilities.slice_parc(self.raichle_ks_measurement["img"], tidx)
         except (FileNotFoundError, TypeError, KeyError):
             self.RAICHLE_KS = None
         _res = self.solver.run_nested_for_list(

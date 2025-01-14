@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from PETData import PETData
+from PETUtilities import PETUtilities
 from PETModel import PETModel
 from Boxcar import Boxcar
 from RadialArtery import RadialArtery
@@ -76,7 +76,7 @@ class TissueModel(PETModel, ABC):
         # use adjusted_pet_measurement()
         apetm = self.adjusted_pet_measurement
         self.RHOS = apetm["img"] / np.max(apetm["img"])
-        self.RHO = PETData.slice_parc(self.RHOS, 0)
+        self.RHO = PETUtilities.slice_parc(self.RHOS, 0)
         self.TAUS = apetm["taus"]
         self.TIMES_MID = apetm["timesMid"]
 
@@ -96,8 +96,8 @@ class TissueModel(PETModel, ABC):
         return self.adjusted_pet_measurement["fqfp"]
 
     @property
-    def fqfp_results(self):
-        fqfp1 = self.fqfp + "-" + self.__class__.__name__ + self.ARTERY.__class__.__name__ + "-" + self.TAG
+    def results_fqfp(self):
+        fqfp1 = self.fqfp + "-" + self.__class__.__name__ + self.ARTERY.__class__.__name__ + "-" + self.tag
         fqfp1 = fqfp1.replace("ParcSchaeffer-reshape-to-schaeffer-", "")
         fqfp1 = fqfp1.replace("ModelAndArtery", "")
         fqfp1 = fqfp1.replace("Model", "")
@@ -138,19 +138,19 @@ class TissueModel(PETModel, ABC):
             self.ARTERY = Boxcar(
                 fqfn,
                 truths=self.truths[:14],
-                nlive=self.NLIVE,
-                times_last=self.TIME_LAST)
+                nlive=self.solver.nlive,
+                time_last=self.time_last)
         elif "TwiliteKit-do-make-input-func-nomodel" in fqfn:
             self.ARTERY = RadialArtery(
                 fqfn,
                 kernel_fqfn(fqfn),
                 truths=self.truths[:14],
-                nlive=self.NLIVE,
-                times_last=self.TIME_LAST)
+                nlive=self.solver.nlive,
+                time_last=self.time_last)
         elif "_proc-" in fqfn and "-aif" in fqfn:
             self.ARTERY = TrivialArtery(
                 fqfn,
-                times_last=self.TIME_LAST)
+                time_last=self.time_last)
         else:
             raise RuntimeError(self.__class__.__name__ + ": does not yet support " + fqfn)
 
@@ -169,13 +169,13 @@ class TissueModel(PETModel, ABC):
         return deepcopy(self._input_function)
 
     def data(self, v):
-        rhoUsesBoxcar = self.TAUS[2] > self.TIMES_MID[2] - self.TIMES_MID[1]
+        rho_experiences_boxcar = self.TAUS[2] > self.TIMES_MID[2] - self.TIMES_MID[1]
         return deepcopy({
             "halflife": self.HALFLIFE,
-            "rho": self.RHO, "rhos": self.RHOS, "timesMid": self.TIMES_MID, "taus": self.TAUS,
+            "rho": self.RHO, "rhos": self.rhos, "timesMid": self.TIMES_MID, "taus": self.TAUS,
             "times": (self.TIMES_MID - self.TAUS / 2), "inputFuncInterp": self.INPUTF_INTERP,
             "v": v,
-            "rhoUsesBoxcar": rhoUsesBoxcar,
+            "rho_experiences_boxcar": rho_experiences_boxcar,
             "delta_time": self.DELTA_TIME})
 
     @staticmethod
@@ -199,7 +199,7 @@ class TissueModel(PETModel, ABC):
 
         if tag and "-" not in tag:
             tag = "-" + tag
-        fqfp1 = self.fqfp_results + tag
+        fqfp1 = self.results_fqfp + tag
 
         with open(fqfp1 + "-res.pickle", 'wb') as f:
             pickle.dump(res_dict["res"], f, pickle.HIGHEST_PROTOCOL)
@@ -246,7 +246,7 @@ class TissueModel(PETModel, ABC):
             truths = self.truths
         _truths = truths.copy()
 
-        plt.figure(figsize=(12, 7.4))
+        fig, ax = plt.subplots(figsize=(12, 7.4))
 
         ncolors: int = 75
         viridis = cm.get_cmap("viridis", ncolors)
@@ -255,18 +255,16 @@ class TissueModel(PETModel, ABC):
         for tidx, t in enumerate(trange):
             _truths[tindex] = t
             data = self.data(_truths)
-            rho, timesMid, _, _ = self.signalmodel(data)  # distinct from Artery.plot_variations()
-            plt.plot(timesMid, rho, color=viridis(tidx))  # distinct from Artery.plot_variations()
+            rho, timesMid, _, _ = self.signalmodel(data)
+            ax.plot(timesMid, rho, color=viridis(tidx))
 
-        # plt.xlim([-0.1,])
-        plt.xlabel("time of mid-frame (s)")
-        plt.ylabel("activity (arbitrary)")
+        ax.set_xlabel("time of mid-frame (s)")
+        ax.set_ylabel("activity (arbitrary)")
 
         # Add a colorbar to understand colors
-        # First create a mappable object with the same colormap
         sm = plt.cm.ScalarMappable(cmap=viridis)
         sm.set_array(trange)
-        plt.colorbar(sm, label="Varying " + self.labels[tindex])
+        plt.colorbar(sm, ax=ax, label="Varying " + self.labels[tindex])
 
         plt.tight_layout()
 
@@ -282,8 +280,8 @@ class TissueModel(PETModel, ABC):
         rho_pred = []
         resid = []
 
-        if self.RHOS.ndim == 1:
-            self.RHO = self.RHOS
+        if self.rhos.ndim == 1:
+            self.RHO = self.rhos
             tac = self.RHO
             _res = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
                                                    ndim=self.ndim,
@@ -315,8 +313,8 @@ class TissueModel(PETModel, ABC):
                 "rho_pred": np.array(rho_pred),
                 "resid": np.array(resid)}
 
-        elif self.RHOS.ndim == 2:
-            for tidx, tac in enumerate(self.RHOS):
+        elif self.rhos.ndim == 2:
+            for tidx, tac in enumerate(self.rhos):
                 self.RHO = tac
                 _res = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
                                                        ndim=self.ndim,
@@ -349,14 +347,14 @@ class TissueModel(PETModel, ABC):
                 "resid": np.array(resid)}
 
         else:
-            raise RuntimeError(self.__class__.__name__ + ": self.RHOS.ndim -> " + self.RHOS.ndim)
+            raise RuntimeError(self.__class__.__name__ + ": self.rhos.ndim -> " + self.rhos.ndim)
 
-        self.save_results(package, tag=self.TAG)
+        self.save_results(package, tag=self.tag)
         return package
 
     # noinspection DuplicatedCode
     def run_nested_for_indexed_tac(self, tidx: int, checkpoint_file=None, print_progress=False, resume=False):
-        self.RHO = self.RHOS[tidx]
+        self.RHO = self.rhos[tidx]
         _res = self.solver.run_nested_for_list(
             prior_tag=self.__class__.__name__,
             ndim=self.ndim,
@@ -388,7 +386,7 @@ class TissueModel(PETModel, ABC):
 
         if tag and "-" not in tag:
             tag = "-" + tag
-        fqfp1 = self.fqfp_results + tag
+        fqfp1 = self.results_fqfp + tag
 
         with open(fqfp1 + "-res.pickle", 'wb') as f:
             pickle.dump(res_dict["res"], f, pickle.HIGHEST_PROTOCOL)

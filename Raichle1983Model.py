@@ -78,7 +78,7 @@ class Raichle1983Model(TCModel):
         rho_t = E * f * np.convolve(kernel, input_func_interp, mode="full")
         rho_t = rho_t[:input_func_interp.size]  # + v1 * input_func_interp  # inconsistent with data?
         rho_t = Raichle1983Model.slide(rho_t, times, t_0, hl)
-        if data["rhoUsesBoxcar"]:
+        if data["rho_experiences_boxcar"]:
             rho = Boxcar.apply_boxcar(rho_t, data)
         else:
             rho = np.interp(timesMid, times, rho_t)

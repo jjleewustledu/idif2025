@@ -40,7 +40,7 @@ from matplotlib import pyplot as plt
 from matplotlib import rcParams
 
 # re-defining plotting defaults
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 rcParams.update({"xtick.major.pad": "7.0"})
 rcParams.update({"xtick.major.size": "7.5"})
 rcParams.update({"xtick.major.width": "1.5"})

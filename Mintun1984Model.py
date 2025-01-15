@@ -68,7 +68,7 @@ class Mintun1984Model(TCModel):
     @property
     def labels(self):
         return [
-            r"OEF", r"frac. water of metab.", r"$v_{post} + 0.5 v_{cap}$", r"$t_0$", r"$\tau_a$", r"$\sigma$"]
+            r"OEF", r"$f_{H_2O}$", r"$v_p + 0.5 v_c$", r"$t_0$", r"$\tau_a$", r"$\tau_d$", r"$\sigma$"]
 
     @staticmethod
     def signalmodel(data: dict):
@@ -80,15 +80,13 @@ class Mintun1984Model(TCModel):
         v1 = data["martinv1"]
         v = data["v"]
 
-        ALPHA = np.log(2) / hl
-        DENSITY_PLASMA = 1.03
-        DENSITY_BLOOD = 1.06
-
         oef = v[0]
-        metab_frac = v[1]
+        f_h2o = v[1]
         v_post_cap = v[2]
         t_0 = v[3]
         tau_a = v[4]
+        tau_dispersion = v[5]
+
         if raichleks.ndim == 1:
             f = raichleks[0]
             lamb = raichleks[1]
@@ -98,20 +96,33 @@ class Mintun1984Model(TCModel):
             lamb = raichleks[:, 1]
             PS = raichleks[:, 2]
         else:
-            raise RuntimeError(Mintun1984Model.signalmodel.__name__+": raichleks.ndim->"+raichleks.ndim)
-        m = 1 - np.exp(-PS / f)
-        n = max(input_func_interp.shape) * data["delta_time"]
-        tf_interp = n * data["delta_time"]
-        times = np.arange(0, tf_interp, data["delta_time"])
-        input_func_interp = Mintun1984Model.slide(input_func_interp, times, tau_a, hl)
+            raise RuntimeError(Mintun1984Model.signalmodel.__name__+": raichleks.ndim->"+raichleks.ndim)        
+
+        ALPHA = np.log(2) / hl
+        DENSITY_PLASMA = 1.03
+        DENSITY_BLOOD = 1.06
+
+        n = max(input_func_interp.shape)
+        times = np.arange(0, n)
+
+        # dispersion of input function
+
+        dispersion = np.exp(-times / tau_dispersion)
+        z_dispersion = np.sum(dispersion)
+        input_func_interp = np.convolve(input_func_interp, dispersion, mode="full")
+        input_func_interp = input_func_interp[:n] / z_dispersion
+        if not data["rho_experiences_boxcar"]:
+            # slide input function to left since its measurements is delayed by catheters
+            input_func_interp = Mintun1984Model.slide(input_func_interp, times, tau_a, hl)
+
+        # estimate shape of water of metabolism
+
         indices = np.where(input_func_interp > 0.05 * max(input_func_interp))
         try:
             idx0 = max([indices[0][0], 1])
         except IndexError:
             idx0 = 1
         idxU = min([idx0 + 90, n - 1])  # cf. Mintun1984
-
-        # estimate shape of water of metabolism
         shape = np.zeros(n)
         n1 = n - idx0 + 1
         try:
@@ -125,13 +136,17 @@ class Mintun1984Model(TCModel):
 
         # set scale of artery_h2o
         # activity of water of metab \approx activity of oxygen after 90 sec
-        metab_scale = metab_frac * input_func_interp[idxU]
+
+        metab_scale = f_h2o * input_func_interp[idxU]
         metab_scale = metab_scale * DENSITY_PLASMA / DENSITY_BLOOD
         artery_h2o = metab_scale * duc_shape
 
         # compartment 2, using m, f, lamb
+
         artery_o2 = input_func_interp - artery_h2o
         artery_o2[artery_o2 < 0] = 0
+
+        m = 1 - np.exp(-PS / f)
         kernel = np.exp(-m * f * times / lamb - ALPHA * times)
         rho2 = (m * f * np.convolve(kernel, artery_h2o, mode="full") +
                 oef * m * f * np.convolve(kernel, artery_o2, mode="full"))
@@ -140,12 +155,15 @@ class Mintun1984Model(TCModel):
         # v_post = 0.83*v1
         # v_cap = 0.01*v1
         # R = 0.85  # ratio of small-vessel to large-vessel Hct needed when v1 := CBV * R
+
         rho1 = v1 * (1 - oef * v_post_cap) * artery_o2
 
+        # package compartments
+
         rho_t = rho1[:n] + rho2[:n]
-        rho_t = Mintun1984Model.slide(rho_t, times, t_0, hl)
-        if data["rho_experiences_boxcar"]:
-            rho = Boxcar.apply_boxcar(rho_t, data)
-        else:
+        if not data["rho_experiences_boxcar"]:
+            rho_t = Mintun1984Model.slide(rho_t, times, t_0, hl)
             rho = np.interp(timesMid, times, rho_t)
+        else:
+            rho = Boxcar.apply_boxcar(rho_t, data)
         return rho, timesMid, rho_t, times

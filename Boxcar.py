@@ -26,6 +26,8 @@ from Artery import Artery
 # basic numeric setup
 import numpy as np
 from numba import njit
+
+from PETUtilities import PETUtilities
 #from six.moves import zip
 
 
@@ -58,8 +60,7 @@ class Boxcar(Artery):
 
     @staticmethod
     def signalmodel(data: dict):
-        from IOImplementations import BoxcarIO
-        t_interp = BoxcarIO.data2tinterp(data)
+        t_interp = PETUtilities.data2timesInterp(data)
         v = data["v"]
         t_0 = v[0]
         tau_2 = v[1]

@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 from __future__ import absolute_import
+from Boxcar import Boxcar
 from TissueModel import TissueModel
 from RadialArtery import RadialArtery
 from PETUtilities import PETUtilities
@@ -134,7 +135,7 @@ class TCModel(TissueModel, ABC):
         return None
 
     def data(self, v):
-        rho_experiences_boxcar = self.TAUS[2] > self.TIMES_MID[2] - self.TIMES_MID[1]
+        rho_experiences_boxcar = isinstance(self.ARTERY, Boxcar)
         return deepcopy({
             "halflife": self.HALFLIFE,
             "rho": self.RHO, "rhos": self.rhos, "timesMid": self.TIMES_MID, "taus": self.TAUS,
@@ -213,11 +214,11 @@ class TCModel(TissueModel, ABC):
         v = u
         v[0] = u[0] * 0.8 + 0.1  # OEF
         v[1] = u[1] * 1.8 + 0.1  # frac. water of metab. at 90 s
-        # v[2] = 0.835  # (v_{post} + 0.5 v_{cap}) / v_1
         v[2] = u[2] * 0.9 + 0.1  # {v_{post} + 0.5 v_{cap}} / v_1
         v[3] = u[3] * 20  # t_0 (s)
-        v[4] = u[4] * (-60) + 20  # \tau_a (s)
-        v[5] = u[5] * TCModel.sigma  # sigma ~ fraction of M0
+        v[4] = u[4] * (-60)  # \tau_a (s)
+        v[5] = u[5] * 20  # \tau_d (s)
+        v[6] = u[6] * TCModel.sigma  # sigma ~ fraction of M0
         return v
 
     @staticmethod

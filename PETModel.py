@@ -70,10 +70,6 @@ class PETModel(DynestyModel, ABC):
     @staticmethod
     def decay_uncorrect(tac: dict):
         return PETUtilities.decay_uncorrect(tac)
-    
-    @staticmethod
-    def interpimg(timesNew: NDArray, times: NDArray, img: NDArray, kind: str="linear") -> NDArray:
-        return PETUtilities.interpimg(timesNew, times, img, kind)
 
     def load_nii(self, fqfn):
         return self.io.load_nii(fqfn)

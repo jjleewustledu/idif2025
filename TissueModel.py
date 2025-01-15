@@ -84,12 +84,10 @@ class TissueModel(PETModel, ABC):
         self.RECOVERY_COEFFICIENT = recovery_coefficient
         self.ARTERY = None
         self.DELTA_TIME = np.round(delta_time)  # required by adjusted_input_function()
-        inputf_timesMid = self.adjusted_input_function()["timesMid"]
-        inputf_timesMidInterp = np.arange(0, apetm["timesMid"][-1], self.DELTA_TIME)
-        self.INPUTF_INTERP = self.adjusted_input_function()["img"] / np.max(apetm["img"])
-        self.INPUTF_INTERP = self.interpimg(inputf_timesMidInterp, inputf_timesMid, self.INPUTF_INTERP)
 
-        self.HALFLIFE = self.adjusted_input_function()["halflife"]
+        aif = self.adjusted_input_function()
+        self.INPUTF_INTERP = aif["img"] / np.max(apetm["img"])
+        self.HALFLIFE = aif["halflife"]
 
     @property
     def fqfp(self):
@@ -162,14 +160,11 @@ class TissueModel(PETModel, ABC):
 
         # interpolate to timing domain of pet_measurements
         petm = self.adjusted_pet_measurement
-        tMI = np.arange(0, round(petm["timesMid"][-1]), self.DELTA_TIME)  # tMI ~ timesMid interpolated
-        niid["img"] = self.interpimg(tMI, niid["timesMid"], niid["img"])
-        niid["timesMid"] = tMI
-        self._input_function = niid
+        self._input_function = PETUtilities.interpdata(niid, petm)
         return deepcopy(self._input_function)
 
     def data(self, v):
-        rho_experiences_boxcar = self.TAUS[2] > self.TIMES_MID[2] - self.TIMES_MID[1]
+        rho_experiences_boxcar = isinstance(self.ARTERY, Boxcar)
         return deepcopy({
             "halflife": self.HALFLIFE,
             "rho": self.RHO, "rhos": self.rhos, "timesMid": self.TIMES_MID, "taus": self.TAUS,

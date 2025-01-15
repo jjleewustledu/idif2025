@@ -49,41 +49,20 @@ class BaseIO(IOInterface):
         return None
 
     @staticmethod
-    def data2t(data: dict) -> np.ndarray:
-        """Retrieve times array from data dictionary."""
-        if "times" in data:
-            return data["times"]
-        timesMid = data["timesMid"]
-        taus = data["taus"]
-        t0 = timesMid[0] - taus[0] / 2
-        tF = timesMid[-1] + taus[-1] / 2
-        return np.arange(t0, tF)
+    def data2times(data: dict) -> np.ndarray:
+        return PETUtilities.data2times(data)
 
     @staticmethod
     def data2taus(data: dict) -> np.ndarray:
-        """Retrieve taus array from data dictionary."""
-        if "taus" in data:
-            return data["taus"] 
-        timesMid = data["timesMid"]
-        times = data["times"]
-        return 2 * (timesMid - times)
+        return PETUtilities.data2taus(data)
 
     @staticmethod
     def data2timesMid(data: dict) -> np.ndarray:
-        """Retrieve timesMid array from data dictionary."""
-        if "timesMid" in data:
-            return data["timesMid"]
-        times = data["times"]
-        taus = data["taus"]
-        return times + taus / 2
+       return PETUtilities.data2timesMid(data)
     
     @staticmethod
-    def data2tinterp(data: dict) -> np.ndarray:
-        """Retrieve times array from data dictionary and interpolate to 1-second resolution."""
-        tinterp0 = data["times"][0]  # sec
-        tinterpF = data["times"][-1] + data["taus"][-1]  # sec  
-        N_tinterp = (tinterpF - tinterp0 + 1).astype(int)  # N of 1-sec samples
-        return np.linspace(tinterp0, tinterpF, N_tinterp)  # e.g., [0.1, 1.1, 2.1, ..., N_tinterp+0.1]
+    def data2timesInterp(data: dict) -> np.ndarray:
+        return PETUtilities.dadata2timesInterpta2tinterp(data)
 
     @staticmethod
     def fileparts(fqfn: str) -> tuple:

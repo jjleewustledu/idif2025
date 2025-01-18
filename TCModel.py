@@ -47,18 +47,14 @@ class TCModel(TissueModel, ABC):
     def __init__(self, input_function, pet_measurement, **kwargs):
         super().__init__(input_function, pet_measurement, **kwargs)
         TCModel.sigma = 0.2
-        self.V1_ASSUMED = np.array(0.05)
-        try:
-            self.MARTIN_V1 = PETUtilities.slice_parc(self.martin_v1_measurement["img"], 0)
-        except (FileNotFoundError, TypeError, KeyError):
-            self.MARTIN_V1 = self.V1_ASSUMED
-        try:
-            self.RAICHLE_KS = PETUtilities.slice_parc(self.raichle_ks_measurement["img"], 0)
-        except (FileNotFoundError, TypeError, KeyError):
-            self.RAICHLE_KS = None  # needed by implementations of Raichle1983Model
+        self.__martin_v1_measurement = None
+        self.__raichle_ks_measurement = None
 
     @property
     def martin_v1_measurement(self):
+        if self.__martin_v1_measurement:
+            return self.__martin_v1_measurement
+
         subject_path = os.path.dirname(
             os.path.dirname(
                 os.path.dirname(self._pet_measurement["fqfp"])))
@@ -73,7 +69,8 @@ class TCModel(TissueModel, ABC):
             to_glob = subject_path + "/**/*-ParcSchaeffer-reshape-to-schaeffer-schaeffer-twilite_martinv1.nii.gz"
             matches = glob.glob(to_glob, recursive=True)
             if matches and matches[0]:
-                return self.load_nii(matches[0])
+                self.__martin_v1_measurement = self.load_nii(matches[0])
+                return self.__martin_v1_measurement
             else:
                 warnings.warn(
                     f"{cname}.{mname}: {to_glob} failed to produce matches",
@@ -86,17 +83,18 @@ class TCModel(TissueModel, ABC):
         to_glob = subject_path + "/**/*-ParcSchaeffer-reshape-to-schaeffer-schaeffer-idif_martinv1.nii.gz"
         matches = glob.glob(to_glob, recursive=True)
         if matches and matches[0]:
-            niid = self.load_nii(matches[0])
-            niid["img"] = niid["img"] / self.RECOVERY_COEFFICIENT  # v1 has input func. in denom.
-            return niid
+            self.__martin_v1_measurement = self.load_nii(matches[0])
+            self.__martin_v1_measurement["img"] = self.__martin_v1_measurement["img"] / self.RECOVERY_COEFFICIENT  # v1 has input func. in denom.
+            return self.__martin_v1_measurement
 
-        # raise FileNotFoundError(
-        #     f"{cname}:{mname}: {to_glob} failed to match any usable data files for {type(self.ARTERY)}")
-
-        return None
+        self.__martin_v1_measurement = None
+        return self.__martin_v1_measurement
 
     @property
     def raichle_ks_measurement(self):
+        if self.__raichle_ks_measurement:
+            return self.__raichle_ks_measurement
+
         subject_path = os.path.dirname(
             os.path.dirname(
                 os.path.dirname(self._pet_measurement["fqfp"])))
@@ -112,7 +110,8 @@ class TCModel(TissueModel, ABC):
                        f"/**/*-createNiftiMovingAvgFrames-schaeffer-Raichle1983Artery-{self.tag}-qm.nii.gz")
             matches = glob.glob(to_glob, recursive=True)
             if matches and matches[0]:
-                return self.load_nii(matches[0])
+                self.__raichle_ks_measurement = self.load_nii(matches[0])
+                return self.__raichle_ks_measurement
             else:
                 warnings.warn(
                     f"{cname}.{mname}: {to_glob} failed to produce matches",
@@ -125,27 +124,40 @@ class TCModel(TissueModel, ABC):
         to_glob = subject_path + f"/**/*-createNiftiMovingAvgFrames-schaeffer-Raichle1983Boxcar-{self.tag}-qm.nii.gz"
         matches = glob.glob(to_glob, recursive=True)
         if matches and matches[0]:
-            niid = self.load_nii(matches[0])
-            niid["img"] = niid["img"]
-            return niid
+            self.__raichle_ks_measurement = self.load_nii(matches[0])
+            return self.__raichle_ks_measurement
 
-        # raise FileNotFoundError(
-        #    f"{cname}:{mname}: {to_glob} failed to match any usable data files for {type(self.ARTERY)}")
-
-        return None
+        # data not available
+        self.__raichle_ks_measurement = None
+        return self.__raichle_ks_measurement
 
     def data(self, v):
         rho_experiences_boxcar = isinstance(self.ARTERY, Boxcar)
+        v1 = PETUtilities.slice_parc(self.martin_v1_measurement["img"], self._parc_index)
+        ks = PETUtilities.slice_parc(self.raichle_ks_measurement["img"], self._parc_index)
         return deepcopy({
             "halflife": self.HALFLIFE,
             "rho": self.RHO, "rhos": self.rhos, "timesMid": self.TIMES_MID, "taus": self.TAUS,
             "times": (self.TIMES_MID - self.TAUS / 2), "inputFuncInterp": self.INPUTF_INTERP,
-            "martinv1": self.MARTIN_V1, "raichleks": self.RAICHLE_KS,
+            "martinv1": v1, 
+            "raichleks": ks,
             "v": v,
             "rho_experiences_boxcar": rho_experiences_boxcar,
+            "parc_index": self._parc_index,
             "delta_time": self.DELTA_TIME})
+    
+    def martin_v1(self, parc_index: int = 0) -> np.ndarray:
+        try:
+            return PETUtilities.slice_parc(self.martin_v1_measurement["img"], parc_index)
+        except (FileNotFoundError, TypeError, KeyError):
+            return np.array(0.05)
 
-    # @staticmethod
+    def raichle_ks(self, parc_index: int = 0) -> np.ndarray:
+        try:
+            return PETUtilities.slice_parc(self.raichle_ks_measurement["img"], parc_index)
+        except (FileNotFoundError, TypeError, KeyError):
+            return None
+
     def prior_transform(self):
         return {
             "Martin1987Model": TCModel.prior_transform_martin,
@@ -243,101 +255,90 @@ class TCModel(TissueModel, ABC):
     def run_nested(self, checkpoint_file=None, print_progress=False, resume=False):
         """ default: checkpoint_file=self.fqfp+"_dynesty-ModelClass-yyyyMMddHHmmss.save") """
 
-        res = []
-        logz = []
-        information = []
-        qm = []
-        ql = []
-        qh = []
-        martinv1 = []
-        raichleks = []
-        rho_pred = []
-        resid = []
+        res_ = []
+        logz_ = []
+        information_ = []
+        qm_ = []
+        ql_ = []
+        qh_ = []
+        v1_ = []
+        ks_ = []
+        rho_pred_ = []
+        resid_ = []
 
         if self.rhos.ndim == 1:
             self.RHO = self.rhos
             tac = self.RHO
-            self.MARTIN_V1 = self.V1_ASSUMED
-            self.RAICHLE_KS = None
-            _res = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
+            _res_ = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
                                                    ndim=self.ndim,
                                                    checkpoint_file=checkpoint_file,
                                                    print_progress=print_progress,
                                                    resume=resume)
 
             if print_progress:
-                self.plot_results(_res)
+                self.plot_results(_res_)
 
-            res.append(_res)
-            rd = _res.asdict()
-            logz.append(rd["logz"][-1])
-            information.append(rd["information"][-1])
-            _qm, _ql, _qh = self.solver.quantile(_res)
-            qm.append(_qm)
-            ql.append(_ql)
-            qh.append(_qh)
-            martinv1.append(self.MARTIN_V1)
-            raichleks.append(self.RAICHLE_KS)
-            _rho_pred, _, _, _ = self.signalmodel(self.data(_qm))
-            rho_pred.append(_rho_pred)
-            resid.append(np.sum(_rho_pred - tac) / np.sum(tac))
+            res_.append(_res_)
+            rd = _res_.asdict()
+            logz_.append(rd["logz"][-1])
+            information_.append(rd["information"][-1])
+            _qm_, _ql_, _qh_ = self.solver.quantile(_res_)
+            qm_.append(_qm_)
+            ql_.append(_ql_)
+            qh_.append(_qh_)
+            v1_.append(self.martin_v1())
+            ks_.append(self.raichle_ks())
+            _rho_pred_, _, _, _ = self.signalmodel(self.data(_qm_))
+            rho_pred_.append(_rho_pred_)
+            resid_.append(np.sum(_rho_pred_ - tac) / np.sum(tac))
             package = {
-                "res": res,
-                "logz": np.array(logz),
-                "information": np.array(information),
-                "qm": np.array(qm),
-                "ql": np.array(ql),
-                "qh": np.array(qh),
-                "martinv1": np.array(martinv1),
-                "raichleks": np.array(raichleks),
-                "rho_pred": np.array(rho_pred),
-                "resid": np.array(resid)}
+                "res": res_,
+                "logz": np.array(logz_),
+                "information": np.array(information_),
+                "qm": np.array(qm_),
+                "ql": np.array(ql_),
+                "qh": np.array(qh_),
+                "martinv1": np.array(v1_),
+                "raichleks": np.array(ks_),
+                "rho_pred": np.array(rho_pred_),
+                "resid": np.array(resid_)}
 
         elif self.rhos.ndim == 2:
             for tidx, tac in enumerate(self.rhos):
                 self.RHO = tac
-                try:
-                    self.MARTIN_V1 = PETUtilities.slice_parc(self.martin_v1_measurement["img"], tidx)
-                except (FileNotFoundError, TypeError, KeyError):
-                    self.MARTIN_V1 = self.V1_ASSUMED
-                try:
-                    self.RAICHLE_KS = PETUtilities.slice_parc(self.raichle_ks_measurement["img"], tidx)
-                except (FileNotFoundError, TypeError, KeyError):
-                    self.RAICHLE_KS = None
-
-                _res = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
+                _res_ = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
                                                        ndim=self.ndim,
                                                        checkpoint_file=checkpoint_file,
                                                        print_progress=print_progress,
                                                        resume=resume)
 
                 # if print_progress:
-                self.plot_results(_res, tag=f"parc{tidx}", parc_index=tidx)
+                self.plot_results(_res_, tag=f"parc{tidx}", parc_index=tidx)
 
-                res.append(_res)
-                rd = _res.asdict()
-                logz.append(rd["logz"][-1])
-                information.append(rd["information"][-1])
-                _qm, _ql, _qh = self.solver.quantile(_res)
-                qm.append(_qm)
-                ql.append(_ql)
-                qh.append(_qh)
-                martinv1.append(self.MARTIN_V1)
-                raichleks.append(self.RAICHLE_KS)
-                _rho_pred, _, _, _ = self.signalmodel(self.data(_qm))
-                rho_pred.append(_rho_pred)
-                resid.append(np.sum(_rho_pred - tac) / np.sum(tac))
+                res_.append(_res_)
+                rd = _res_.asdict()
+                logz_.append(rd["logz"][-1])
+                information_.append(rd["information"][-1])
+                _qm_, _ql_, _qh_ = self.solver.quantile(_res_)
+                qm_.append(_qm_)
+                ql_.append(_ql_)
+                qh_.append(_qh_)
+                v1_.append(self.martin_v1(parc_index=tidx))
+                ks_.append(self.raichle_ks(parc_index=tidx))
+                _rho_pred_, _, _, _ = self.signalmodel(self.data(_qm_))
+                rho_pred_.append(_rho_pred_)
+                resid_.append(np.sum(_rho_pred_ - tac) / np.sum(tac))
             package = {
-                "res": res,
-                "logz": np.array(logz),
-                "information": np.array(information),
-                "qm": np.vstack(qm),
-                "ql": np.vstack(ql),
-                "qh": np.vstack(qh),
-                "martinv1": np.vstack(martinv1),
-                "raichleks": np.vstack(raichleks),
-                "rho_pred": np.vstack(rho_pred),
-                "resid": np.array(resid)}
+                "res": res_,
+                "logz": np.array(logz_),
+                "information": np.array(information_),
+                "qm": np.vstack(qm_),
+                "ql": np.vstack(ql_),
+                "qh": np.vstack(qh_),
+                "martinv1": np.vstack(v1_),
+                "raichleks": np.vstack(ks_),
+                "rho_pred": np.vstack(rho_pred_),
+                "resid": np.array(resid_)}
 
         else:
             raise RuntimeError(self.__class__.__name__ + ": self.rhos.ndim -> " + self.rhos.ndim)
@@ -348,15 +349,7 @@ class TCModel(TissueModel, ABC):
     def run_nested_for_indexed_tac(self, tidx: int, checkpoint_file=None, print_progress=False, resume=False):
 
         self.RHO = self.rhos[tidx]
-        try:
-            self.MARTIN_V1 = PETUtilities.slice_parc(self.martin_v1_measurement["img"], tidx)
-        except (FileNotFoundError, TypeError, KeyError):
-            self.MARTIN_V1 = self.V1_ASSUMED
-        try:
-            self.RAICHLE_KS = PETUtilities.slice_parc(self.raichle_ks_measurement["img"], tidx)
-        except (FileNotFoundError, TypeError, KeyError):
-            self.RAICHLE_KS = None
-        _res = self.solver.run_nested_for_list(
+        res_ = self.solver.run_nested_for_list(
             prior_tag=self.__class__.__name__,
             ndim=self.ndim,
             checkpoint_file=checkpoint_file,
@@ -364,21 +357,21 @@ class TCModel(TissueModel, ABC):
             resume=resume)
 
         # if print_progress:
-        self.plot_results(_res, tag=f"parc{tidx}", parc_index=tidx)
+        self.plot_results(res_, tag=f"parc{tidx}", parc_index=tidx)
 
-        _rd = _res.asdict()
-        _qm, _ql, _qh = self.solver.quantile(_res)
-        _rho_pred, _, _, _ = self.signalmodel(self.data(_qm))
-        _resid = np.sum(_rho_pred - self.RHO) / np.sum(self.RHO)
+        rd_ = res_.asdict()
+        qm_, ql_, qh_ = self.solver.quantile(res_)
+        rho_pred_, _, _, _ = self.signalmodel(self.data(qm_))
+        resid_ = np.sum(rho_pred_ - self.RHO) / np.sum(self.RHO)
         package = {
-            "res": _res,
-            "logz": np.array(_rd["logz"][-1]),
-            "information": np.array(_rd["information"][-1]),
-            "qm": np.array(_qm),
-            "ql": np.array(_ql),
-            "qh": np.array(_qh),
-            "martinv1": np.array(self.MARTIN_V1),
-            "raichleks": np.array(self.RAICHLE_KS),
-            "rho_pred": np.array(_rho_pred),
-            "resid": np.array(_resid)}
+            "res": res_,
+            "logz": np.array(rd_["logz"][-1]),
+            "information": np.array(rd_["information"][-1]),
+            "qm": np.array(qm_),
+            "ql": np.array(ql_),
+            "qh": np.array(qh_),
+            "martinv1": np.array(self.martin_v1(parc_index=tidx)),
+            "raichleks": np.array(self.raichle_ks(parc_index=tidx)),
+            "rho_pred": np.array(rho_pred_),
+            "resid": np.array(resid_)}
         return package

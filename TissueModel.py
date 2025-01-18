@@ -64,6 +64,7 @@ class TissueModel(PETModel, ABC):
     def __init__(self,
                  input_function,
                  pet_measurement,
+                 parc_index=0,
                  recovery_coefficient=1.8509,
                  delta_time=1,
                  truths=None,
@@ -71,6 +72,7 @@ class TissueModel(PETModel, ABC):
         super().__init__(**kwargs)
         self._input_function = input_function  # fqfn to be converted to dict by property
         self._pet_measurement = pet_measurement  # fqfn to be converted to dict by property
+        self._parc_index = parc_index
         self._truths_internal = truths
 
         # use adjusted_pet_measurement()
@@ -163,16 +165,6 @@ class TissueModel(PETModel, ABC):
         self._input_function = PETUtilities.interpdata(niid, petm)
         return deepcopy(self._input_function)
 
-    def data(self, v):
-        rho_experiences_boxcar = isinstance(self.ARTERY, Boxcar)
-        return deepcopy({
-            "halflife": self.HALFLIFE,
-            "rho": self.RHO, "rhos": self.rhos, "timesMid": self.TIMES_MID, "taus": self.TAUS,
-            "times": (self.TIMES_MID - self.TAUS / 2), "inputFuncInterp": self.INPUTF_INTERP,
-            "v": v,
-            "rho_experiences_boxcar": rho_experiences_boxcar,
-            "delta_time": self.DELTA_TIME})
-
     @staticmethod
     def is_sequence(obj):
         """ a sequence cannot be multiplied by floating point """
@@ -263,94 +255,10 @@ class TissueModel(PETModel, ABC):
 
         plt.tight_layout()
 
-    def run_nested(self, checkpoint_file=None, print_progress=False, resume=False):
-        """ default: checkpoint_file=self.fqfp+"_dynesty-ModelClass-yyyyMMddHHmmss.save") """
-
-        res = []
-        logz = []
-        information = []
-        qm = []
-        ql = []
-        qh = []
-        rho_pred = []
-        resid = []
-
-        if self.rhos.ndim == 1:
-            self.RHO = self.rhos
-            tac = self.RHO
-            _res = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
-                                                   ndim=self.ndim,
-                                                   checkpoint_file=checkpoint_file,
-                                                   print_progress=print_progress,
-                                                   resume=resume)
-
-            if print_progress:
-                self.plot_results(_res)
-
-            res.append(_res)
-            rd = _res.asdict()
-            logz.append(rd["logz"][-1])
-            information.append(rd["information"][-1])
-            _qm, _ql, _qh = self.solver.quantile(_res)
-            qm.append(_qm)
-            ql.append(_ql)
-            qh.append(_qh)
-            _rho_pred, _, _, _ = self.signalmodel(self.data(_qm))
-            rho_pred.append(_rho_pred)
-            resid.append(np.sum(_rho_pred - tac) / np.sum(tac))
-            package = {
-                "res": res,
-                "logz": np.array(logz),
-                "information": np.array(information),
-                "qm": np.array(qm),
-                "ql": np.array(ql),
-                "qh": np.array(qh),
-                "rho_pred": np.array(rho_pred),
-                "resid": np.array(resid)}
-
-        elif self.rhos.ndim == 2:
-            for tidx, tac in enumerate(self.rhos):
-                self.RHO = tac
-                _res = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
-                                                       ndim=self.ndim,
-                                                       checkpoint_file=checkpoint_file,
-                                                       print_progress=print_progress,
-                                                       resume=resume)
-
-                # if print_progress:
-                self.plot_results(_res, tag=f"parc{tidx}", parc_index=tidx)
-
-                res.append(_res)
-                rd = _res.asdict()
-                logz.append(rd["logz"][-1])
-                information.append(rd["information"][-1])
-                _qm, _ql, _qh = self.solver.quantile(_res)
-                qm.append(_qm)
-                ql.append(_ql)
-                qh.append(_qh)
-                _rho_pred, _, _, _ = self.signalmodel(self.data(_qm))
-                rho_pred.append(_rho_pred)
-                resid.append(np.sum(_rho_pred - tac) / np.sum(tac))
-            package = {
-                "res": res,
-                "logz": np.array(logz),
-                "information": np.array(information),
-                "qm": np.vstack(qm),
-                "ql": np.vstack(ql),
-                "qh": np.vstack(qh),
-                "rho_pred": np.vstack(rho_pred),
-                "resid": np.array(resid)}
-
-        else:
-            raise RuntimeError(self.__class__.__name__ + ": self.rhos.ndim -> " + self.rhos.ndim)
-
-        self.save_results(package, tag=self.tag)
-        return package
-
     # noinspection DuplicatedCode
     def run_nested_for_indexed_tac(self, tidx: int, checkpoint_file=None, print_progress=False, resume=False):
         self.RHO = self.rhos[tidx]
-        _res = self.solver.run_nested_for_list(
+        res_ = self.solver.run_nested_for_list(
             prior_tag=self.__class__.__name__,
             ndim=self.ndim,
             checkpoint_file=checkpoint_file,
@@ -358,21 +266,21 @@ class TissueModel(PETModel, ABC):
             resume=resume)
 
         # if print_progress:
-        self.plot_results(_res, tag=f"parc{tidx}", parc_index=tidx)
+        self.plot_results(res_, tag=f"parc{tidx}", parc_index=tidx)
 
-        _rd = _res.asdict()
-        _qm, _ql, _qh = self.solver.quantile(_res)
-        _rho_pred, _, _, _ = self.signalmodel(self.data(_qm))
-        _resid = np.sum(_rho_pred - self.RHO) / np.sum(self.RHO)
+        rd_ = res_.asdict()
+        _qm_, _ql_, _qh_ = self.solver.quantile(res_)
+        _rho_pred_, _, _, _ = self.signalmodel(self.data(_qm_))
+        resid_ = np.sum(_rho_pred_ - self.RHO) / np.sum(self.RHO)
         package = {
-            "res": _res,
-            "logz": np.array(_rd["logz"][-1]),
-            "information": np.array(_rd["information"][-1]),
-            "qm": np.array(_qm),
-            "ql": np.array(_ql),
-            "qh": np.array(_qh),
-            "rho_pred": np.array(_rho_pred),
-            "resid": np.array(_resid)}
+            "res": res_,
+            "logz": np.array(rd_["logz"][-1]),
+            "information": np.array(rd_["information"][-1]),
+            "qm": np.array(_qm_),
+            "ql": np.array(_ql_),
+            "qh": np.array(_qh_),
+            "rho_pred": np.array(_rho_pred_),
+            "resid": np.array(resid_)}
         return package
 
     # noinspection DuplicatedCode

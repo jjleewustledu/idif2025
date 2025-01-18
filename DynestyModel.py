@@ -24,7 +24,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 from DynestyInterface import DynestyInterface
-from DynestySolver import DynestySolver
+from DynestySolverLegacy import DynestySolverLegacy
 from dynesty import utils as dyutils, plotting as dyplot
 
 # general & system functions
@@ -60,40 +60,20 @@ class DynestyModel(DynestyInterface):
     """
     """
 
-    def __init__(self,
-                 sample="rslice",
-                 nlive=1000,
-                 rstate=np.random.default_rng(916301),
-                 tag=""):
-        self.solver = DynestySolver(model=self,
-                                    sample=sample,
-                                    nlive=nlive,
-                                    rstate=rstate,
-                                    tag=tag)
-
-    @abstractmethod
-    def data(self, v):
-        pass
-
-    @property
-    @abstractmethod
-    def fqfp(self):
-        pass
-
-    @property
-    @abstractmethod
-    def labels(self):
-        pass
-
-    @property
-    @abstractmethod
-    def ndim(self):
-        pass
-
-    @property
-    @abstractmethod
-    def results_fqfp(self):
-        pass
+    def __init__(
+            self,
+            sample="rslice",
+            nlive=1000,
+            rstate=np.random.default_rng(916301),
+            tag=""
+    ):
+        self.solver = DynestySolverLegacy(
+            model=self,
+            sample=sample,
+            nlive=nlive,
+            rstate=rstate,
+            tag=tag
+        )
 
     @property
     def tag(self):
@@ -103,29 +83,13 @@ class DynestyModel(DynestyInterface):
     def tag(self, tag):
         self.solver.tag = tag
 
-    @property
-    @abstractmethod
-    def truths(self):
-        pass
+    def plot_results(self, res: dyutils.Results, tag: str = "", parc_index: int = None) -> None:
 
-    @staticmethod
-    @abstractmethod
-    def data(v):
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def loglike(v):
-        pass
-
-    def plot_results(self, res: dyutils.Results, tag="", parc_index=None):
-
-        if tag and "-" not in tag:
-            tag = "-" + tag
-        if parc_index and f"-parc{parc_index}" not in tag:
-            tag = tag + f"-parc{parc_index}"
+        if tag:
+            tag = f"-{tag.lstrip('-')}"
+        tag = tag + f"-parc{parc_index}" if f"-parc{parc_index}" not in tag else tag
         fqfp1 = self.results_fqfp + tag
-        qm, _, _ = self.solver.quantile(res)
+        qm, _, _ = self.quantile(res)
 
         # truth plot ------------------------------------------------------------
 
@@ -159,10 +123,6 @@ class DynestyModel(DynestyInterface):
                 title_fmt=".2f",
                 label_kwargs={"fontsize": 26},
                 fig=plt.subplots(self.ndim, 2, figsize=(12, 12 * self.ndim / 2)))
-            # plt.tick_params(axis='both', labelsize=9)  # Smaller tick labels
-            # for ax in axes.flat:
-            #     ax.set_xlabel(ax.get_xlabel(), fontsize=12)  # Larger axis labels 
-            #     ax.set_ylabel(ax.get_ylabel(), fontsize=12)
             plt.ticklabel_format(axis='x', style='sci', scilimits=(-3, 3))
             fig.tight_layout()
             plt.savefig(fqfp1 + "-traceplot.png")
@@ -180,25 +140,16 @@ class DynestyModel(DynestyInterface):
                 show_titles=True,
                 title_kwargs={"y": 1.1},
                 labels=self.labels,
-                label_kwargs={"fontsize": 50},
+                label_kwargs={"fontsize": 36},
                 fig=plt.subplots(self.ndim, self.ndim, figsize=(8 * self.ndim / 2, 8 * self.ndim / 2)))
             plt.savefig(fqfp1 + "-cornerplot.png")
             plt.savefig(fqfp1 + "-cornerplot.svg")
         except ValueError as e:
             print(f"PETModel.plot_results.dyplot.cornerplot: caught a ValueError: {e}")
-
-    @abstractmethod
-    def plot_truths(self, truths, parc_index):
-        pass
-
-    @abstractmethod
-    def plot_variations(self, tindex0, tmin, tmax, truths):
-        pass
-
-    def print_data(self):
+    
+    def print_data(self) -> None:
         """ Print the data in a table format. """
-        print("\nData:")
-        print("-" * 40)
+        self.print_separator("Data")
         for key, value in self.data(self.truths).items():
             if isinstance(value, np.ndarray):
                 print(f"{key}:")
@@ -207,34 +158,25 @@ class DynestyModel(DynestyInterface):
                 print(f"  Last few values: {value[-3:]}")
             else:
                 print(f"{key}: {value}")
-        print("-" * 40)
+        self.print_separator("Data", closing=True)
 
-    def print_truths(self):
+    def print_separator(self, text: str, closing: bool=False) -> None:
+        if not closing:
+            print("\n" + "=" * 30 + " " + text + " " + "=" * 30)
+        else:
+            print("\n" + "=" * (62 + len(text)))
+        
+    def print_truths(self) -> None:
         """ Print the truths in a table format. """
         truths = self.truths
         labels = self.labels
-        print("\nTruths:")
-        print("-" * 40)
+
+        self.print_separator("Truths")
         print(f"{'Parameter':<25} {'Value':>12}")
         print("-" * 40)
         for label, value in zip(labels, truths):
             print(f"{label:<25} {value:>12.5f}")
-        print("-" * 40)
+        self.print_separator("Truths", closing=True)
 
-    @staticmethod
-    @abstractmethod
-    def prior_transform(tag):
-        pass
-
-    @abstractmethod
-    def run_nested(self, checkpoint_file):
-        pass
-
-    @abstractmethod
-    def save_results(self, res, tag):
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def signalmodel(data: dict):
-        pass
+    def quantile(self, res: dyutils.Results) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        return self.solver.quantile(res)  

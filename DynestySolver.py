@@ -25,10 +25,8 @@
 # general & system functions
 from __future__ import absolute_import
 from __future__ import print_function
-from abc import ABC
-from functools import partial
-import sys
-from datetime import datetime
+from abc import ABC, abstractmethod
+import pickle
 
 # basic numeric setup
 import numpy as np
@@ -36,101 +34,107 @@ import numpy as np
 # dynesty
 from dynesty import dynesty
 from dynesty import utils as dyutils
+import pandas as pd
 
 
 class DynestySolver(ABC):
 
-    def __init__(self,
-                 model=None,
-                 sample="rslice",
-                 nlive=1000,
-                 rstate=np.random.default_rng(916301),
-                 tag=""):
-        self.model = model
-        self.sample = sample
-        self.nlive = nlive
-        self.rstate = rstate
-        self.tag = tag
+    def __init__(self, context):
+        self.context = context
 
         # Set numpy error handling for numerical issues such as underflow/overflow/invalid
         np.seterr(under="ignore")
         np.seterr(over="ignore")
         np.seterr(invalid="ignore")
+    
+    @property
+    def dynesty_results(self):
+        if not hasattr(self, '_dynesty_results'):
+            return None
+        return self._dynesty_results  # large object should not be copied
 
-    def run_nested(self,
-                   prior_tag=None,
-                   ndim=None,
-                   checkpoint_file=None,
-                   print_progress=False,
-                   resume=False):
-        """ checkpoint_file=self.fqfp+"_dynesty-ModelClass-yyyyMMddHHmmss.save") """
+    @property
+    @abstractmethod
+    def labels(self) -> list[str]:
+        pass
 
-        mdl = self.model
+    @property
+    def ndim(self):
+        return len(self.labels)
+    
+    @property
+    def truths(self):
+        if not hasattr(self, '_dynesty_results'):
+            return None        
+        truths_, _, _ = self.quantile()
+        return np.squeeze(truths_)
 
-        if ndim is None:
-            ndim = mdl.ndim
+    @abstractmethod
+    def package_results(self) -> dict:
+        pass
 
-        if resume:
-            sampler = dynesty.DynamicNestedSampler.restore(checkpoint_file)
-        else:
-            prior_transform_with_data = mdl.prior_transform()
-            sampler = dynesty.DynamicNestedSampler(mdl.loglike, 
-                                                   prior_transform_with_data, 
-                                                   ndim,
-                                                   sample=self.sample, 
-                                                   nlive=self.nlive,
-                                                   rstate=self.rstate)
-        sampler.run_nested(checkpoint_file=checkpoint_file, print_progress=print_progress, resume=resume)
-        # for posterior > evidence, use wt_kwargs={"pfrac": 1.0}
-        res = sampler.results
-        class_name = self.__class__.__name__
-        fqfn = mdl.fqfp+"_dynesty-"+class_name+"-"+prior_tag+"-summary.txt"
-        with open(fqfn, "w") as f:
-            old_stdout = sys.stdout
-            old_stderr = sys.stderr
-            sys.stdout = f
-            sys.stderr = f
-            res.summary()
-            sys.stdout = old_stdout
-            sys.stderr = old_stderr
-        return res
+    def quantile(
+            self,
+            verbose: bool = False
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """ Requires that run_nested() has successfully completed. 
+            Returns cached results, if possible, else builds new results and cache. 
+            verbose == True prints results of building new results. """    
+        if not hasattr(self, '_dynesty_results'):
+            raise AssertionError("self._dynesty_results does not exist. Run run_nested() first.")
 
-    def run_nested_for_list(self,
-                            prior_tag=None,
-                            ndim=None,
-                            checkpoint_file=None,
-                            print_progress=False,
-                            resume=False):
-        """ default: checkpoint_file=self.fqfp+"_dynesty-ModelClass-yyyyMMddHHmmss.save") """
+        # return cached results
+        if hasattr(self, '__qm') and hasattr(self, '__ql') and hasattr(self, '__qh'):
+            return self.__qm, self.__ql, self.__qh
 
-        mdl = self.model
-
-        if ndim is None:
-            ndim = mdl.ndim
-
-        if resume:
-            sampler = dynesty.DynamicNestedSampler.restore(checkpoint_file)
-        else:
-            prior_transform_with_data = mdl.prior_transform()
-            sampler = dynesty.DynamicNestedSampler(mdl.loglike, 
-                                                   prior_transform_with_data, 
-                                                   ndim,
-                                                   sample=self.sample, 
-                                                   nlive=self.nlive,
-                                                   rstate=self.rstate)
-        sampler.run_nested(checkpoint_file=checkpoint_file, print_progress=print_progress, resume=resume)
-        # for posterior > evidence, use wt_kwargs={"pfrac": 1.0}
-        res = sampler.results
-        return res
-
-    @staticmethod
-    def quantile(res: dyutils.Results):
-        samples = res["samples"].T
-        weights = res.importance_weights().T
+        # build new results
+        samples = self._dynesty_results["samples"].T
+        weights = self._dynesty_results.importance_weights().T
         ql = np.zeros(len(samples))
         qm = np.zeros(len(samples))
         qh = np.zeros(len(samples))
+        max_label_len = max(len(label) for label in self.labels)
+
         for i, x in enumerate(samples):
             ql[i], qm[i], qh[i] = dyutils.quantile(x, [0.025, 0.5, 0.975], weights=weights)
-            print(f"Parameter {i}: {qm[i]:.6f} [{ql[i]:.6f}, {qh[i]:.6f}]")
+            if verbose:
+                # print quantile results in tabular format
+                qm_fmt = ".1f" if abs(qm[i]) >= 1000 else ".4f"
+                ql_fmt = ".1f" if abs(ql[i]) >= 1000 else ".4f" 
+                qh_fmt = ".1f" if abs(qh[i]) >= 1000 else ".4f"
+                label_padded = f"{self.labels[i]:<{max_label_len}}"
+                print(f"Parameter {label_padded}: {qm[i]:{qm_fmt}} [{ql[i]:{ql_fmt}}, {qh[i]:{qh_fmt}}]")
+
+        # cache results
+        self.__qm, self.__ql, self.__qh = qm, ql, qh
         return qm, ql, qh
+    
+    @abstractmethod
+    def _run_nested(
+            self,
+            checkpoint_file: str | None = None,
+            print_progress: bool = False,
+            resume: bool = False
+    ) -> dyutils.Results:
+        pass
+    
+    def run_nested(
+            self,
+            checkpoint_file: str | None = None,
+            print_progress: bool = False,
+            resume: bool = False
+    ) -> dyutils.Results:
+        self._dynesty_results = self._run_nested(checkpoint_file, print_progress, resume)
+        return self._dynesty_results
+
+    def save_results(self, tag: str = "") -> str:
+        """ saves -res.pickle """
+        if tag:
+            tag = f"-{tag.lstrip('-')}"
+        fqfp1 = self.context.io.results_fqfp + tag
+
+        if not hasattr(self, '_dynesty_results'):
+            raise AssertionError("self._dynesty_results does not exist. Run run_nested() first.")
+        with open(fqfp1 + "-res.pickle", 'wb') as f:
+            pickle.dump(self._dynesty_results, f, pickle.HIGHEST_PROTOCOL)
+

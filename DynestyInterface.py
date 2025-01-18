@@ -41,7 +41,17 @@ class DynestyInterface(ABC):
 
     @property
     @abstractmethod
+    def ndim(self):
+        pass
+
+    @property
+    @abstractmethod
     def results_fqfp(self):
+        pass
+
+    @property
+    @abstractmethod
+    def tag(self):
         pass
 
     @property
@@ -49,14 +59,8 @@ class DynestyInterface(ABC):
     def truths(self):
         pass
 
-    @staticmethod
     @abstractmethod
-    def data(v):
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def loglike(v):
+    def data(self, v):
         pass
 
     @abstractmethod
@@ -71,20 +75,24 @@ class DynestyInterface(ABC):
     def plot_variations(self, tindex0, tmin, tmax, truths):
         pass
 
+    @abstractmethod
+    def print_data(self):
+        pass
+
+    @abstractmethod
+    def print_truths(self):
+        pass
+
     @staticmethod
     @abstractmethod
     def prior_transform(tag):
         pass
 
     @abstractmethod
-    def run_nested(self, checkpoint_file):
+    def run_nested_for_indexed_tac(self, tidx, checkpoint_file):
         pass
 
     @abstractmethod
     def save_results(self, res, tag):
         pass
 
-    @staticmethod
-    @abstractmethod
-    def signalmodel(data: dict):
-        pass

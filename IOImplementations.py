@@ -34,7 +34,6 @@ from pathlib import Path
 from copy import deepcopy
 
 from PETUtilities import PETUtilities
-from DynestyContext import DynestyContext
 
 
 class BaseIO(IOInterface):
@@ -217,7 +216,7 @@ class BaseIO(IOInterface):
 class RadialArteryIO(BaseIO):
     """I/O operations specific to RadialArtery models."""
     
-    def __init__(self, context: DynestyContext):
+    def __init__(self, context):
         self.context = context
     
     @property
@@ -250,7 +249,7 @@ class TrivialArteryIO(BaseIO):
 class BoxcarIO(BaseIO):
     """I/O operations specific to Boxcar models."""
     
-    def __init__(self, context: DynestyContext):
+    def __init__(self, context):
         self.context = context
     
     @property
@@ -265,7 +264,7 @@ class BoxcarIO(BaseIO):
 class TissueIO(BaseIO):
     """I/O operations specific to TissueModel models."""
 
-    def __init__(self, context: DynestyContext):
+    def __init__(self, context):
         self.context = context
 
     @property

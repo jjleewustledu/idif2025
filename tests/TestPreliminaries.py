@@ -73,3 +73,6 @@ class TestPreliminaries(unittest.TestCase):
         else:
             return os.path.join(
                 os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2024", "data", ses, "pet")
+
+    def print_separator(self, text):
+        print("\n" + "=" * 30 + " " + text + " " + "=" * 30)

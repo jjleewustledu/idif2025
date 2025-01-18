@@ -41,12 +41,12 @@ class TestIO(TestPreliminaries):
 
     def test_IO_ctor(self):
         io = TrivialArteryIO()
-        pprint(io)
+        self.assertIsInstance(io, TrivialArteryIO)
 
     def test_load_nii(self):
         fqfn = self.fqfn_ParcSchaeffer("oo1", singularity=False)
         data = self.io.load_nii(fqfn=fqfn)
-        pprint(data)
+        # pprint(data)
 
         # Check JSON size
         json_size = sys.getsizeof(data["json"])

@@ -40,18 +40,18 @@ class TestMintun1984Model(TestPreliminaries):
         self.truths_idif = [0.412, 0.978, 0.978, 14.834, -11, 0.025]
         self.truths_twil = [0.47, 0.27, 0.886, 6.742, -14, 0.024]
         self._parc_index = 25
-        # self._mintun_idif_obj = Mintun1984Model(
-        #     self.idif, 
-        #     self.pet, 
-        #     truths=self.truths_idif, 
-        #     nlive=100, 
-        #     tag="main7-rc1p85-vrc1-3000") 
-        # self._mintun_twil_obj = Mintun1984Model(
-        #     self.twil, 
-        #     self.pet, 
-        #     truths=self.truths_twil, 
-        #     nlive=100, 
-        #     tag="main7-rc1p85-vrc1-3000") 
+        self._mintun_idif_obj = Mintun1984Model(
+            self.idif, 
+            self.pet, 
+            truths=self.truths_idif, 
+            nlive=100, 
+            tag="main7-rc1p85-vrc1-3000") 
+        self._mintun_twil_obj = Mintun1984Model(
+            self.twil, 
+            self.pet, 
+            truths=self.truths_twil, 
+            nlive=100, 
+            tag="main7-rc1p85-vrc1-3000") 
 
         os.chdir(self.petdir("oo1"))
 
@@ -104,10 +104,10 @@ class TestMintun1984Model(TestPreliminaries):
 
     def test_run_nested_for_indexed_tac(self):
         if self._mintun_twil_obj:
-            self._mintun_twil_obj.run_nested_for_indexed_tac(self._parc_index, print_progress=True)
+            self._mintun_twil_obj.run_nested_for_indexed_tac(self._parc_index, print_progress=False)
             plt.show()
         if self._mintun_idif_obj:
-            self._mintun_idif_obj.run_nested_for_indexed_tac(self._parc_index, print_progress=True)
+            self._mintun_idif_obj.run_nested_for_indexed_tac(self._parc_index, print_progress=False)
             plt.show()
 
             

@@ -23,6 +23,9 @@
 from __future__ import absolute_import
 from __future__ import print_function
 from abc import ABC
+
+import dynesty
+from dynesty import utils as dyutils
 from PETModel import PETModel
 
 # general & system functions
@@ -304,19 +307,33 @@ class Artery(PETModel, ABC):
         v[13] = u[13] * Artery.sigma  # sigma ~ fraction of M0
         return v
 
+    def package_results(self, res: dyutils.Results) -> dict:
+        """ provides a super dictionary also containing dynesty_results in entry "res" """
+        rd = res.asdict()
+        logz = rd["logz"][-1]
+        information = rd["information"][-1]
+        qm, ql, qh = self.quantile(res)
+        rho_pred, rho_ideal, t_ideal = self.signalmodel(self.data(qm))
+        resid = rho_pred - self.rhos
+        
+        return {
+            "res": res,
+            "logz": logz,
+            "information": information, 
+            "qm": qm,
+            "ql": ql,
+            "qh": qh,
+            "rho_pred": rho_pred,
+            "rho_ideal": rho_ideal,
+            "t_ideal": t_ideal,
+            "resid": resid
+        }
+    
+    def run_nested_for_indexed_tac(self):
+        pass
+                                   
     def run_nested(self, checkpoint_file=None, print_progress=False, resume=False):
         """ conforms with behaviors and interfaces of TCModel.py """
-
-        res = []
-        logz = []
-        information = []
-        qm = []
-        ql = []
-        qh = []
-        rho_pred = []
-        resid = []
-        tac = self.rhos
-
         _res = self.solver.run_nested_for_list(prior_tag=self.__class__.__name__,
                                                ndim=self.ndim,
                                                checkpoint_file=checkpoint_file,
@@ -324,27 +341,7 @@ class Artery(PETModel, ABC):
                                                resume=resume)
         if print_progress:
             self.plot_results(_res)
-        res.append(_res)
-        rd = _res.asdict()
-        logz.append(rd["logz"][-1])
-        information.append(rd["information"][-1])
-        _qm, _ql, _qh = self.solver.quantile(_res)
-        qm.append(_qm)
-        ql.append(_ql)
-        qh.append(_qh)
-        _rho_pred, _, _ = self.signalmodel(self.data(_qm))
-        rho_pred.append(_rho_pred)
-        resid.append(np.sum(_rho_pred - tac) / np.sum(tac))
-
-        package = {"res": res,
-                   "logz": np.array(logz),
-                   "information": np.array(information),
-                   "qm": np.squeeze(np.array(qm)),
-                   "ql": np.squeeze(np.array(ql)),
-                   "qh": np.squeeze(np.array(qh)),
-                   "rho_pred": np.squeeze(np.array(rho_pred)),
-                   "resid": np.array(resid)}
-
+        package = self.package_results(_res)        
         self.save_results(package, tag=self.tag)
         return package
 
@@ -399,7 +396,7 @@ class Artery(PETModel, ABC):
         timesMid = ifm["timesMid"]
         taus = ifm["taus"]
         data = self.data(res_dict["qm"])
-        rho_signal, rho_ideal, timesUnif = self.signalmodel(data)
+        rho_pred, rho_ideal, t_ideal = self.signalmodel(data)
 
         json = ifm["json"]
         if not np.array_equal(json["timesMid"], timesMid):
@@ -410,15 +407,15 @@ class Artery(PETModel, ABC):
         self.save_nii(
             {"timesMid": timesMid, 
              "taus": taus, 
-             "img": M0 * rho_signal, 
+             "img": M0 * rho_pred, 
              "nii": nii, 
              "fqfp": fqfp,
              "json": json},
             fqfp1 + "-signal.nii.gz")
 
         self.save_nii(
-            {"times": timesUnif, 
-             "taus": np.ones(timesUnif.shape), 
+            {"times": t_ideal, 
+             "taus": np.ones(t_ideal.shape), 
              "img": M0 * rho_ideal, 
              "nii": nii, 
              "fqfp": fqfp,

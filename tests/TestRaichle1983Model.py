@@ -37,6 +37,8 @@ class TestRaichle1983Model(TestPreliminaries):
         self.assertEqual(True, True)  # add assertion here 
 
     def test_ctor_Raichle(self):
+        self.fail("Test not implemented")
+        
         ifm = os.path.join(self.petdir("ho"), "sub-108293_ses-20210421152358_trc-ho_proc-MipIdif_idif.nii.gz")
         pet = os.path.join(self.petdir("ho"), "sub-108293_ses-20210421152358_trc-ho_proc-BrainMoCo2-createNiftiMovingAvgFrames-ParcWmparc-reshape-to-wmparc-select-all.nii.gz")
         self._raichle_obj = Raichle1983Model(ifm, pet, nlive=100)

@@ -31,6 +31,7 @@ import pandas as pd
 from DynestySolver import DynestySolver
 from PETUtilities import PETUtilities
 
+
 @jit(nopython=True)
 def prior_transform(u: np.ndarray, halflife: float, sigma: float) -> np.ndarray:
     v = u
@@ -68,7 +69,7 @@ def loglike(
 @jit(nopython=True)
 def signalmodel(
     v: np.ndarray,
-    t_ideal: np.ndarray, 
+    timesIdeal: np.ndarray, 
     kernel: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     t_0 = v[0]
@@ -85,12 +86,12 @@ def signalmodel(
     f_ss = v[11]
     A = v[12]
 
-    rho_ = A * solution_3bolus_series(t_ideal, t_0, tau_2, a, b, p, dp_2, dp_3, g, f_2, f_3)
+    rho_ = A * solution_3bolus_series(timesIdeal, t_0, tau_2, a, b, p, dp_2, dp_3, g, f_2, f_3)
     rho = apply_dispersion(rho_, kernel)
     A_qs = 1 / np.max(rho)
     rho_pred = A_qs * rho
     rho_ideal = A_qs * rho_
-    return rho_pred, rho_ideal, t_ideal
+    return rho_pred, rho_ideal, timesIdeal
 
 @jit(nopython=True)
 def solution_3bolus_series(
@@ -182,7 +183,8 @@ class RadialArterySolver(DynestySolver):
             self,
             checkpoint_file: str | None = None,
             print_progress: bool = False,
-            resume: bool = False
+            resume: bool = False, 
+            parc_index: int = 0
     ) -> dyutils.Results:
         if resume:
             sampler = dynesty.DynamicNestedSampler.restore(checkpoint_file)
@@ -200,97 +202,8 @@ class RadialArterySolver(DynestySolver):
         sampler.run_nested(checkpoint_file=checkpoint_file, print_progress=print_progress, resume=resume)
         return sampler.results
 
-    def package_results(self) -> dict:
-        """ provides a super dictionary also containing dynesty_results in entry "res" """
-        resd = self._dynesty_results.asdict()
-        logz = resd["logz"][-1]
-        information = resd["information"][-1]
-        qm, ql, qh = self.quantile()
-        rho_pred, rho_ideal, t_ideal = signalmodel(qm, self.data.timesIdeal, self.data.kernel)
-        resid = rho_pred - self.data.rho
-        
-        return {
-            "res": self._dynesty_results,
-            "logz": logz,
-            "information": information, 
-            "qm": qm,
-            "ql": ql,
-            "qh": qh,
-            "rho_pred": rho_pred,
-            "rho_ideal": rho_ideal,
-            "t_ideal": t_ideal,
-            "resid": resid
-        }
-
-    def save_results(self, tag: str = "") -> str:
-        """ saves .nii.gz and -quantiles.csv """
-        super().save_results(tag)
-
-        if tag:
-            tag = f"-{tag.lstrip('-')}"
-        fqfp1 = self.context.io.results_fqfp + tag
-
-        # =========== save .nii.gz ===========
-
-        ifm = self.context.data.input_func_measurement
-        M0 = np.max(ifm["img"])
-        fqfp = ifm["fqfp"]
-        nii = ifm["nii"]
-        timesMid = ifm["timesMid"]
-        taus = ifm["taus"]
-        json = ifm["json"]
-        if not np.array_equal(json["timesMid"], timesMid):
-            json["timesMid"] = timesMid.tolist()
-        if not np.array_equal(json["taus"], taus):
-            json["taus"] = taus.tolist()
-
-        resd = self.package_results()
-        rho_pred, rho_ideal, t_ideal = resd["rho_pred"], resd["rho_ideal"], resd["t_ideal"]
-
-        self.context.io.save_nii({
-            "timesMid": timesMid,
-            "taus": taus,
-            "img": M0 * rho_pred,
-            "nii": nii,
-            "fqfp": fqfp,
-            "json": json
-        }, fqfp1 + "-signal.nii.gz")
-
-        self.context.io.save_nii({
-            "times": t_ideal,
-            "taus": np.ones(t_ideal.shape),
-            "img": M0 * rho_ideal,
-            "nii": nii,
-            "fqfp": fqfp,
-            "json": json
-        }, fqfp1 + "-ideal.nii.gz")
-
-        product = deepcopy(ifm)
-        product["img"] = M0 * resd["rho_pred"]
-        self.context.io.save_nii(product, fqfp1 + "-rho-pred.nii.gz")
-
-        product = deepcopy(ifm)
-        product["img"] = M0 * resd["rho_ideal"]
-        self.context.io.save_nii(product, fqfp1 + "-rho-ideal.nii.gz")
-
-        for key in ["logz", "information", "qm", "ql", "qh", "resid"]:
-            product = deepcopy(ifm)
-            product["img"] = resd[key]
-            self.context.io.save_nii(product, fqfp1 + f"-{key}.nii.gz")
-
-        # =========== save .csv ===========
-
-        qm, ql, qh = self.quantile()
-        df = {
-            "label": self.labels,
-            "qm": qm,
-            "ql": ql,
-            "qh": qh}
-        df = pd.DataFrame(df)
-        df.to_csv(fqfp1 + "-quantiles.csv")
-
-    def signalmodel(self, v: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def signalmodel(self, v: np.ndarray, parc_index: int = 0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         return signalmodel(v, self.data.timesIdeal, self.data.kernel)
     
-    def loglike(self, v: np.ndarray) -> float:
+    def loglike(self, v: np.ndarray, parc_index: int = 0) -> float:
         return loglike(v, self.data.rho, self.data.timesIdeal, self.data.kernel)

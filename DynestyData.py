@@ -44,15 +44,15 @@ class DynestyData:
         self.data_dict = state['data_dict']
     
     @property
-    def data_dict(self):
+    def data_dict(self) -> dict:
         return deepcopy(self._data_dict)
     
     @property
-    def fqfp(self):
+    def fqfp(self) -> str:
         return self.context.io.fqfp
 
     @property
-    def results_fqfp(self):
+    def results_fqfp(self) -> str:
         return self.context.io.results_fqfp
     
     def fileparts(self, fqfn: str) -> tuple:

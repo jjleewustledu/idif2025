@@ -222,7 +222,6 @@ class PETUtilities:
             return rho
         rho = PETUtilities.interpimg(t - dt, t, rho)  # copy of rho array
         if halflife:
-            return rho * np.power(2, -dt / halflife)
-        else:
-            return rho
+            rho = rho * np.power(2, -dt / halflife)
+        return rho.copy()
         

@@ -26,6 +26,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 from abc import ABC, abstractmethod
+from copy import deepcopy
 import pickle
 
 # basic numeric setup
@@ -68,28 +69,48 @@ class DynestySolver(ABC):
             return None        
         truths_, _, _ = self.quantile()
         return np.squeeze(truths_)
-
-    @abstractmethod
-    def package_results(self) -> dict:
-        pass
+    
+    def package_results(self, parc_index: int = 0) -> dict:
+        """ provides a super dictionary also containing dynesty_results in entry "res" """
+        resd = self._dynesty_results.asdict()
+        logz = resd["logz"][-1]
+        information = resd["information"][-1]
+        qm, ql, qh = self.quantile()
+        rho_pred, rho_ideal, timesIdeal = self.signalmodel(qm, parc_index)
+        resid = rho_pred - self.data.rho
+        return {
+            "res": self._dynesty_results,
+            "logz": logz,
+            "information": information, 
+            "qm": qm,
+            "ql": ql,
+            "qh": qh,
+            "rho_pred": rho_pred,
+            "rho_ideal": rho_ideal,
+            "timesIdeal": timesIdeal,
+            "resid": resid
+        }
 
     def quantile(
             self,
+            results: dyutils.Results | None = None,
             verbose: bool = False
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """ Requires that run_nested() has successfully completed. 
+        """ Requires results or that run_nested() has successfully completed. 
             Returns cached results, if possible, else builds new results and cache. 
             verbose == True prints results of building new results. """    
-        if not hasattr(self, '_dynesty_results'):
-            raise AssertionError("self._dynesty_results does not exist. Run run_nested() first.")
+        if not results:
+            if not hasattr(self, '_dynesty_results'):
+                raise AssertionError("self._dynesty_results does not exist. Run run_nested() first.")
+            results = self._dynesty_results
 
         # return cached results
         if hasattr(self, '__qm') and hasattr(self, '__ql') and hasattr(self, '__qh'):
             return self.__qm, self.__ql, self.__qh
 
         # build new results
-        samples = self._dynesty_results["samples"].T
-        weights = self._dynesty_results.importance_weights().T
+        samples = results["samples"].T
+        weights = results.importance_weights().T
         ql = np.zeros(len(samples))
         qm = np.zeros(len(samples))
         qh = np.zeros(len(samples))
@@ -114,7 +135,8 @@ class DynestySolver(ABC):
             self,
             checkpoint_file: str | None = None,
             print_progress: bool = False,
-            resume: bool = False
+            resume: bool = False,
+            parc_index: int = 0
     ) -> dyutils.Results:
         pass
     
@@ -122,12 +144,13 @@ class DynestySolver(ABC):
             self,
             checkpoint_file: str | None = None,
             print_progress: bool = False,
-            resume: bool = False
+            resume: bool = False,
+            parc_index: int = 0
     ) -> dyutils.Results:
-        self._dynesty_results = self._run_nested(checkpoint_file, print_progress, resume)
+        self._dynesty_results = self._run_nested(checkpoint_file, print_progress, resume, parc_index)
         return self._dynesty_results
 
-    def save_results(self, tag: str = "") -> str:
+    def save_pickle(self, tag: str = "") -> str:
         """ saves -res.pickle """
         if tag:
             tag = f"-{tag.lstrip('-')}"
@@ -138,3 +161,81 @@ class DynestySolver(ABC):
         with open(fqfp1 + "-res.pickle", 'wb') as f:
             pickle.dump(self._dynesty_results, f, pickle.HIGHEST_PROTOCOL)
 
+
+    def save_results(self, tag: str = "", parc_index: int = 0) -> str:
+        """ saves .nii.gz and -quantiles.csv """
+        self.save_pickle(tag)
+
+        fqfp1 = self.context.io.results_fqfp 
+        if parc_index > 0:
+            fqfp1 += f"-parc{parc_index}"
+        if tag:
+            tag = f"-{tag.lstrip('-')}"
+        fqfp1 += tag
+
+        # =========== save .nii.gz ===========
+
+        ifm = self.context.data.input_func_measurement
+        A0 = np.max(ifm["img"])
+        fqfp = ifm["fqfp"]
+        nii = ifm["nii"]
+        timesMid = ifm["timesMid"]
+        taus = ifm["taus"]
+        json = ifm["json"]
+        if not np.array_equal(json["timesMid"], timesMid):
+            json["timesMid"] = timesMid.tolist()
+        if not np.array_equal(json["taus"], taus):
+            json["taus"] = taus.tolist()
+
+        resd = self.package_results(parc_index=parc_index)
+        rho_pred, rho_ideal, timesIdeal = resd["rho_pred"], resd["rho_ideal"], resd["timesIdeal"]
+
+        self.context.io.save_nii({
+            "timesMid": timesMid,
+            "taus": taus,
+            "img": A0 * rho_pred,
+            "nii": nii,
+            "fqfp": fqfp,
+            "json": json
+        }, fqfp1 + "-signal.nii.gz")
+
+        self.context.io.save_nii({
+            "times": timesIdeal,
+            "taus": np.ones(timesIdeal.shape),
+            "img": A0 * rho_ideal,
+            "nii": nii,
+            "fqfp": fqfp,
+            "json": json
+        }, fqfp1 + "-ideal.nii.gz")
+
+        product = deepcopy(ifm)
+        product["img"] = A0 * resd["rho_pred"]
+        self.context.io.save_nii(product, fqfp1 + "-rho-pred.nii.gz")
+
+        product = deepcopy(ifm)
+        product["img"] = A0 * resd["rho_ideal"]
+        self.context.io.save_nii(product, fqfp1 + "-rho-ideal.nii.gz")
+
+        for key in ["logz", "information", "qm", "ql", "qh", "resid"]:
+            product = deepcopy(ifm)
+            product["img"] = resd[key]
+            self.context.io.save_nii(product, fqfp1 + f"-{key}.nii.gz")
+
+        # =========== save .csv ===========
+
+        qm, ql, qh = self.quantile()
+        df = {
+            "label": self.labels,
+            "qm": qm,
+            "ql": ql,
+            "qh": qh}
+        df = pd.DataFrame(df)
+        df.to_csv(fqfp1 + "-quantiles.csv")
+
+    @abstractmethod
+    def signalmodel(self, v: np.ndarray, parc_index: int = 0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        pass
+    
+    @abstractmethod
+    def loglike(self, v: np.ndarray, parc_index: int = 0) -> float:
+        pass

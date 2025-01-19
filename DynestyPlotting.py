@@ -170,8 +170,8 @@ class DynestyPlotting:
         trange = np.arange(tmin, tmax, dt)
         for tidx, t in enumerate(trange):
             truths_[tindex] = t
-            _, rho_ideal, t_ideal = self.context.solver.signalmodel(truths_)
-            ax.plot(t_ideal, rho_ideal, color=viridis(tidx))
+            _, rho_ideal, timesIdeal = self.context.solver.signalmodel(truths_)
+            ax.plot(timesIdeal, rho_ideal, color=viridis(tidx))
 
         ax.set_xlabel("time of mid-frame (s)")
         ax.set_ylabel("activity (arbitrary)")

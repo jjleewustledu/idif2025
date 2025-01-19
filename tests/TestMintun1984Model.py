@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+
 from __future__ import absolute_import
 import unittest 
 import os
@@ -84,31 +85,31 @@ class TestMintun1984Model(TestPreliminaries):
             v = self._mintun_idif_obj.truths
             pprint(self._mintun_idif_obj.data(v))
 
-    def test_plot_truths(self):
-        if self._mintun_twil_obj:
-            self._mintun_twil_obj.plot_truths(parc_index=self._parc_index)
-            plt.show()
-        if self._mintun_idif_obj:
-            self._mintun_idif_obj.plot_truths(parc_index=self._parc_index)
-            plt.show()
+    # def test_plot_truths(self):
+    #     if self._mintun_twil_obj:
+    #         self._mintun_twil_obj.plot_truths(parc_index=self._parc_index)
+    #         plt.show()
+    #     if self._mintun_idif_obj:
+    #         self._mintun_idif_obj.plot_truths(parc_index=self._parc_index)
+    #         plt.show()
 
-    def test_plot_variations(self): 
-        if self._mintun_twil_obj:
-            v = self._mintun_twil_obj.truths
-            self._mintun_twil_obj.plot_variations(0, 0.05, 0.95, v)
-            plt.show()
-        if self._mintun_idif_obj:
-            v = self._mintun_idif_obj.truths
-            self._mintun_idif_obj.plot_variations(0, 0.05, 0.95, v)
-            plt.show()
+    # def test_plot_variations(self): 
+    #     if self._mintun_twil_obj:
+    #         v = self._mintun_twil_obj.truths
+    #         self._mintun_twil_obj.plot_variations(0, 0.05, 0.95, v)
+    #         plt.show()
+    #     if self._mintun_idif_obj:
+    #         v = self._mintun_idif_obj.truths
+    #         self._mintun_idif_obj.plot_variations(0, 0.05, 0.95, v)
+    #         plt.show()
 
     def test_run_nested_for_indexed_tac(self):
         if self._mintun_twil_obj:
             self._mintun_twil_obj.run_nested_for_indexed_tac(self._parc_index, print_progress=False)
-            plt.show()
+            # plt.show()
         if self._mintun_idif_obj:
             self._mintun_idif_obj.run_nested_for_indexed_tac(self._parc_index, print_progress=False)
-            plt.show()
+            # plt.show()
 
             
 if __name__ == '__main__':

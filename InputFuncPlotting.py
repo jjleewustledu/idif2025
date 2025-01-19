@@ -40,16 +40,20 @@ class InputFuncPlotting(DynestyPlotting):
             parc_index: int | None = None,
             activity_units: str = "kBq/mL"
     ) -> None:
-        """ plots rho from input_func_measurement and rho_pred, with rho_ideal, from signalmodel """
+        """ plots input function measurement and rho_pred, with rho_ideal, from signalmodel """
         if truths is None:
             truths = self.context.solver.truths
-        rho_pred, rho_ideal, t_ideal = self.context.solver.signalmodel(truths)
 
+        # input function measurement
         ifm = self.context.data.input_func_measurement
         rho = ifm["img"]
         M0 = np.max(rho)
         tM = ifm["timesMid"]
 
+        # signal model
+        rho_pred, rho_ideal, timesIdeal = self.context.solver.signalmodel(truths)
+
+        # scalings        
         if activity_units.startswith("k"):
             scaling = 0.001
         elif activity_units.startswith("M"):
@@ -75,7 +79,7 @@ class InputFuncPlotting(DynestyPlotting):
             alpha=0.8,
             markersize=6)
         plt.plot(
-            t_ideal,
+            timesIdeal,
             scaling * M0 * rho_ideal,
             color="dodgerblue",
             linewidth=3,

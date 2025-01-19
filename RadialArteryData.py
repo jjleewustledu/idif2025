@@ -22,10 +22,9 @@
 
 
 from copy import deepcopy
-import os
 
-import nibabel as nib
 import numpy as np
+from numpy.typing import NDArray
 
 from DynestyData import DynestyData
 from PETUtilities import PETUtilities
@@ -58,11 +57,11 @@ class RadialArteryData(DynestyData):
             self._data_dict["tag"] = ""
 
     @property
-    def input_func_fqfn(self):
+    def input_func_fqfn(self) -> str:
         return self.data_dict["input_func_fqfn"]
 
     @property
-    def input_func_measurement(self):
+    def input_func_measurement(self) -> dict:
         if hasattr(self, "__input_func_measurement"):
             return deepcopy(self.__input_func_measurement)
 
@@ -70,47 +69,47 @@ class RadialArteryData(DynestyData):
         return deepcopy(self.__input_func_measurement)    
 
     @property
-    def halflife(self):
+    def halflife(self) -> float:
         return self.data_dict["halflife"]
 
     @property
-    def kernel(self):
+    def kernel(self) -> NDArray:
         return self.data_dict["kernel"].copy()
 
     @property
-    def kernel_fqfn(self):
+    def kernel_fqfn(self) -> str:
         return self.data_dict["kernel_fqfn"]
     
     @property
-    def nlive(self):
+    def nlive(self) -> int:
         return self.data_dict["nlive"]
     
     @property
-    def rstate(self):
+    def rstate(self) -> np.random.Generator:
         return self.data_dict["rstate"]
     
     @property
-    def sample(self):
+    def sample(self) -> str:
         return self.data_dict["sample"]
 
     @property
-    def rho(self):
+    def rho(self) -> NDArray:
         return self.data_dict["rho"].copy()
 
     @property
-    def sigma(self):
+    def sigma(self) -> float:
         return self.data_dict["sigma"]
 
     @property
-    def tag(self):
+    def tag(self) -> str:
         return self.data_dict["tag"]
     
     @tag.setter
-    def tag(self, tag):
+    def tag(self, tag: str):
         self.data_dict["tag"] = tag
 
     @property
-    def timesIdeal(self):
+    def timesIdeal(self) -> NDArray:
         if hasattr(self, "__timesIdeal"):
             return deepcopy(self.__timesIdeal)
         

@@ -164,5 +164,27 @@ class TestRadialArtery(TestPreliminaries):
         # context.solver.save_results()
         # context.solver.plot_results()
 
+    def test_solver_2(self):
+        petdir2 = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2024", "data", "ses-20210421154248", "pet")
+        input_func_fqfn2 = os.path.join(petdir2, "sub-108293_ses-20210421154248_trc-oo_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc.nii.gz")
+        data_dict2 = {
+            "input_func_fqfn": input_func_fqfn2,
+            "kernel_fqfn": self.kernel_fqfn,
+            "tag": "custom-tag-from-test-solver-2"
+        }
+        context = RadialArteryContext(data_dict2)
+        res = context.solver.run_nested(print_progress=True)
+        self.assertIsInstance(res, dyutils.Results)
+        self.assertIs(res, context.solver.dynesty_results)
+        
+        qm, _, _ = context.solver.quantile(verbose=True)
+        qm_expected = [
+            2.91118853e+00,  1.15354483e+01,  1.46693758e+01,  2.34838967e+00,
+            1.20049803e+01,  2.88627654e+00, -2.37518329e-01, -2.50799388e+00,
+            4.46668826e+02,  3.74820885e-01,  7.34415066e-02,  2.53170537e-01,
+            2.47131843e+00,  3.51385766e-02]
+        np.testing.assert_allclose(qm, qm_expected, rtol=1e-4)
+
+
 if __name__ == '__main__':
     unittest.main()

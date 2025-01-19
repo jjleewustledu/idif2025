@@ -269,14 +269,14 @@ class TissueIO(BaseIO):
 
     @property
     def fqfp(self):
-        return self.context.data.tissue_measurement["fqfp"]
+        return self.context.data.adjusted_tissue_measurement["fqfp"]
 
     @property
     def results_fqfp(self):
         fqfp1 = (
             self.fqfp + "-" + 
             self.__class__.__name__ + "-" + 
-            self.context.ARTERY.__class__.__name__ + "-" + 
+            self.context.input_func_type + "-" + 
             self.context.data.tag)
         fqfp1 = fqfp1.replace("ParcSchaeffer-reshape-to-schaeffer-", "")
         fqfp1 = fqfp1.replace("ModelAndArtery", "")

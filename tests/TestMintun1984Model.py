@@ -105,10 +105,10 @@ class TestMintun1984Model(TestPreliminaries):
 
     def test_run_nested_for_indexed_tac(self):
         if self._mintun_twil_obj:
-            self._mintun_twil_obj.run_nested_for_indexed_tac(self._parc_index, print_progress=False)
+            self._mintun_twil_obj.run_nested_for_indexed_tac(self._parc_index, print_progress=True)
             # plt.show()
         if self._mintun_idif_obj:
-            self._mintun_idif_obj.run_nested_for_indexed_tac(self._parc_index, print_progress=False)
+            self._mintun_idif_obj.run_nested_for_indexed_tac(self._parc_index, print_progress=True)
             # plt.show()
 
             

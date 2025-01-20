@@ -43,9 +43,9 @@ class TestIO(TestPreliminaries):
         io = TrivialArteryIO()
         self.assertIsInstance(io, TrivialArteryIO)
 
-    def test_load_nii(self):
+    def test_nii_load(self):
         fqfn = self.fqfn_ParcSchaeffer("oo1", singularity=False)
-        data = self.io.load_nii(fqfn=fqfn)
+        data = self.io.nii_load(fqfn=fqfn)
         # pprint(data)
 
         # Check JSON size
@@ -69,15 +69,15 @@ class TestIO(TestPreliminaries):
         self.assertEqual(img_shape[0], nii_shape[0])
         self.assertEqual(img_shape[1], nii_shape[1])
 
-    def test_save_nii(self):
+    def test_nii_save(self):
         fqfn1 = os.path.join(self.petdir("oo1", singularity=False), "test_save_trc-oo_nii.nii.gz")
 
         fqfn = self.fqfn_ParcSchaeffer("oo1", singularity=False)
-        data = self.io.load_nii(fqfn=fqfn)
-        self.io.save_nii(data=data, fqfn=fqfn1)
+        data = self.io.nii_load(fqfn=fqfn)
+        self.io.nii_save(data=data, fqfn=fqfn1)
 
         # Load the saved data
-        data1 = self.io.load_nii(fqfn=fqfn1)
+        data1 = self.io.nii_load(fqfn=fqfn1)
         
         # Compare key components of data dictionaries
         for key in ['times', 'taus', 'timesMid']:

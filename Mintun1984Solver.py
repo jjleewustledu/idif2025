@@ -199,7 +199,7 @@ def slide(rho: np.ndarray, t: np.ndarray, dt: float, halflife: float=None) -> np
         return rho
 
 
-class TissueSolver(DynestySolver):
+class Mintun1984Solver(DynestySolver):
     def __init__(self, context):
         super().__init__(context)
         self.data = self.context.data

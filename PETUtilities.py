@@ -88,17 +88,35 @@ class PETUtilities:
         img = _tac["img"] * np.power(2, -_tac["timesMid"] / _tac["halflife"])
         _tac["img"] = img
         return _tac
+
+    @staticmethod
+    def fileparts(fqfn: str) -> tuple:
+        """
+        Extracts full path and basename without any extensions from a filepath.        
+        Args:
+            fqfn: String containing fully qualified filename            
+        Returns:
+            tuple containing:
+            - parent_path: Full directory path
+            - basename: Filename without any extensions            
+        Example:
+            "/path/to/file.nii.gz" -> ("/path/to", "file")
+        """
+        path = Path(fqfn)
+        parent_path = str(path.parent)
+        basename = path.stem  # Removes last extension
+        
+        # Handle multiple extensions (e.g., .nii.gz)
+        while "." in basename:
+            basename = Path(basename).stem
+            
+        return parent_path, basename 
     
     @staticmethod
-    def interpimg(timesMid1: NDArray, timesMid: NDArray, img: NDArray, kind: str="linear") -> NDArray:
-        """ Interpolates img, corresponding to timesMid, to timesMidNew, squeezing everything. 
-            timesMidNew and timesMid may be 1D, [1, N_time], or [N_time, 1]. 
-            img may be 1D, [1, N_time], [N_time, 1], or [N_pos, N_time]. """        
-        if img.squeeze().ndim > 1 or not kind == "linear":
-            f = interp1d(timesMid.squeeze(), img.squeeze(), kind=kind, axis=1)
-            return f(timesMid1.squeeze())
-        else:
-            return np.interp(timesMid1.squeeze(), timesMid.squeeze(), img.squeeze())
+    def fqfileprefix(fqfn: str) -> str:
+        """Extract fully qualified fileprefix from fully qualified filename."""
+        pth, fp = PETUtilities.fileparts(fqfn)
+        return os.path.join(pth, fp)
 
     @staticmethod
     def interpdata(data: dict, ref: dict, kind: str="linear") -> dict:
@@ -117,6 +135,17 @@ class PETUtilities:
         data1["timesMid"] = timesMid1
         data1["taus"] = 2 * (timesMid1 - times1)
         return data1
+    
+    @staticmethod
+    def interpimg(timesMid1: NDArray, timesMid: NDArray, img: NDArray, kind: str="linear") -> NDArray:
+        """ Interpolates img, corresponding to timesMid, to timesMidNew, squeezing everything. 
+            timesMidNew and timesMid may be 1D, [1, N_time], or [N_time, 1]. 
+            img may be 1D, [1, N_time], [N_time, 1], or [N_pos, N_time]. """        
+        if img.squeeze().ndim > 1 or not kind == "linear":
+            f = interp1d(timesMid.squeeze(), img.squeeze(), kind=kind, axis=1)
+            return f(timesMid1.squeeze())
+        else:
+            return np.interp(timesMid1.squeeze(), timesMid.squeeze(), img.squeeze())
 
     @staticmethod
     def parse_branching_ratio(fileprefix: str) -> float:

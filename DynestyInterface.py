@@ -89,10 +89,10 @@ class DynestyInterface(ABC):
         pass
 
     @abstractmethod
-    def run_nested_for_indexed_tac(self, tidx, checkpoint_file):
+    def results_save(self, res, tag):
         pass
 
     @abstractmethod
-    def save_results(self, res, tag):
+    def run_nested_for_indexed_tac(self, tidx, checkpoint_file):
         pass
 

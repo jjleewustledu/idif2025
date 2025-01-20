@@ -22,17 +22,17 @@
 
 from DynestyContext import DynestyContext
 from IOImplementations import TissueIO
-from TissueData import TissueData
-from TissueSolver import TissueSolver
+from Mintun1984Data import Mintun1984Data
+from Mintun1984Solver import Mintun1984Solver
 from TissuePlotting import TissuePlotting
 
 
-class TissueContext(DynestyContext):
+class Mintun1984Context(DynestyContext):
     def __init__(self, data_dict: dict):
         super().__init__()
         self._io = TissueIO(self)
-        self._data = TissueData(self, data_dict)
-        self._solver = TissueSolver(self)
+        self._data = Mintun1984Data(self, data_dict)
+        self._solver = Mintun1984Solver(self)
         self._plotting = TissuePlotting(self)
                
     @property

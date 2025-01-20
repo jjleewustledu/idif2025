@@ -48,51 +48,30 @@ class BaseIO(IOInterface):
         return None
 
     @staticmethod
-    def data2times(data: dict) -> np.ndarray:
-        return PETUtilities.data2times(data)
-
-    @staticmethod
     def data2taus(data: dict) -> np.ndarray:
         return PETUtilities.data2taus(data)
 
     @staticmethod
-    def data2timesMid(data: dict) -> np.ndarray:
-       return PETUtilities.data2timesMid(data)
+    def data2times(data: dict) -> np.ndarray:
+        return PETUtilities.data2times(data)
     
     @staticmethod
     def data2timesInterp(data: dict) -> np.ndarray:
         return PETUtilities.dadata2timesInterpta2tinterp(data)
 
     @staticmethod
+    def data2timesMid(data: dict) -> np.ndarray:
+       return PETUtilities.data2timesMid(data)
+
+    @staticmethod
     def fileparts(fqfn: str) -> tuple:
-        """
-        Extracts full path and basename without any extensions from a filepath.        
-        Args:
-            fqfn: String containing fully qualified filename            
-        Returns:
-            tuple containing:
-            - parent_path: Full directory path
-            - basename: Filename without any extensions            
-        Example:
-            "/path/to/file.nii.gz" -> ("/path/to", "file")
-        """
-        path = Path(fqfn)
-        parent_path = str(path.parent)
-        basename = path.stem  # Removes last extension
-        
-        # Handle multiple extensions (e.g., .nii.gz)
-        while "." in basename:
-            basename = Path(basename).stem
-            
-        return parent_path, basename 
+        return PETUtilities.fileparts(fqfn)
     
     @staticmethod
     def fqfileprefix(fqfn: str) -> str:
-        """Extract fully qualified fileprefix from fully qualified filename."""
-        pth, fp = BaseIO.fileparts(fqfn)
-        return os.path.join(pth, fp)
+        return PETUtilities.fqfileprefix(fqfn)
 
-    def load_nii(self, fqfn: str) -> dict:
+    def nii_load(self, fqfn: str) -> dict:
         """Load a NIfTI file and associated json."""
         if not fqfn.endswith(".nii.gz"):
             fqfn += ".nii.gz"
@@ -127,26 +106,8 @@ class BaseIO(IOInterface):
             niid["raichleks"] = np.array(j["raichleks"], dtype=float).squeeze()
 
         return self.trim_nii_dict(niid)
-            
-    def load_pickled(self, fqfn: str) -> Any:
-        """Load data from a pickle file."""
-        if not fqfn.endswith(".pickle"):
-            fqfn += ".pickle"            
-        if not os.path.isfile(fqfn):
-            raise FileNotFoundError(f"{fqfn} was not found")
-        with open(fqfn, "rb") as f:
-            return pickle.load(f)
-        
-    def save_csv(self, data: dict, fqfn: str = None) -> None:
-        """Save data to a CSV file."""
-        if not fqfn:
-            raise ValueError("fqfn must be a valid filename")
-        if not fqfn.endswith(".csv"):
-            fqfn += ".csv"
-        df = pd.DataFrame(data)
-        df.to_csv(fqfn)
 
-    def save_nii(self, data: dict, fqfn: str | None = None) -> None:
+    def nii_save(self, data: dict, fqfn: str | None = None) -> None:
         """Save data to a NIfTI file and associated json."""
         if not fqfn:
             raise ValueError("fqfn must be a valid filename")
@@ -164,10 +125,10 @@ class BaseIO(IOInterface):
             with open(jfile1, "w") as f:
                 json.dump(data["json"], f, indent=4)
         except Exception as e:
-            print(f"{self.__class__.__name__}.save_nii: caught Exception {e}, but proceeding", file=sys.stderr)
+            print(f"{self.__class__.__name__}.nii_save: caught Exception {e}, but proceeding", file=sys.stderr)
             print(f"{fqfn} may be missing or malformed")
 
-    def save_pickled(self, data: Any, fqfn: str | None = None) -> None:
+    def pickle_dump(self, data: Any, fqfn: str | None = None) -> None:
         """Save by pickling."""        
         if not fqfn:
             raise ValueError("fqfn must be a valid filename")
@@ -175,6 +136,24 @@ class BaseIO(IOInterface):
             fqfn += ".pickle"        
         with open(fqfn, "wb") as f:
             pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+            
+    def pickle_load(self, fqfn: str) -> Any:
+        """Load data from a pickle file."""
+        if not fqfn.endswith(".pickle"):
+            fqfn += ".pickle"            
+        if not os.path.isfile(fqfn):
+            raise FileNotFoundError(f"{fqfn} was not found")
+        with open(fqfn, "rb") as f:
+            return pickle.load(f)
+        
+    def to_csv(self, data: dict, fqfn: str = None) -> None:
+        """Save data to a CSV file."""
+        if not fqfn:
+            raise ValueError("fqfn must be a valid filename")
+        if not fqfn.endswith(".csv"):
+            fqfn += ".csv"
+        df = pd.DataFrame(data)
+        df.to_csv(fqfn)
         
     @staticmethod
     def trim_nii_dict(niid: dict, time_last: float = None) -> dict:
@@ -227,7 +206,7 @@ class RadialArteryIO(BaseIO):
     def results_fqfp(self):
         return self.fqfp + "-" + self.__class__.__name__
 
-    def load_kernel(self, fqfn: str) -> dict:
+    def kernel_load(self, fqfn: str) -> dict:
         """Load kernel measurement data."""
         if not fqfn.endswith(".nii.gz"):
             fqfn += ".nii.gz"

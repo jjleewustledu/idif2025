@@ -129,6 +129,79 @@ class DynestySolver(ABC):
         # cache results
         self.__qm, self.__ql, self.__qh = qm, ql, qh
         return qm, ql, qh
+
+
+    def results_save(self, tag: str = "", parc_index: int = 0) -> str:
+        """ Saves .nii.gz and -quantiles.csv.  Returns f.q. fileprefix. """
+        self.save_pickle(tag)
+
+        fqfp1 = self.context.io.results_fqfp 
+        if parc_index > 0:
+            fqfp1 += f"-parc{parc_index}"
+        if tag:
+            tag = f"-{tag.lstrip('-')}"
+        fqfp1 += tag
+
+        # =========== save .nii.gz ===========
+
+        ifm = self.context.data.input_func_measurement
+        A0 = np.max(ifm["img"])
+        fqfp = ifm["fqfp"]
+        nii = ifm["nii"]
+        timesMid = ifm["timesMid"]
+        taus = ifm["taus"]
+        json = ifm["json"]
+        if not np.array_equal(json["timesMid"], timesMid):
+            json["timesMid"] = timesMid.tolist()
+        if not np.array_equal(json["taus"], taus):
+            json["taus"] = taus.tolist()
+
+        resd = self.package_results(parc_index=parc_index)
+        rho_pred, rho_ideal, timesIdeal = resd["rho_pred"], resd["rho_ideal"], resd["timesIdeal"]
+
+        self.context.io.nii_save({
+            "timesMid": timesMid,
+            "taus": taus,
+            "img": A0 * rho_pred,
+            "nii": nii,
+            "fqfp": fqfp,
+            "json": json
+        }, fqfp1 + "-signal.nii.gz")
+
+        self.context.io.nii_save({
+            "times": timesIdeal,
+            "taus": np.ones(timesIdeal.shape),
+            "img": A0 * rho_ideal,
+            "nii": nii,
+            "fqfp": fqfp,
+            "json": json
+        }, fqfp1 + "-ideal.nii.gz")
+
+        product = deepcopy(ifm)
+        product["img"] = A0 * resd["rho_pred"]
+        self.context.io.nii_save(product, fqfp1 + "-rho-pred.nii.gz")
+
+        product = deepcopy(ifm)
+        product["img"] = A0 * resd["rho_ideal"]
+        self.context.io.nii_save(product, fqfp1 + "-rho-ideal.nii.gz")
+
+        for key in ["logz", "information", "qm", "ql", "qh", "resid"]:
+            product = deepcopy(ifm)
+            product["img"] = resd[key]
+            self.context.io.nii_save(product, fqfp1 + f"-{key}.nii.gz")
+
+        # =========== save .csv ===========
+
+        qm, ql, qh = self.quantile()
+        df = {
+            "label": self.labels,
+            "qm": qm,
+            "ql": ql,
+            "qh": qh}
+        df = pd.DataFrame(df)
+        df.to_csv(fqfp1 + "-quantiles.csv")
+
+        return fqfp1
     
     @abstractmethod
     def _run_nested(
@@ -160,77 +233,6 @@ class DynestySolver(ABC):
             raise AssertionError("self._dynesty_results does not exist. Run run_nested() first.")
         with open(fqfp1 + "-res.pickle", 'wb') as f:
             pickle.dump(self._dynesty_results, f, pickle.HIGHEST_PROTOCOL)
-
-
-    def save_results(self, tag: str = "", parc_index: int = 0) -> str:
-        """ saves .nii.gz and -quantiles.csv """
-        self.save_pickle(tag)
-
-        fqfp1 = self.context.io.results_fqfp 
-        if parc_index > 0:
-            fqfp1 += f"-parc{parc_index}"
-        if tag:
-            tag = f"-{tag.lstrip('-')}"
-        fqfp1 += tag
-
-        # =========== save .nii.gz ===========
-
-        ifm = self.context.data.input_func_measurement
-        A0 = np.max(ifm["img"])
-        fqfp = ifm["fqfp"]
-        nii = ifm["nii"]
-        timesMid = ifm["timesMid"]
-        taus = ifm["taus"]
-        json = ifm["json"]
-        if not np.array_equal(json["timesMid"], timesMid):
-            json["timesMid"] = timesMid.tolist()
-        if not np.array_equal(json["taus"], taus):
-            json["taus"] = taus.tolist()
-
-        resd = self.package_results(parc_index=parc_index)
-        rho_pred, rho_ideal, timesIdeal = resd["rho_pred"], resd["rho_ideal"], resd["timesIdeal"]
-
-        self.context.io.save_nii({
-            "timesMid": timesMid,
-            "taus": taus,
-            "img": A0 * rho_pred,
-            "nii": nii,
-            "fqfp": fqfp,
-            "json": json
-        }, fqfp1 + "-signal.nii.gz")
-
-        self.context.io.save_nii({
-            "times": timesIdeal,
-            "taus": np.ones(timesIdeal.shape),
-            "img": A0 * rho_ideal,
-            "nii": nii,
-            "fqfp": fqfp,
-            "json": json
-        }, fqfp1 + "-ideal.nii.gz")
-
-        product = deepcopy(ifm)
-        product["img"] = A0 * resd["rho_pred"]
-        self.context.io.save_nii(product, fqfp1 + "-rho-pred.nii.gz")
-
-        product = deepcopy(ifm)
-        product["img"] = A0 * resd["rho_ideal"]
-        self.context.io.save_nii(product, fqfp1 + "-rho-ideal.nii.gz")
-
-        for key in ["logz", "information", "qm", "ql", "qh", "resid"]:
-            product = deepcopy(ifm)
-            product["img"] = resd[key]
-            self.context.io.save_nii(product, fqfp1 + f"-{key}.nii.gz")
-
-        # =========== save .csv ===========
-
-        qm, ql, qh = self.quantile()
-        df = {
-            "label": self.labels,
-            "qm": qm,
-            "ql": ql,
-            "qh": qh}
-        df = pd.DataFrame(df)
-        df.to_csv(fqfp1 + "-quantiles.csv")
 
     @abstractmethod
     def signalmodel(self, v: np.ndarray, parc_index: int = 0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:

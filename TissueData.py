@@ -25,7 +25,7 @@ from copy import deepcopy
 
 import numpy as np
 from numpy.typing import NDArray
-
+import nibabel as nib
 from DynestyData import DynestyData
 from IOImplementations import TissueIO
 from PETUtilities import PETUtilities
@@ -36,15 +36,13 @@ class TissueData(DynestyData):
 
         assert "input_func_fqfn" in self.data_dict, "data_dict missing required key 'input_func_fqfn'"
         assert "tissue_fqfn" in self.data_dict, "data_dict missing required key 'tissue_fqfn'"
-        assert "v1_fqfn" in self.data_dict, "data_dict missing required key 'v1_fqfn'"
-        assert "ks_fqfn" in self.data_dict, "data_dict missing required key 'ks_fqfn'"
    
-        niid = self.context.io.load_nii(self.data_dict["tissue_fqfn"])
-        self.data_dict["halflife"] = niid["halflife"]
-        self.data_dict["timesMid"] = niid["timesMid"]
-        self.data_dict["taus"] = niid["taus"]
-        self.data_dict["times"] = niid["times"]
-        self.data_dict["sigma"] = 0.1
+        niid = self.nii_load(self.data_dict["tissue_fqfn"])
+        self._data_dict["halflife"] = niid["halflife"]
+        self._data_dict["timesMid"] = niid["timesMid"]
+        self._data_dict["taus"] = niid["taus"]
+        self._data_dict["times"] = niid["times"]
+        self._data_dict["sigma"] = 0.1
 
         if "sample" not in self._data_dict:
             self._data_dict["sample"] = "rslice"
@@ -118,7 +116,7 @@ class TissueData(DynestyData):
         if hasattr(self._data_dict, "input_func_measurement"):
             return deepcopy(self._data_dict["input_func_measurement"])
 
-        input_func_meas = self.load_nii(self.input_func_fqfn)
+        input_func_meas = self.nii_load(self.input_func_fqfn)
         if PETUtilities.parse_isotope(self.input_func_fqfn) == "15O":
             input_func_meas = self.decay_uncorrect(input_func_meas)
         self._data_dict["input_func_measurement"] = input_func_meas
@@ -136,19 +134,6 @@ class TissueData(DynestyData):
     @property
     def isidif(self) -> bool:
         return self.input_func_type == "Boxcar"
-    
-    @property   
-    def ks(self) -> NDArray:
-        return self.ks_measurement["img"].copy()
-
-    @property
-    def ks_measurement(self) -> dict:
-        """ adjusts for recovery coefficient if RadialArtery used """
-        if hasattr(self._data_dict, "ks_measurement"):
-            return deepcopy(self._data_dict["ks_measurement"])
-
-        self._data_dict["ks_measurement"] = self.load_nii(self._data_dict["ks_fqfn"])
-        return deepcopy(self._data_dict["ks_measurement"])
 
     @property
     def max_tissue_measurement(self) -> float:
@@ -185,7 +170,7 @@ class TissueData(DynestyData):
     
     @tag.setter
     def tag(self, tag: str):
-        self.data_dict["tag"] = tag
+        self._data_dict["tag"] = tag
 
     @property
     def taus(self) -> NDArray:
@@ -217,23 +202,16 @@ class TissueData(DynestyData):
         if hasattr(self._data_dict, "tissue_measurement"):
             return deepcopy(self._data_dict["tissue_measurement"])
 
-        tiss_meas = self.load_nii(self.tissue_fqfn)
+        tiss_meas = self.nii_load(self.tissue_fqfn)
         if PETUtilities.parse_isotope(self.tissue_fqfn) == "15O":
             tiss_meas = self.decay_uncorrect(tiss_meas)
         self._data_dict["tissue_measurement"] = tiss_meas
         return deepcopy(self._data_dict["tissue_measurement"])
-    
-    @property
-    def v1(self) -> NDArray:
-        return self.v1_measurement["img"].copy()
 
-    @property
-    def v1_measurement(self) -> dict:
-        """ adjusts for recovery coefficient if RadialArtery used """
-        if hasattr(self._data_dict, "v1_measurement"):
-            return deepcopy(self._data_dict["v1_measurement"])
+    def decay_correct(self, niid: nib.nifti1.Nifti1Image) -> nib.nifti1.Nifti1Image:
+        """ correct for decay of [15O] """
+        return PETUtilities.decay_correct(niid)
 
-        self._data_dict["v1_measurement"] = self.load_nii(self._data_dict["v1_fqfn"])
-        if self.input_func_type == "RadialArtery":
-            self._data_dict["v1_measurement"]["img"] = self._data_dict["v1_measurement"]["img"] / self.recovery_coefficient
-        return deepcopy(self._data_dict["v1_measurement"])
+    def decay_uncorrect(self, niid: nib.nifti1.Nifti1Image) -> nib.nifti1.Nifti1Image:
+        """ uncorrect for decay of [15O] """
+        return PETUtilities.decay_uncorrect(niid)

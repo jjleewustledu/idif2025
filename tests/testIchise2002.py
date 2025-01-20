@@ -20,45 +20,21 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from DynestyContext import DynestyContext
-from IOImplementations import TissueIO
-from TissueData import TissueData
-from TissueSolver import TissueSolver
-from TissuePlotting import TissuePlotting
+from __future__ import absolute_import
+import unittest
+import os
+from pprint import pprint
+from testPreliminaries import TestPreliminaries 
 
 
-class TissueContext(DynestyContext):
-    def __init__(self, data_dict: dict):
-        super().__init__()
-        self._io = TissueIO(self)
-        self._data = TissueData(self, data_dict)
-        self._solver = TissueSolver(self)
-        self._plotting = TissuePlotting(self)
-               
-    @property
-    def data(self):
-        return self._data
-    
-    @property
-    def input_func_type(self):
-        return self.data.input_func_type
-    
-    @property
-    def io(self):
-        return self._io
-        
-    @property
-    def solver(self):
-        return self._solver
-    
-    @property
-    def plotting(self):
-        return self._plotting
+class TestIchise2002(TestPreliminaries):
 
-    @property
-    def tag(self):
-        return self.data.tag
-    
-    @tag.setter
-    def tag(self, tag):
-        self._data.tag = tag
+    def setUp(self):
+        self.fail("Not implemented")
+
+    def test_something(self):
+        self.assertEqual(True, True)  # add assertion here
+
+
+if __name__ == '__main__':
+    unittest.main()

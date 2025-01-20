@@ -24,6 +24,7 @@ from __future__ import absolute_import
 from abc import ABC, abstractmethod
 import os
 import json
+from typing import Any
 import numpy as np
 import nibabel as nib
 import pandas as pd
@@ -33,17 +34,67 @@ from copy import deepcopy
 class IOInterface(ABC):
     """Abstract interface class for filesystem I/O operations."""
 
+    @property
     @abstractmethod
-    def load_nii(self, fqfn: str) -> dict:
+    def fqfp(self):
+        pass
+
+    @property
+    @abstractmethod
+    def results_fqfp(self):
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def data2taus(data: dict) -> np.ndarray:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def data2times(data: dict) -> np.ndarray:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def data2timesInterp(data: dict) -> np.ndarray:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def data2timesMid(data: dict) -> np.ndarray:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def fileparts(fqfn: str) -> tuple:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def fqfileprefix(fqfn: str) -> str:
+        pass
+
+    @abstractmethod
+    def nii_load(self, fqfn: str) -> dict:
         """Load a NIfTI file and associated metadata."""
         pass
 
     @abstractmethod
-    def save_nii(self, data: dict, fqfn: str = None):
+    def nii_save(self, data: dict, fqfn: str = None):
         """Save data to a NIfTI file and associated metadata."""
         pass
 
     @abstractmethod
-    def save_csv(self, data: dict, fqfn: str = None):
+    def pickle_dump(self, data: Any, fqfn: str | None = None) -> None:
+        """Save by pickling."""        
+        pass
+
+    @abstractmethod
+    def pickle_load(self, fqfn: str) -> Any:
+        """Load data from a pickle file."""
+        pass
+
+    @abstractmethod
+    def to_csv(self, data: dict, fqfn: str = None):
         """Save data to a CSV file."""
         pass

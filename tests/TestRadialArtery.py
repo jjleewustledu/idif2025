@@ -73,9 +73,9 @@ class TestRadialArtery(TestPreliminaries):
         # print("\n")
         # pprint(context.io.fqfp)
         # pprint(context.io.results_fqfp)
-        niid = context.io.load_kernel(self.data_dict["kernel_fqfn"])
+        niid = context.io.kernel_load(self.data_dict["kernel_fqfn"])
         self.assertEqual(niid["img"].shape, (121,))
-        niid = context.io.load_nii(self.data_dict["input_func_fqfn"])
+        niid = context.io.nii_load(self.data_dict["input_func_fqfn"])
         self.assertIn(niid["fqfp"], self.input_func_fqfn)
         self.assertEqual(niid["halflife"], 122.2416)
         self.assertEqual(niid["img"].shape, (185,))
@@ -161,7 +161,7 @@ class TestRadialArtery(TestPreliminaries):
             2.47405036e+00,  3.72795087e-02]
         np.testing.assert_allclose(qm, qm_expected, rtol=1e-4)
         
-        # context.solver.save_results()
+        # context.solver.results_save()
         # context.solver.plot_results()
 
     def test_solver_2(self):

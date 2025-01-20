@@ -41,7 +41,7 @@ class DynestyData:
         return {'data_dict': self._data_dict}
     
     def __setstate__(self, state):
-        self.data_dict = state['data_dict']
+        self._data_dict = state['data_dict']
     
     @property
     def data_dict(self) -> dict:
@@ -61,11 +61,17 @@ class DynestyData:
     def fqfileprefix(self, fqfn: str) -> str:
         return self.context.io.fqfileprefix(fqfn)
     
-    def load_nii(self, fqfn: str) -> dict:
-        return self.context.io.load_nii(fqfn)
+    def nii_load(self, fqfn: str) -> dict:
+        return self.context.io.nii_load(fqfn)
     
-    def load_pickled(self, fqfn: str) -> Any:
-        return self.context.io.load_pickled(fqfn)
+    def nii_save(self, data: dict, fqfn: str | None = None) -> None:
+        return self.context.io.nii_save(data, fqfn)
+    
+    def pickle_dump(self, data: Any, fqfn: str | None = None) -> None:
+        return self.context.io.pickle_dump(data, fqfn)
+    
+    def pickle_load(self, fqfn: str) -> Any:
+        return self.context.io.pickle_load(fqfn)
         
     def print_concise(self, data: dict, title: str = "") -> None:
         """ Print a concise representation of a data dictionary useful for debugging. """
@@ -118,12 +124,6 @@ class DynestyData:
             print(f"{label:<25} {value:>12.5f}")
         self.print_separator("Truths", closing=True)
     
-    def save_csv(self, data: dict, fqfn: str | None = None) -> None:
-        return self.context.io.save_csv(data, fqfn)
-    
-    def save_nii(self, data: dict, fqfn: str | None = None) -> None:
-        return self.context.io.save_nii(data, fqfn)
-    
-    def save_pickled(self, data: Any, fqfn: str | None = None) -> None:
-        return self.context.io.save_pickled(data, fqfn)
+    def to_csv(self, data: dict, fqfn: str | None = None) -> None:
+        return self.context.io.to_csv(data, fqfn)
     

@@ -70,7 +70,7 @@ class TestBoxcar(TestPreliminaries):
         # print("\n")
         # pprint(context.io.fqfp)
         # pprint(context.io.results_fqfp)
-        niid = context.io.load_nii(self.data_dict["input_func_fqfn"])
+        niid = context.io.nii_load(self.data_dict["input_func_fqfn"])
         self.assertIn(niid["fqfp"], self.input_func_fqfn)
         self.assertEqual(niid["halflife"], 122.2416)
         self.assertEqual(niid["img"].shape, (32,))
@@ -150,7 +150,7 @@ class TestBoxcar(TestPreliminaries):
             2.18509272e+00,  3.30312016e-02]
         np.testing.assert_allclose(qm, qm_expected, rtol=1e-4)
         
-        # context.solver.save_results()
+        # context.solver.results_save()
         # context.solver.plot_results()
 
     def test_solver_2(self):

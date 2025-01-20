@@ -114,7 +114,7 @@ class Artery(PETModel, ABC):
 
         assert os.path.isfile(self.__input_func_measurement), f"{self.__input_func_measurement} was not found."
         fqfn = self.__input_func_measurement
-        self.__input_func_measurement = self.load_nii(fqfn)
+        self.__input_func_measurement = self.nii_load(fqfn)
         return deepcopy(self.__input_func_measurement)
 
     @property
@@ -342,11 +342,11 @@ class Artery(PETModel, ABC):
         if print_progress:
             self.plot_results(_res)
         package = self.package_results(_res)        
-        self.save_results(package, tag=self.tag)
+        self.results_save(package, tag=self.tag)
         return package
 
     # noinspection DuplicatedCode
-    def save_results(self, res_dict: dict, tag=""):
+    def results_save(self, res_dict: dict, tag=""):
         """ conforms with behaviors and interfaces of TCModel.py """
 
         if not tag:
@@ -360,36 +360,36 @@ class Artery(PETModel, ABC):
 
         product = deepcopy(ifm)
         product["img"] = res_dict["logz"]
-        self.save_nii(product, fqfp1 + "-logz.nii.gz")
+        self.nii_save(product, fqfp1 + "-logz.nii.gz")
 
         product = deepcopy(ifm)
         product["img"] = res_dict["information"]
-        self.save_nii(product, fqfp1 + "-information.nii.gz")
+        self.nii_save(product, fqfp1 + "-information.nii.gz")
 
         product = deepcopy(ifm)
         product["img"] = res_dict["qm"]
-        self.save_nii(product, fqfp1 + "-qm.nii.gz")
+        self.nii_save(product, fqfp1 + "-qm.nii.gz")
 
         product = deepcopy(ifm)
         product["img"] = res_dict["ql"]
-        self.save_nii(product, fqfp1 + "-ql.nii.gz")
+        self.nii_save(product, fqfp1 + "-ql.nii.gz")
 
         product = deepcopy(ifm)
         product["img"] = res_dict["qh"]
-        self.save_nii(product, fqfp1 + "-qh.nii.gz")
+        self.nii_save(product, fqfp1 + "-qh.nii.gz")
 
         product = deepcopy(ifm)
         product["img"] = M0 * res_dict["rho_pred"]
-        self.save_nii(product, fqfp1 + "-rho-pred.nii.gz")
+        self.nii_save(product, fqfp1 + "-rho-pred.nii.gz")
 
         product = deepcopy(ifm)
         product["img"] = res_dict["resid"]
-        self.save_nii(product, fqfp1 + "-resid.nii.gz")
+        self.nii_save(product, fqfp1 + "-resid.nii.gz")
 
         with open(fqfp1 + "-res.pickle", 'wb') as f:
             pickle.dump(res_dict["res"], f, pickle.HIGHEST_PROTOCOL)
 
-        # from save_results_legacy()
+        # from results_save_legacy()
 
         fqfp = ifm["fqfp"]
         nii = ifm["nii"]
@@ -404,7 +404,7 @@ class Artery(PETModel, ABC):
         if not np.array_equal(json["taus"], taus):
             json["taus"] = taus.tolist()
 
-        self.save_nii(
+        self.nii_save(
             {"timesMid": timesMid, 
              "taus": taus, 
              "img": M0 * rho_pred, 
@@ -413,7 +413,7 @@ class Artery(PETModel, ABC):
              "json": json},
             fqfp1 + "-signal.nii.gz")
 
-        self.save_nii(
+        self.nii_save(
             {"times": t_ideal, 
              "taus": np.ones(t_ideal.shape), 
              "img": M0 * rho_ideal, 

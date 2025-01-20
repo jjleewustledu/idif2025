@@ -84,7 +84,7 @@ class TrivialArtery(PETModel, ABC):
 
         assert os.path.isfile(self.__input_func_measurement), f"{self.__input_func_measurement} was not found."
         fqfn = self.__input_func_measurement
-        self.__input_func_measurement = self.load_nii(fqfn)
+        self.__input_func_measurement = self.nii_load(fqfn)
         return deepcopy(self.__input_func_measurement)
 
     @property
@@ -111,14 +111,14 @@ class TrivialArtery(PETModel, ABC):
     def plot_variations(self, tindex0, tmin, tmax, truths):
         pass
 
-    def run_nested(self, checkpoint_file):
-        pass
-
-    def save_results(self, res, tag):
-        pass
-
     @staticmethod
     def prior_transform(tag):
+        pass
+
+    def results_save(self, res, tag):
+        pass
+
+    def run_nested(self, checkpoint_file):
         pass
 
     @staticmethod

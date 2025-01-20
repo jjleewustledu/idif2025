@@ -230,6 +230,6 @@ if __name__ == '__main__':
         "martinv1": np.array(martinv1s),
         "raichleks": stacked_raichlekss}
 
-    packages[0]["tcm"].save_results(package1, tag=the_tag(Nlive, tag_vrc=f"vrc{vrc}"))
+    packages[0]["tcm"].results_save(package1, tag=the_tag(Nlive, tag_vrc=f"vrc{vrc}"))
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

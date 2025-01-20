@@ -116,9 +116,9 @@ class TissueModel(PETModel, ABC):
         assert os.path.isfile(self._pet_measurement), f"{self._pet_measurement} was not found."
         fqfn = self._pet_measurement
         if self.parse_isotope(fqfn) == "15O":
-            self._pet_measurement = self.decay_uncorrect(self.load_nii(fqfn))
+            self._pet_measurement = self.decay_uncorrect(self.nii_load(fqfn))
         else:
-            self._pet_measurement = self.load_nii(fqfn)
+            self._pet_measurement = self.nii_load(fqfn)
         return deepcopy(self._pet_measurement)
 
     @property
@@ -284,7 +284,7 @@ class TissueModel(PETModel, ABC):
         return package
 
     # noinspection DuplicatedCode
-    def save_results(self, res_dict: dict, tag=""):
+    def results_save(self, res_dict: dict, tag=""):
         """  """
 
         if tag and "-" not in tag:
@@ -299,23 +299,23 @@ class TissueModel(PETModel, ABC):
 
         product = deepcopy(apetm)
         product["img"] = res_dict["logz"]
-        self.save_nii(product, fqfp1 + "-logz.nii.gz")
+        self.nii_save(product, fqfp1 + "-logz.nii.gz")
 
         product = deepcopy(apetm)
         product["img"] = res_dict["information"]
-        self.save_nii(product, fqfp1 + "-information.nii.gz")
+        self.nii_save(product, fqfp1 + "-information.nii.gz")
 
         product = deepcopy(apetm)
         product["img"] = res_dict["qm"]
-        self.save_nii(product, fqfp1 + "-qm.nii.gz")
+        self.nii_save(product, fqfp1 + "-qm.nii.gz")
 
         product = deepcopy(apetm)
         product["img"] = res_dict["ql"]
-        self.save_nii(product, fqfp1 + "-ql.nii.gz")
+        self.nii_save(product, fqfp1 + "-ql.nii.gz")
 
         product = deepcopy(apetm)
         product["img"] = res_dict["qh"]
-        self.save_nii(product, fqfp1 + "-qh.nii.gz")
+        self.nii_save(product, fqfp1 + "-qh.nii.gz")
 
         try:
             # historically prone to fail
@@ -323,12 +323,12 @@ class TissueModel(PETModel, ABC):
             if not TissueModel.is_sequence(res_dict["rho_pred"]):
                 product = deepcopy(apetm)
                 product["img"] = M0 * res_dict["rho_pred"]
-                self.save_nii(product, fqfp1 + "-rho-pred.nii.gz")
+                self.nii_save(product, fqfp1 + "-rho-pred.nii.gz")
 
             if not TissueModel.is_sequence(res_dict["resid"]):
                 product = deepcopy(apetm)
                 product["img"] = res_dict["resid"]
-                self.save_nii(product, fqfp1 + "-resid.nii.gz")
+                self.nii_save(product, fqfp1 + "-resid.nii.gz")
         except Exception as e:
             # catch any error to enable graceful exit while sequentially writing NIfTI files
-            print(f"{TissueModel.save_results.__name__}: caught Exception {e}, but proceeding", file=sys.stderr)
+            print(f"{TissueModel.results_save.__name__}: caught Exception {e}, but proceeding", file=sys.stderr)

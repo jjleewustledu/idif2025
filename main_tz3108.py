@@ -160,6 +160,6 @@ if __name__ == '__main__':
         "rho_pred": rhos_pred,
         "resid": np.array(resids)}
 
-    packages[0]["tcm"].save_results(package1, tag=the_tag(Nlive, tag_model=model))
+    packages[0]["tcm"].results_save(package1, tag=the_tag(Nlive, tag_model=model))
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

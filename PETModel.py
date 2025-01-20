@@ -71,8 +71,8 @@ class PETModel(DynestyModel, ABC):
     def decay_uncorrect(tac: dict):
         return PETUtilities.decay_uncorrect(tac)
 
-    def load_nii(self, fqfn):
-        return self.io.load_nii(fqfn)
+    def nii_load(self, fqfn):
+        return self.io.nii_load(fqfn)
 
     @staticmethod
     def parse_halflife(fqfp: str):
@@ -101,13 +101,12 @@ class PETModel(DynestyModel, ABC):
         except IndexError as e:
             raise IndexError(f"Unable to index rhos array of shape {self.rhos.shape} with index {pos_idx}") from e
     
-    def save_csv(self, data: dict, fqfn=None):
-        self.io.save_csv(data, fqfn)
-
-    def save_nii(self, data: dict, fqfn=None):
-        self.io.save_nii(data, fqfn)
+    def nii_save(self, data: dict, fqfn=None):
+        self.io.nii_save(data, fqfn)
 
     @staticmethod
     def slide(rho, t, dt, halflife=None):
         return PETUtilities.slide(rho, t, dt, halflife)
     
+    def to_csv(self, data: dict, fqfn=None):
+        self.io.to_csv(data, fqfn)

@@ -69,7 +69,7 @@ class TCModel(TissueModel, ABC):
             to_glob = subject_path + "/**/*-ParcSchaeffer-reshape-to-schaeffer-schaeffer-twilite_martinv1.nii.gz"
             matches = glob.glob(to_glob, recursive=True)
             if matches and matches[0]:
-                self.__martin_v1_measurement = self.load_nii(matches[0])
+                self.__martin_v1_measurement = self.nii_load(matches[0])
                 return self.__martin_v1_measurement
             else:
                 warnings.warn(
@@ -83,7 +83,7 @@ class TCModel(TissueModel, ABC):
         to_glob = subject_path + "/**/*-ParcSchaeffer-reshape-to-schaeffer-schaeffer-idif_martinv1.nii.gz"
         matches = glob.glob(to_glob, recursive=True)
         if matches and matches[0]:
-            self.__martin_v1_measurement = self.load_nii(matches[0])
+            self.__martin_v1_measurement = self.nii_load(matches[0])
             self.__martin_v1_measurement["img"] = self.__martin_v1_measurement["img"] / self.RECOVERY_COEFFICIENT  # v1 has input func. in denom.
             return self.__martin_v1_measurement
 
@@ -110,7 +110,7 @@ class TCModel(TissueModel, ABC):
                        f"/**/*-createNiftiMovingAvgFrames-schaeffer-Raichle1983Artery-{self.tag}-qm.nii.gz")
             matches = glob.glob(to_glob, recursive=True)
             if matches and matches[0]:
-                self.__raichle_ks_measurement = self.load_nii(matches[0])
+                self.__raichle_ks_measurement = self.nii_load(matches[0])
                 return self.__raichle_ks_measurement
             else:
                 warnings.warn(
@@ -124,7 +124,7 @@ class TCModel(TissueModel, ABC):
         to_glob = subject_path + f"/**/*-createNiftiMovingAvgFrames-schaeffer-Raichle1983Boxcar-{self.tag}-qm.nii.gz"
         matches = glob.glob(to_glob, recursive=True)
         if matches and matches[0]:
-            self.__raichle_ks_measurement = self.load_nii(matches[0])
+            self.__raichle_ks_measurement = self.nii_load(matches[0])
             return self.__raichle_ks_measurement
 
         # data not available
@@ -343,7 +343,7 @@ class TCModel(TissueModel, ABC):
         else:
             raise RuntimeError(self.__class__.__name__ + ": self.rhos.ndim -> " + self.rhos.ndim)
 
-        self.save_results(package, tag=self.tag)
+        self.results_save(package, tag=self.tag)
         return package
 
     def run_nested_for_indexed_tac(self, tidx: int, checkpoint_file=None, print_progress=False, resume=False):

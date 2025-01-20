@@ -158,11 +158,14 @@ class TZ3108:
     def input_function(self):
         return self._strategy.adjusted_input_function()
 
-    def load_nii(self, fqfn):
-        return self._strategy.load_nii(fqfn)
-
     def loglike(self, v):
         return self._strategy.loglike(v)
+
+    def nii_load(self, fqfn):
+        return self._strategy.nii_load(fqfn)
+
+    def nii_save(self, *args, **kwargs):
+        return self._strategy.nii_save(*args, **kwargs)
 
     def parse_halflife(self, fqfp):
         return self._strategy.parse_halflife(fqfp)
@@ -188,17 +191,14 @@ class TZ3108:
     def run_nested_for_indexed_tac(self, *args, **kwargs):
         return self._strategy.run_nested_for_indexed_tac(*args, **kwargs)
 
-    def save_csv(self, *args, **kwargs):
-        return self._strategy.save_csv(*args, **kwargs)
-
-    def save_nii(self, *args, **kwargs):
-        return self._strategy.save_nii(*args, **kwargs)
-
     def save_res_dict(self, *args, **kwargs):
         return self._strategy.pickle_results(*args, **kwargs)
 
-    def save_results(self, *args, **kwargs):
-        return self._strategy.save_results(*args, **kwargs)
+    def results_save(self, *args, **kwargs):
+        return self._strategy.results_save(*args, **kwargs)
 
     def signalmodel(self, *args, **kwargs):
         return self._strategy.signalmodel(*args, **kwargs)
+
+    def to_csv(self, *args, **kwargs):
+        return self._strategy.to_csv(*args, **kwargs)

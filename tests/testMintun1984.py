@@ -228,8 +228,8 @@ class TestMintun1984(TestPreliminaries):
         
         qm, _, _ = context.solver.quantile(verbose=True)
         qm_expected = [
-            2.448700e-01,  1.273792e+00,  6.570719e-01,  1.008356e+01,
-            -3.026665e+01,  1.734506e+01,  1.710380e-02]
+            1.985349e-01,  1.312814e+00,  6.938544e-01,  1.002025e+01,
+            -2.462598e+00,  1.756070e+01,  1.724979e-02]
         np.testing.assert_allclose(qm, qm_expected, rtol=1e-4)
 
 if __name__ == '__main__':

@@ -38,16 +38,16 @@ def prior_transform(
     sigma: float
 ) -> np.ndarray:
         v = u
-        v[0] = u[0] * 0.8 + 0.1  # OEF
-        v[1] = u[1] * 1.8 + 0.1  # frac. water of metab. at 90 s
-        v[2] = u[2] * 0.9 + 0.1  # {v_{post} + 0.5 v_{cap}} / v_1
+        v[0] = u[0] * 0.9 + 0.1  # OEF
+        v[1] = u[1] * 1.5 + 0.5  # frac. water of metab. at 90 s
+        v[2] = u[2] * 0.95 + 0.05  # {v_{post} + 0.5 v_{cap}} / v_1
         v[3] = u[3] * 20  # t_0 (s)
-        v[4] = u[4] * (-60)  # \tau_a (s)
+        v[4] = u[4] * (-5)  # \tau_a (s)
         v[5] = u[5] * 20  # \tau_d (s)
         v[6] = u[6] * sigma  # sigma ~ fraction of A0
         return v
 
-# @jit(nopython=True)
+@jit(nopython=True)
 def loglike(
     v: np.ndarray,
     rho: np.ndarray,
@@ -66,7 +66,7 @@ def loglike(
         loglike = -1e300
     return loglike
 
-# @jit(nopython=True)
+@jit(nopython=True)
 def signalmodel(
     v: np.ndarray,
     timesMid: np.ndarray,
@@ -94,6 +94,16 @@ def signalmodel(
 
         n_times = rho_input_func_interp.shape[0]
         timesIdeal = np.arange(0, n_times)
+        
+        # delmit tau_a
+
+        # Find indices where input function exceeds 5% of max
+        indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))        
+        # Handle case where no values exceed threshold
+        if len(indices[0]) == 0:
+            idx_a = 1  # Default to 1 if no values exceed threshold
+        else:
+            idx_a = max(indices[0][0], 1)  # Take first index but ensure >= 1
 
         # disperse input function, compatible with numba
 
@@ -114,17 +124,22 @@ def signalmodel(
         if not isidif:
             # slide input function to left, with decay adjustments, 
             # since its measurements is delayed by radial artery cannulation
-            rho_input_func_interp = slide(rho_input_func_interp, timesIdeal, tau_a, HL)
+            rho_input_func_interp = slide(
+                rho_input_func_interp, 
+                timesIdeal, 
+                -timesIdeal[idx_a] + tau_a, 
+                HL)
 
         # estimate shape of water of metabolism
 
         # Find indices where input function exceeds 5% of max
-        indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))        
+        # indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))        
         # Handle case where no values exceed threshold
-        if len(indices[0]) == 0:
-            idx0 = 1  # Default to 1 if no values exceed threshold
-        else:
-            idx0 = max(indices[0][0], 1)  # Take first index but ensure >= 1
+        # if len(indices[0]) == 0:
+        #     idx0 = 1  # Default to 1 if no values exceed threshold
+        # else:
+        #     idx0 = max(indices[0][0], 1)  # Take first index but ensure >= 1
+        idx0 = 1
         idxU = min([idx0 + 90, n_times - 1])  # time of eval of magnitude of water of metab; cf. Mintun1984
         shape = np.zeros(n_times)
         n_times_1 = n_times - idx0 + 1

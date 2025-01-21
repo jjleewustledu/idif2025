@@ -45,7 +45,7 @@ class LineModel(TCModel):
     def signalmodel(data: dict, verbose=False):
 
         timesMid = data["timesMid"]
-        input_func_interp = data["inputFuncInterp"]
+        input_func_interp = data["rhoInputFuncInterp"]
         v = data["v"]
 
         intercept = v[0]

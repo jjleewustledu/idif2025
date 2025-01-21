@@ -68,7 +68,7 @@ class Huang1980Model(TCModel):
     def signalmodel(data: dict, verbose=False):
 
         timesMid = data["timesMid"]
-        input_func_interp = data["inputFuncInterp"]
+        input_func_interp = data["rhoInputFuncInterp"]
         v1 = data["martinv1"]
         v = data["v"]
 

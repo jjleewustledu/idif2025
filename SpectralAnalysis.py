@@ -92,7 +92,7 @@ class SpectralAnalysis(TissueModel):
     def signalmodel(data: dict, verbose=False):
         M = SpectralAnalysis.M
         timesMid = data["timesMid"]
-        input_func_interp = data["inputFuncInterp"]
+        input_func_interp = data["rhoInputFuncInterp"]
         input_func_interp1 = np.append(input_func_interp, input_func_interp[-1])
         v = data["v"]
         a = np.zeros(M)

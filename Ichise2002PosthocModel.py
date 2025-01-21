@@ -76,7 +76,7 @@ class Ichise2002PosthocModel(TCModel):
 
         rho = data["rho"]
         timesMid = data["timesMid"]
-        input_func_interp = data["inputFuncInterp"]
+        input_func_interp = data["rhoInputFuncInterp"]
         v = data["v"]
         n = len(input_func_interp)
         tf_interp = n * data["delta_time"]

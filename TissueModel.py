@@ -58,8 +58,8 @@ rcParams.update({"font.size": 30})
 
 
 class TissueModel(PETModel, ABC):
-    """
-    """
+    """ Requires all incoming PET and input function data to be decay corrected,
+        and immediately decay uncorrects [15O] data on loading so that kinetics and decays will commute. """
 
     def __init__(self,
                  input_function,
@@ -75,25 +75,25 @@ class TissueModel(PETModel, ABC):
         self._parc_index = parc_index
         self._truths_internal = truths
 
-        # use adjusted_pet_measurement()
-        apetm = self.adjusted_pet_measurement
+        # use pet_measurement()
+        apetm = self.pet_measurement
         self.RHOS = apetm["img"] / np.max(apetm["img"])
         self.RHO = PETUtilities.slice_parc(self.RHOS, 0)
         self.TAUS = apetm["taus"]
         self.TIMES_MID = apetm["timesMid"]
 
-        # use adjusted_input_function()
+        # use input_function()
         self.RECOVERY_COEFFICIENT = recovery_coefficient
         self.ARTERY = None
-        self.DELTA_TIME = np.round(delta_time)  # required by adjusted_input_function()
+        self.DELTA_TIME = np.round(delta_time)  # required by input_function()
 
-        aif = self.adjusted_input_function()
-        self.INPUTF_INTERP = aif["img"] / np.max(apetm["img"])
+        aif = self.input_function()
+        self.RHO_INPUTF_INTERP = aif["img"] / np.max(apetm["img"])
         self.HALFLIFE = aif["halflife"]
 
     @property
     def fqfp(self):
-        return self.adjusted_pet_measurement["fqfp"]
+        return self.pet_measurement["fqfp"]
 
     @property
     def results_fqfp(self):
@@ -109,7 +109,7 @@ class TissueModel(PETModel, ABC):
         return len(self.labels)
 
     @property
-    def adjusted_pet_measurement(self):
+    def pet_measurement(self):
         if isinstance(self._pet_measurement, dict):
             return deepcopy(self._pet_measurement)
 
@@ -125,7 +125,7 @@ class TissueModel(PETModel, ABC):
     def truths(self):
         return self._truths_internal.copy()
 
-    def adjusted_input_function(self):
+    def input_function(self):
         """input function read from filesystem, never updated during dynesty operations"""
 
         if isinstance(self._input_function, dict):
@@ -161,7 +161,7 @@ class TissueModel(PETModel, ABC):
             niid["img"] = self.RECOVERY_COEFFICIENT * niid["img"]
 
         # interpolate to timing domain of pet_measurements
-        petm = self.adjusted_pet_measurement
+        petm = self.pet_measurement
         self._input_function = PETUtilities.interpdata(niid, petm)
         return deepcopy(self._input_function)
 
@@ -194,35 +194,54 @@ class TissueModel(PETModel, ABC):
     def plot_truths(self, truths=None, parc_index=None, activity_units="kBq/mL"):
         if truths is None:
             truths = self.truths
-        data = self.data(truths)
-        rho_pred, t_pred, _, _ = self.signalmodel(data)
 
-        petm = self.adjusted_pet_measurement
-        t_petm = petm["timesMid"]
+        # PET measurement
+        petm = self.pet_measurement
         if parc_index:
-            petm_hat = petm["img"][parc_index]
+            A_tiss = petm["img"][parc_index]
         else:
             # evaluates mean of petm["img"] for spatial dimensions only
             selected_axes = tuple(np.arange(petm["img"].ndim - 1))
-            petm_hat = np.median(petm["img"], axis=selected_axes)
-        M0 = np.max(petm["img"])
+            A_tiss = np.median(petm["img"], axis=selected_axes)
+        t_tiss = petm["timesMid"]
 
-        inputf = self.adjusted_input_function()
-        t_inputf = inputf["timesMid"]
-        inputf_hat = inputf["img"]
-        I0 = M0 / np.max(inputf_hat)
+        # signal model
+        data = self.data(truths)
+        rho_pred, t_pred, _, _ = self.signalmodel(data)
+        
+        # input function prediction
+        ifm = self.input_function()
+        A_if = ifm["img"]
+        t_if = ifm["timesMid"]
 
-        scaling = 0.001 if activity_units.startswith("k") else 1
+        # scalings
+        A0 = np.max(petm["img"])
+        if_scaling = A0 / np.max(A_if)
+        if activity_units.startswith("k"):
+            yscaling = 0.001
+        elif activity_units.startswith("M"):
+            yscaling = 1e-6
+        else:
+            yscaling = 1
+        xwidth = np.max((t_tiss[-1], t_if[-1]))
 
-        plt.figure(figsize=(12, 8))
-        p1, = plt.plot(t_inputf, scaling * I0 * inputf_hat, color="black", linewidth=2, alpha=0.7,
-                       label=f"input function x {I0:.3}")
-        p2, = plt.plot(t_petm, scaling * petm_hat, color="black", marker="+", ls="none", alpha=0.9, markersize=16,
-                       label=f"measured TAC, parcel {parc_index}")
-        p3, = plt.plot(t_pred, scaling * M0 * rho_pred, marker="o", color="red", ls="none", alpha=0.8,
-                       label=f"predicted TAC, parcel {parc_index}")
-        width = np.max((np.max(t_petm), np.max(t_inputf)))
-        plt.xlim((-0.1 * width, 1.1 * width))
+        plt.figure(figsize=(12, 0.618*12))
+        p2, = plt.plot(
+            t_tiss, 
+            yscaling * A_tiss, 
+            color="black", marker="+", ls="none", alpha=0.9, markersize=16,
+            label=f"measured TAC, parcel {parc_index}")
+        p3, = plt.plot(
+            t_pred, 
+            yscaling * A0 * rho_pred, 
+            marker="o", color="red", ls="none", alpha=0.8, markersize=6,
+            label=f"predicted TAC, parcel {parc_index}")
+        p1, = plt.plot(
+            t_if, 
+            yscaling * if_scaling * A_if, 
+            color="dodgerblue", linewidth=3, alpha=0.7,
+            label=f"input function x {if_scaling:.3}")
+        plt.xlim((-0.1 * xwidth, 1.1 * xwidth))
         plt.xlabel("time of mid-frame (s)")
         plt.ylabel(f"activity ({activity_units})")
         plt.legend(handles=[p1, p2, p3], loc="right", fontsize=12)
@@ -294,7 +313,7 @@ class TissueModel(PETModel, ABC):
         with open(fqfp1 + "-res.pickle", 'wb') as f:
             pickle.dump(res_dict["res"], f, pickle.HIGHEST_PROTOCOL)
 
-        apetm = self.adjusted_pet_measurement
+        apetm = self.pet_measurement
         M0 = np.max(apetm["img"])
 
         product = deepcopy(apetm)

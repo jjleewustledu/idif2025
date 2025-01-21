@@ -25,13 +25,17 @@ from __future__ import absolute_import
 import unittest 
 import os
 from pprint import pprint
+
 import nibabel as nib
+import numpy as np
+import dynesty.utils as dyutils
+
+from testPreliminaries import TestPreliminaries 
 from IOImplementations import TissueIO
 from Mintun1984Context import Mintun1984Context
 from Mintun1984Data import Mintun1984Data
 from Mintun1984Solver import Mintun1984Solver
 from TissuePlotting import TissuePlotting
-from testPreliminaries import TestPreliminaries 
 
 
 class TestMintun1984(TestPreliminaries):
@@ -60,6 +64,7 @@ class TestMintun1984(TestPreliminaries):
             "ks_fqfn": ks_idif,
         }
         self.data_dict_twil = {
+            "kernel_fqfn": kern,
             "input_func_fqfn": twil,
             "tissue_fqfn": pet,
             "v1_fqfn": v1_twil,
@@ -182,25 +187,50 @@ class TestMintun1984(TestPreliminaries):
         # self.assertEqual(context.data.data_dict["timesMid"].shape, (32,))        
         context.data.print_concise(context.data.data_dict, "context.data_dict")
         # context.data.print_data()
+
+        aifm = context.data.rho_input_func_measurement
+        self.assertIn(aifm["fqfp"], self.data_dict_idif["input_func_fqfn"])
+        self.assertEqual(aifm["img"].shape, (90,))
+        self.assertAlmostEqual(np.max(aifm["img"]), 17.652565145242843, places=6)
+
+        atm = context.data.rho_tissue_measurement
+        self.assertIn(atm["fqfp"], self.data_dict_idif["tissue_fqfn"])
+        self.assertEqual(atm["img"].shape, (309,32))
+        self.assertAlmostEqual(np.max(atm["img"]), 1.0, places=6)
+
+        ifm = context.data.input_func_measurement
+        self.assertIn(ifm["fqfp"], self.data_dict_idif["input_func_fqfn"])
+        self.assertEqual(ifm["img"].shape, (90,))
+
+        self.assertEqual(context.data.input_func_type, "Boxcar")
+        self.assertTrue(context.data.isidif)
+        self.assertAlmostEqual(context.data.max_tissue_measurement, 53984.688610472745, places=12)
+        self.assertAlmostEqual(context.data.recovery_coefficient, 1.85, places=2)
+        self.assertAlmostEqual(context.data.rho.max(), 1.0, places=6)
         
         v1 = context.data.v1_measurement
         self.assertIn(v1["fqfp"], self.data_dict_idif["v1_fqfn"])
         self.assertEqual(v1["img"].shape, (309,))
         
+        tm = context.data.tissue_measurement
+        self.assertIn(tm["fqfp"], self.data_dict_idif["tissue_fqfn"])
+        self.assertEqual(tm["img"].shape, (309,32))
+        
         ks = context.data.ks_measurement
         self.assertIn(ks["fqfp"], self.data_dict_idif["ks_fqfn"])
         self.assertEqual(ks["img"].shape, (309,6))
 
-        ifm = context.data.input_func_measurement
-        self.assertIn(ifm["fqfp"], self.data_dict_idif["input_func_fqfn"])
-        self.assertEqual(ifm["img"].shape, (90,))
-        
-        tm = context.data.tissue_measurement
-        self.assertIn(tm["fqfp"], self.data_dict_idif["tissue_fqfn"])
-        self.assertEqual(tm["img"].shape, (309,32))
-
     def test_solver(self):
-        self.fail("Not implemented")
+        context = Mintun1984Context(self.data_dict_idif)
+        res = context.solver.run_nested(print_progress=True, parc_index=25)
+        self.assertIsInstance(res, dyutils.Results)
+        self.assertIs(res, context.solver.dynesty_results)
+        
+        qm, _, _ = context.solver.quantile(verbose=True)
+        qm_expected = [
+            2.448700e-01,  1.273792e+00,  6.570719e-01,  1.008356e+01,
+            -3.026665e+01,  1.734506e+01,  1.710380e-02]
+        np.testing.assert_allclose(qm, qm_expected, rtol=1e-4)
 
 if __name__ == '__main__':
     unittest.main()

@@ -49,7 +49,7 @@ class Mintun1984Model(TCModel):
                 data (dict): A dictionary containing the following keys and values:
                     - "halflife" (float): The radioactive isotope's half-life.
                     - "timesMid" (np.ndarray): The mid-point times of the PET measurements.
-                    - "inputFuncInterp" (np.ndarray): The interpolated input function data.
+                    - "rhoInputFuncInterp" (np.ndarray): The interpolated input function data.
                     - "raichleks" (np.ndarray): The Raichle-Kety parameters.
                     - "martinv1" (float): The Martin arterial volume parameter.
                     - "v" (np.ndarray): The model parameter values.
@@ -71,17 +71,20 @@ class Mintun1984Model(TCModel):
             r"OEF", r"$f_{H_2O}$", r"$v_p + 0.5 v_c$", r"$t_0$", r"$\tau_a$", r"$\tau_d$", r"$\sigma$"]
 
     @staticmethod
-    def signalmodel(data: dict):
+    def signalmodel(data: dict):      
 
         hl = data["halflife"]
+        ALPHA = np.log(2) / hl
+        DENSITY_PLASMA = 1.03
+        DENSITY_BLOOD = 1.06
         timesMid = data["timesMid"]
-        input_func_interp = data["inputFuncInterp"]
+        input_func_interp = data["rhoInputFuncInterp"]
         raichleks = data["raichleks"]
         v1 = data["martinv1"]
         v = data["v"]
 
         oef = v[0]
-        f_h2o = v[1]
+        f_h2o = v[1] * DENSITY_PLASMA / DENSITY_BLOOD
         v_post_cap = v[2]
         t_0 = v[3]
         tau_a = v[4]
@@ -96,24 +99,20 @@ class Mintun1984Model(TCModel):
             lamb = raichleks[:, 1]
             PS = raichleks[:, 2]
         else:
-            raise RuntimeError(Mintun1984Model.signalmodel.__name__+": raichleks.ndim->"+raichleks.ndim)        
-
-        ALPHA = np.log(2) / hl
-        DENSITY_PLASMA = 1.03
-        DENSITY_BLOOD = 1.06
+            raise RuntimeError(Mintun1984Model.signalmodel.__name__+": raichleks.ndim->"+raichleks.ndim)  
 
         n = max(input_func_interp.shape)
-        times = np.arange(0, n)
+        timesIdeal = np.arange(0, n)
 
         # dispersion of input function
 
-        dispersion = np.exp(-times / tau_dispersion)
+        dispersion = np.exp(-timesIdeal / tau_dispersion)
         z_dispersion = np.sum(dispersion)
         input_func_interp = np.convolve(input_func_interp, dispersion, mode="full")
         input_func_interp = input_func_interp[:n] / z_dispersion
         if not data["rho_experiences_boxcar"]:
             # slide input function to left since its measurements is delayed by catheters
-            input_func_interp = Mintun1984Model.slide(input_func_interp, times, tau_a, hl)
+            input_func_interp = Mintun1984Model.slide(input_func_interp, timesIdeal, tau_a, hl)
 
         # estimate shape of water of metabolism
 
@@ -130,16 +129,14 @@ class Mintun1984Model(TCModel):
         except ZeroDivisionError:
             y = 1
         shape[-n1:] = np.linspace(0, y, n1)  # shape(idxU) == 1
-        duc_times = np.zeros(n)
-        duc_times[idx0:] = np.linspace(0, n1 - 2, n1 - 1)
-        duc_shape = shape * np.power(2, -(duc_times - idxU + 1) / hl)  # decay-uncorrected
+        timesDuc = np.zeros(n)
+        timesDuc[idx0:] = np.linspace(0, n1 - 2, n1 - 1)
+        shape_duc = shape * np.power(2, -(timesDuc - idxU + 1) / hl)  # decay-uncorrected
 
         # set scale of artery_h2o
         # activity of water of metab \approx activity of oxygen after 90 sec
 
-        metab_scale = f_h2o * input_func_interp[idxU]
-        metab_scale = metab_scale * DENSITY_PLASMA / DENSITY_BLOOD
-        artery_h2o = metab_scale * duc_shape
+        artery_h2o = f_h2o * input_func_interp[idxU] * shape_duc
 
         # compartment 2, using m, f, lamb
 
@@ -147,9 +144,9 @@ class Mintun1984Model(TCModel):
         artery_o2[artery_o2 < 0] = 0
 
         m = 1 - np.exp(-PS / f)
-        kernel = np.exp(-m * f * times / lamb - ALPHA * times)
-        rho2 = (m * f * np.convolve(kernel, artery_h2o, mode="full") +
-                oef * m * f * np.convolve(kernel, artery_o2, mode="full"))
+        propagator = np.exp(-m * f * timesIdeal / lamb - ALPHA * timesIdeal)
+        rho2 = (m * f * np.convolve(propagator, artery_h2o, mode="full") +
+                oef * m * f * np.convolve(propagator, artery_o2, mode="full"))
 
         # compartment 1
         # v_post = 0.83*v1
@@ -160,10 +157,10 @@ class Mintun1984Model(TCModel):
 
         # package compartments
 
-        rho_t = rho1[:n] + rho2[:n]
+        rho_ideal = rho1[:n] + rho2[:n]
         if not data["rho_experiences_boxcar"]:
-            rho_t = Mintun1984Model.slide(rho_t, times, t_0, hl)
-            rho = np.interp(timesMid, times, rho_t)
+            rho_ideal = Mintun1984Model.slide(rho_ideal, timesIdeal, t_0, hl)
+            rho = np.interp(timesMid, timesIdeal, rho_ideal)
         else:
-            rho = Boxcar.apply_boxcar(rho_t, data)
-        return rho, timesMid, rho_t, times
+            rho = Boxcar.apply_boxcar(rho_ideal, data)
+        return rho, timesMid, rho_ideal, timesIdeal

@@ -248,7 +248,7 @@ class TissueIO(BaseIO):
 
     @property
     def fqfp(self):
-        return self.context.data.adjusted_tissue_measurement["fqfp"]
+        return self.context.data.rho_tissue_measurement["fqfp"]
 
     @property
     def results_fqfp(self):

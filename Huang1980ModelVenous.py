@@ -68,7 +68,7 @@ class Huang1980ModelVenous(TCModel):
     def signalmodel(data: dict):
 
         timesMid = data["timesMid"]
-        input_func_interp = data["inputFuncInterp"]
+        input_func_interp = data["rhoInputFuncInterp"]
         v1 = data["martinv1"]
         v = data["v"]
 

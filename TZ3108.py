@@ -138,7 +138,7 @@ class TZ3108:
 
     @property
     def pet_measurement(self):
-        return self._strategy.adjusted_pet_measurement
+        return self._strategy.pet_measurement
 
     @property
     def sigma(self):
@@ -156,7 +156,7 @@ class TZ3108:
         return self._strategy.data(v)
 
     def input_function(self):
-        return self._strategy.adjusted_input_function()
+        return self._strategy.input_function()
 
     def loglike(self, v):
         return self._strategy.loglike(v)

@@ -31,6 +31,8 @@ from IOImplementations import TissueIO
 from PETUtilities import PETUtilities
 
 class TissueData(DynestyData):
+    """ Requires all incoming PET and input function data to be decay corrected,
+        and immediately decay uncorrects [15O] data on loading so that kinetics and decays will commute. """
     def __init__(self, context, data_dict: dict = {}):
         super().__init__(context, data_dict)
 
@@ -58,40 +60,6 @@ class TissueData(DynestyData):
             self._data_dict["delta_time"] = 1
 
     @property
-    def adjusted_input_func_measurement(self) -> dict:
-        if hasattr(self._data_dict, "adjusted_input_func_measurement"):
-            return deepcopy(self._data_dict["adjusted_input_func_measurement"])
-
-        # normalize to max tissue measurement
-        adj_input_func_meas = self.input_func_measurement
-        adj_input_func_meas["img"] = adj_input_func_meas["img"] / self.max_tissue_measurement
-        
-        # apply recovery coefficient to Boxcar
-        if self.input_func_type == "Boxcar":
-            adj_input_func_meas["img"] = \
-                adj_input_func_meas["img"] * self.recovery_coefficient
-
-        # interpolate to tissue times
-        adj_input_func_meas = PETUtilities.interpdata(
-            data=adj_input_func_meas,
-            ref=self.__adjusted_tissue_measurement)
-
-        self._data_dict["adjusted_input_func_measurement"] = adj_input_func_meas
-        return deepcopy(self._data_dict["adjusted_input_func_measurement"])
-    
-    @property
-    def adjusted_tissue_measurement(self) -> dict:
-        if hasattr(self._data_dict, "adjusted_tissue_measurement"):
-            return deepcopy(self._data_dict["adjusted_tissue_measurement"])
-
-        # normalize to max tissue measurement
-        adj_tiss_meas = self.tissue_measurement
-        adj_tiss_meas["img"] = adj_tiss_meas["img"] / self.max_tissue_measurement
-        
-        self._data_dict["adjusted_tissue_measurement"] = adj_tiss_meas
-        return deepcopy(self._data_dict["adjusted_tissue_measurement"])
-
-    @property
     def delta_time(self) -> float:
         return self.data_dict["delta_time"]
 
@@ -105,14 +73,16 @@ class TissueData(DynestyData):
 
     @property
     def input_func_interp(self) -> NDArray:
+        """ interpolated to 1-sec times, timesMid """
         ifm = PETUtilities.interpdata(
             data=self.input_func_measurement,
-            ref=self.adjusted_tissue_measurement)
+            ref=self.tissue_measurement)
         return ifm["img"].copy()
     
     @property
     def input_func_measurement(self) -> dict:
-        """ assumed to be decay-corrected, which is hereby uncorrected for[15O] """
+        """ assumed to be decay-corrected, which is hereby uncorrected for[15O];
+            preserves timings of input_func_fqn """
         if hasattr(self._data_dict, "input_func_measurement"):
             return deepcopy(self._data_dict["input_func_measurement"])
 
@@ -150,7 +120,48 @@ class TissueData(DynestyData):
     
     @property
     def rho(self) -> NDArray:
-        return self.adjusted_tissue_measurement["img"].copy()
+        """ normalized by self.max_tissue_measurement """
+        return self.rho_tissue_measurement["img"].copy()
+
+    @property
+    def rho_input_func_interp(self) -> NDArray:
+        """ normalized by self.max_tissue_measurement; interpolated to 1-sec times, timesMid """
+        ifm = PETUtilities.interpdata(
+            data=self.rho_input_func_measurement,
+            ref=self.rho_tissue_measurement)
+        return ifm["img"].copy()
+    
+    @property
+    def rho_input_func_measurement(self) -> dict:
+        """ normalized by self.max_tissue_measurement and self.recovery_coefficient;
+            preserves timings of input_func_measurement """
+        if hasattr(self._data_dict, "rho_input_func_measurement"):
+            return deepcopy(self._data_dict["rho_input_func_measurement"])
+
+        # normalize to max tissue measurement
+        rho_input_func_meas = self.input_func_measurement
+        rho_input_func_meas["img"] = rho_input_func_meas["img"] / self.max_tissue_measurement
+        
+        # apply recovery coefficient to Boxcar
+        if self.input_func_type == "Boxcar":
+            rho_input_func_meas["img"] = \
+                rho_input_func_meas["img"] * self.recovery_coefficient
+
+        self._data_dict["rho_input_func_measurement"] = rho_input_func_meas
+        return deepcopy(self._data_dict["rho_input_func_measurement"])
+    
+    @property
+    def rho_tissue_measurement(self) -> dict:
+        """ normalized by self.max_tissue_measurement """
+        if hasattr(self._data_dict, "rho_tissue_measurement"):
+            return deepcopy(self._data_dict["rho_tissue_measurement"])
+
+        # normalize to max tissue measurement
+        rho_tiss_meas = self.tissue_measurement
+        rho_tiss_meas["img"] = rho_tiss_meas["img"] / self.max_tissue_measurement
+        
+        self._data_dict["rho_tissue_measurement"] = rho_tiss_meas
+        return deepcopy(self._data_dict["rho_tissue_measurement"])
     
     @property
     def rstate(self) -> np.random.Generator:

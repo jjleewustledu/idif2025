@@ -39,8 +39,7 @@ import numpy as np
 
 
 class TCModel(TissueModel, ABC):
-    """
-    """
+    """ Requires all incoming PET and input function data to be decay corrected. """
 
     sigma = None  # class attribute needed by dynesty
 
@@ -138,7 +137,7 @@ class TCModel(TissueModel, ABC):
         return deepcopy({
             "halflife": self.HALFLIFE,
             "rho": self.RHO, "rhos": self.rhos, "timesMid": self.TIMES_MID, "taus": self.TAUS,
-            "times": (self.TIMES_MID - self.TAUS / 2), "inputFuncInterp": self.INPUTF_INTERP,
+            "times": (self.TIMES_MID - self.TAUS / 2), "rhoInputFuncInterp": self.RHO_INPUTF_INTERP,
             "martinv1": v1, 
             "raichleks": ks,
             "v": v,

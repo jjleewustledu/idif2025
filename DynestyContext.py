@@ -28,6 +28,7 @@ from abc import ABC, abstractmethod
 
 
 class DynestyContext(ABC):
+    """ Requires all incoming PET and input function data to be decay corrected. """
     def __init__(self):
         pass
 

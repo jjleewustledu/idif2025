@@ -61,7 +61,7 @@ class Raichle1983Model(TCModel):
 
         hl = data["halflife"]
         timesMid = data["timesMid"]
-        input_func_interp = data["inputFuncInterp"]
+        input_func_interp = data["rhoInputFuncInterp"]
         # v1 = data["martinv1"]  # inconsistent with data?
         v = data["v"]
         f = v[0]

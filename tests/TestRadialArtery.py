@@ -27,8 +27,9 @@ import os
 from pprint import pprint
 
 import nibabel as nib
-from dynesty import dynesty, utils as dyutils
 import numpy as np
+import dynesty.utils as dyutils
+
 from testPreliminaries import TestPreliminaries 
 from RadialArteryContext import RadialArteryContext
 from IOImplementations import RadialArteryIO

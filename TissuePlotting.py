@@ -37,46 +37,43 @@ class TissuePlotting(DynestyPlotting):
     def plot_truths(
             self,
             truths: NDArray | None = None,
-            parc_index: int | None = None,
+            parc_index: int = 0,
             activity_units: str = "kBq/mL"
     ) -> None:
         """ plots PET measurement, rho_pred from signal model, and input function prediction """
         if truths is None:
             truths = self.context.solver.truths
 
+        A_max = self.context.data.max_tissue_measurement
+
         # PET measurement
-        petm = self.context.data.adjusted_pet_measurement
-        if parc_index:
-            A_pet = petm["img"][parc_index]
-        else:
-            # evaluates median of petm["img"] over spatial dimensions only
-            assert petm["img"].ndim == 2, f"Expected petm['img'] to be 2D but got {petm['img'].ndim}D"
-            A_pet = np.median(petm["img"], axis=0)
-        t_pet = petm["timesMid"]
+        tiss_meas = self.context.data.rho_tissue_measurement
+        A_tiss = A_max * tiss_meas["img"][parc_index]
+        timesMid_tiss = tiss_meas["timesMid"]
 
         # signal model
-        rho_pred, t_pred, _, _ = self.context.solver.signalmodel(truths)
+        rho_pred, timesMid_pred, _, _ = self.context.solver.signalmodel(truths, parc_index=parc_index)
+        A_pred = A_max * rho_pred
 
         # input function prediction
-        ifm = self.context.data.adjusted_input_function
-        A_if_hat = ifm["img"]
-        t_if = ifm["timesMid"]
+        if_meas = self.context.data.rho_input_func_measurement
+        A_if = A_max * if_meas["img"]
+        timesMid_if = if_meas["timesMid"]
 
         # scalings
-        A0 = np.max(petm["img"])
-        if_scaling = A0 / np.max(ifm["img"])
         if activity_units.startswith("k"):
             yscaling = 0.001
         elif activity_units.startswith("M"):
             yscaling = 1e-6
         else:
             yscaling = 1
-        xwidth = np.max((t_pet[-1], t_if[-1]))
+        if_scaling = A_max / np.max(A_if)
+        xwidth = np.min((timesMid_tiss[-1], timesMid_if[-1]))
 
         plt.figure(figsize=(12, 0.618*12))
         p1, = plt.plot(
-            t_pet,
-            yscaling * A_pet,
+            timesMid_tiss,
+            yscaling * A_tiss,
             color="black",
             marker="+", 
             ls="none",
@@ -84,8 +81,8 @@ class TissuePlotting(DynestyPlotting):
             markersize=16,
             label=f"PET measured, parcel {parc_index}")
         p2, = plt.plot(
-            t_pred,
-            yscaling * A0 * rho_pred,
+            timesMid_pred,
+            yscaling * A_pred,
             marker="o",
             color="red",
             ls="none", 
@@ -93,8 +90,8 @@ class TissuePlotting(DynestyPlotting):
             markersize=6,
             label=f"PET predicted, parcel {parc_index}")
         p3, =plt.plot(
-            t_if,
-            yscaling * if_scaling * A_if_hat,
+            timesMid_if,
+            yscaling * if_scaling * A_if,
             color="dodgerblue",
             linewidth=3,
             alpha=0.7,

@@ -151,7 +151,7 @@ class TestBoxcar(TestPreliminaries):
         np.testing.assert_allclose(qm, qm_expected, rtol=1e-4)
         
         # context.solver.results_save()
-        # context.solver.plot_results()
+        # context.solver.results_plot()
 
     def test_solver_2(self):
         petdir2 = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2024", "data", "ses-20210421154248", "pet")

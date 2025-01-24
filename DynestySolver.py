@@ -27,7 +27,9 @@ from __future__ import absolute_import
 from __future__ import print_function
 from abc import ABC, abstractmethod
 from copy import deepcopy
+from multiprocessing import Pool
 import pickle
+from typing import Any
 
 # basic numeric setup
 import numpy as np
@@ -35,6 +37,7 @@ import numpy as np
 # dynesty
 from dynesty import dynesty
 from dynesty import utils as dyutils
+from numpy.typing import NDArray
 import pandas as pd
 
 
@@ -42,17 +45,38 @@ class DynestySolver(ABC):
 
     def __init__(self, context):
         self.context = context
-
+        self.data = self.context.data
+        self._cache = {
+            "quantile": None,
+            "dynesty_results": None
+        }
         # Set numpy error handling for numerical issues such as underflow/overflow/invalid
-        np.seterr(under="ignore")
-        np.seterr(over="ignore")
-        np.seterr(invalid="ignore")
+        np.seterr(under="ignore", over="ignore", invalid="ignore")
+
+    # cache managers
+
+    def _get_cached_quantile(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        return self._cache['quantile']
+    
+    def _set_cached_quantile(self, qm: np.ndarray, ql: np.ndarray, qh: np.ndarray) -> None:
+        self._cache['quantile'] = (qm, ql, qh)
+
+    def _get_cached_dynesty_results(self) -> dyutils.Results | list[dyutils.Results] | None:
+        return self._cache['dynesty_results']
+    
+    def _set_cached_dynesty_results(self, results: dyutils.Results | list[dyutils.Results]) -> None:
+        self._cache['dynesty_results'] = results
+
+    def _clear_cache(self) -> None:
+        self._cache = {k: None for k in self._cache}
+
+    # properties
     
     @property
-    def dynesty_results(self):
-        if not hasattr(self, '_dynesty_results'):
-            return None
-        return self._dynesty_results  # large object should not be copied
+    def dynesty_results(self) -> dyutils.Results | list[dyutils.Results] | None:
+        if self._get_cached_dynesty_results():
+            return self._get_cached_dynesty_results()
+        return None
 
     @property
     @abstractmethod
@@ -64,49 +88,49 @@ class DynestySolver(ABC):
         return len(self.labels)
     
     @property
-    def truths(self):
-        if not hasattr(self, '_dynesty_results'):
+    def truths(self) -> np.ndarray | None:
+        if not self._get_cached_dynesty_results():
             return None        
         truths_, _, _ = self.quantile()
         return np.squeeze(truths_)
     
-    def package_results(self, parc_index: int = 0) -> dict:
-        """ provides a super dictionary also containing dynesty_results in entry "res" """
-        resd = self._dynesty_results.asdict()
-        logz = resd["logz"][-1]
-        information = resd["information"][-1]
-        qm, ql, qh = self.quantile()
-        rho_pred, rho_ideal, timesIdeal = self.signalmodel(qm, parc_index)
-        resid = rho_pred - self.data.rho
-        return {
-            "res": self._dynesty_results,
-            "logz": logz,
-            "information": information, 
-            "qm": qm,
-            "ql": ql,
-            "qh": qh,
-            "rho_pred": rho_pred,
-            "rho_ideal": rho_ideal,
-            "timesIdeal": timesIdeal,
-            "resid": resid
-        }
+    # methods
+        
+    @abstractmethod
+    def loglike(self, v: np.ndarray, parc_index: int = 0) -> float:
+        pass
+
+    @abstractmethod
+    def package_results(
+            self, 
+            results: dyutils.Results |list[dyutils.Results] | None = None,
+            parc_index: int |list[int] | tuple[int, ...] | NDArray = 0
+    ) -> dict:
+        pass
 
     def quantile(
             self,
             results: dyutils.Results | None = None,
             verbose: bool = False
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """ Requires results or that run_nested() has successfully completed. 
-            Returns cached results, if possible, else builds new results and cache. 
-            verbose == True prints results of building new results. """    
-        if not results:
-            if not hasattr(self, '_dynesty_results'):
-                raise AssertionError("self._dynesty_results does not exist. Run run_nested() first.")
-            results = self._dynesty_results
+        """ Requires externalresults or completion of run_nested().  
+            Returns cached results, if possible, else builds new results with caches. 
+            verbose == True prints table of new results. """    
 
         # return cached results
-        if hasattr(self, '__qm') and hasattr(self, '__ql') and hasattr(self, '__qh'):
-            return self.__qm, self.__ql, self.__qh
+        if self._get_cached_quantile():
+            return self._get_cached_quantile()
+        
+        # use self._get_cached_dynesty_results() if no results provided
+        if not results:
+            if not self._get_cached_dynesty_results():
+                raise AssertionError("Cache of dynesty_results is empty. Call run_nested().")
+            results = self._get_cached_dynesty_results()
+
+        # Call self._quantile_pool() if results is a list of dyutils.Results
+        if (isinstance(results, list) and 
+            all(isinstance(r, dyutils.Results) for r in results)):
+            return self._quantile_pool(results)
 
         # build new results
         samples = results["samples"].T
@@ -118,6 +142,7 @@ class DynestySolver(ABC):
 
         for i, x in enumerate(samples):
             ql[i], qm[i], qh[i] = dyutils.quantile(x, [0.025, 0.5, 0.975], weights=weights)
+
             if verbose:
                 # print quantile results in tabular format
                 qm_fmt = ".1f" if abs(qm[i]) >= 1000 else ".4f"
@@ -127,117 +152,53 @@ class DynestySolver(ABC):
                 print(f"Parameter {label_padded}: {qm[i]:{qm_fmt}} [{ql[i]:{ql_fmt}}, {qh[i]:{qh_fmt}}]")
 
         # cache results
-        self.__qm, self.__ql, self.__qh = qm, ql, qh
+        self._set_cached_quantile(qm, ql, qh)
         return qm, ql, qh
 
-
-    def results_save(self, tag: str = "", parc_index: int = 0) -> str:
-        """ Saves .nii.gz and -quantiles.csv.  Returns f.q. fileprefix. """
-        self.save_pickle(tag)
-
-        fqfp1 = self.context.io.results_fqfp 
-        if parc_index > 0:
-            fqfp1 += f"-parc{parc_index}"
-        if tag:
-            tag = f"-{tag.lstrip('-')}"
-        fqfp1 += tag
-
-        # =========== save .nii.gz ===========
-
-        ifm = self.context.data.input_func_measurement
-        A0 = np.max(ifm["img"])
-        fqfp = ifm["fqfp"]
-        nii = ifm["nii"]
-        timesMid = ifm["timesMid"]
-        taus = ifm["taus"]
-        json = ifm["json"]
-        if not np.array_equal(json["timesMid"], timesMid):
-            json["timesMid"] = timesMid.tolist()
-        if not np.array_equal(json["taus"], taus):
-            json["taus"] = taus.tolist()
-
-        resd = self.package_results(parc_index=parc_index)
-        rho_pred, rho_ideal, timesIdeal = resd["rho_pred"], resd["rho_ideal"], resd["timesIdeal"]
-
-        self.context.io.nii_save({
-            "timesMid": timesMid,
-            "taus": taus,
-            "img": A0 * rho_pred,
-            "nii": nii,
-            "fqfp": fqfp,
-            "json": json
-        }, fqfp1 + "-signal.nii.gz")
-
-        self.context.io.nii_save({
-            "times": timesIdeal,
-            "taus": np.ones(timesIdeal.shape),
-            "img": A0 * rho_ideal,
-            "nii": nii,
-            "fqfp": fqfp,
-            "json": json
-        }, fqfp1 + "-ideal.nii.gz")
-
-        product = deepcopy(ifm)
-        product["img"] = A0 * resd["rho_pred"]
-        self.context.io.nii_save(product, fqfp1 + "-rho-pred.nii.gz")
-
-        product = deepcopy(ifm)
-        product["img"] = A0 * resd["rho_ideal"]
-        self.context.io.nii_save(product, fqfp1 + "-rho-ideal.nii.gz")
-
-        for key in ["logz", "information", "qm", "ql", "qh", "resid"]:
-            product = deepcopy(ifm)
-            product["img"] = resd[key]
-            self.context.io.nii_save(product, fqfp1 + f"-{key}.nii.gz")
-
-        # =========== save .csv ===========
-
-        qm, ql, qh = self.quantile()
-        df = {
-            "label": self.labels,
-            "qm": qm,
-            "ql": ql,
-            "qh": qh}
-        df = pd.DataFrame(df)
-        df.to_csv(fqfp1 + "-quantiles.csv")
-
-        return fqfp1
-    
     @abstractmethod
-    def _run_nested(
-            self,
-            checkpoint_file: str | None = None,
-            print_progress: bool = False,
-            resume: bool = False,
-            parc_index: int = 0
-    ) -> dyutils.Results:
+    def results_save(
+            self, 
+            tag: str = "", 
+            results: dyutils.Results | list[dyutils.Results] | None = None,
+            parc_index: int | list[int] | tuple[int, ...] | NDArray = 0
+    ) -> str:
         pass
     
+    @abstractmethod
     def run_nested(
             self,
+            checkpoint_file: str | list[str] | None = None,
+            print_progress: bool = False,
+            resume: bool | list[bool] = False,
+            parc_index: int | list[int] | tuple[int, ...] | NDArray | None = None
+) -> dyutils.Results | list[dyutils.Results]:
+        pass
+    
+    @abstractmethod
+    def _run_nested_single(
+            self,
             checkpoint_file: str | None = None,
             print_progress: bool = False,
             resume: bool = False,
             parc_index: int = 0
     ) -> dyutils.Results:
-        self._dynesty_results = self._run_nested(checkpoint_file, print_progress, resume, parc_index)
-        return self._dynesty_results
+        pass
 
-    def save_pickle(self, tag: str = "") -> str:
-        """ saves -res.pickle """
+    def pickle_dump(self, tag: str = "") -> str:
+        """ pickles cached dynesty results """
+
+        if not self._get_cached_dynesty_results():
+            raise AssertionError("Cache of dynesty_results is empty. Call run_nested().")
+        
         if tag:
             tag = f"-{tag.lstrip('-')}"
-        fqfp1 = self.context.io.results_fqfp + tag
-
-        if not hasattr(self, '_dynesty_results'):
-            raise AssertionError("self._dynesty_results does not exist. Run run_nested() first.")
-        with open(fqfp1 + "-res.pickle", 'wb') as f:
-            pickle.dump(self._dynesty_results, f, pickle.HIGHEST_PROTOCOL)
-
-    @abstractmethod
-    def signalmodel(self, v: np.ndarray, parc_index: int = 0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        pass
+        fqfp1 = self.context.io.results_fqfp + tag        
+        fqfn = self.context.io.pickle_dump(self._get_cached_dynesty_results(), fqfp1)
+        return fqfn
     
+    def pickle_load(self, fqfn: str) -> dyutils.Results:
+        return self.context.io.pickle_load(fqfn)
+
     @abstractmethod
-    def loglike(self, v: np.ndarray, parc_index: int = 0) -> float:
+    def signalmodel(self, v: np.ndarray, parc_index: int = 0) -> tuple[np.ndarray, ...]:
         pass

@@ -24,12 +24,13 @@ from DynestyContext import DynestyContext
 from IOImplementations import TissueIO
 from Mintun1984Data import Mintun1984Data
 from Mintun1984Solver import Mintun1984Solver
+from TissueContext import TissueContext
 from TissuePlotting import TissuePlotting
 
 
-class Mintun1984Context(DynestyContext):
+class Mintun1984Context(TissueContext):
     def __init__(self, data_dict: dict):
-        super().__init__()
+        super().__init__(data_dict)
         self._io = TissueIO(self)
         self._data = Mintun1984Data(self, data_dict)
         self._solver = Mintun1984Solver(self)
@@ -46,14 +47,14 @@ class Mintun1984Context(DynestyContext):
     @property
     def io(self):
         return self._io
-        
-    @property
-    def solver(self):
-        return self._solver
     
     @property
     def plotting(self):
         return self._plotting
+        
+    @property
+    def solver(self):
+        return self._solver
 
     @property
     def tag(self):

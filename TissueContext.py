@@ -31,8 +31,6 @@ class TissueContext(DynestyContext):
     def __init__(self, data_dict: dict):
         super().__init__()
         self._io = TissueIO(self)
-        self._data = TissueData(self, data_dict)
-        self._solver = TissueSolver(self)
         self._plotting = TissuePlotting(self)
                
     @property
@@ -46,14 +44,14 @@ class TissueContext(DynestyContext):
     @property
     def io(self):
         return self._io
-        
-    @property
-    def solver(self):
-        return self._solver
     
     @property
     def plotting(self):
         return self._plotting
+        
+    @property
+    def solver(self):
+        return self._solver
 
     @property
     def tag(self):

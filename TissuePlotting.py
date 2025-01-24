@@ -34,7 +34,17 @@ class TissuePlotting(DynestyPlotting):
     def __init__(self, context):
         super().__init__(context)
 
-    def plot_truths(
+    def parcsplot(
+            self,
+            truths: NDArray | None = None,
+            parc_index: int | list[int] | tuple[int, ...] | NDArray = 0,
+            activity_units: str = "kBq/mL"
+    ) -> None:
+        """ plots from multiple selected parc. indices
+            PET measurement, rho_pred from signal model, and also input function prediction"""
+        pass
+
+    def truthplot(
             self,
             truths: NDArray | None = None,
             parc_index: int = 0,
@@ -43,6 +53,9 @@ class TissuePlotting(DynestyPlotting):
         """ plots PET measurement, rho_pred from signal model, and input function prediction """
         if truths is None:
             truths = self.context.solver.truths
+
+        if truths.ndim == 2:
+            truths = truths[parc_index]
 
         A_max = self.context.data.max_tissue_measurement
 

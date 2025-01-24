@@ -28,8 +28,7 @@ import numpy as np
 from numba import jit, float64
 import pandas as pd
 
-from DynestySolver import DynestySolver
-from PETUtilities import PETUtilities
+from InputFuncSolver import InputFuncSolver
 
 
 @jit(nopython=True)
@@ -143,7 +142,7 @@ def apply_dispersion(rho: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     return rho_sampled[:rho.size]
 
 
-class RadialArterySolver(DynestySolver):
+class RadialArterySolver(InputFuncSolver):
     def __init__(self, context):
         super().__init__(context)
         self.data = self.context.data
@@ -154,54 +153,81 @@ class RadialArterySolver(DynestySolver):
             r"$t_0$", r"$\tau_2$", r"$\tau_3$",
             r"$\alpha - 1$", r"$1/\beta$", r"$p$", r"$\delta p_2$", r"$\delta p_3$", r"$1/\gamma$",
             r"$f_2$", r"$f_3$", r"$f_{ss}$",
-            r"$A$", r"$\sigma$"]
-
-    def __create_loglike_partial(self):
+            r"$A$", r"$\sigma$"]  
+    
+    @staticmethod
+    def _loglike(selected_data: dict):
         # Cache values using nonlocal for faster access
-        rho = self.data.rho
-        timesIdeal = self.data.timesIdeal
-        kernel = self.data.kernel
-
+        rho = selected_data["rho"]
+        timesIdeal = selected_data["timesIdeal"]
+        kernel = selected_data["kernel"]
+        
         # Create wrapper that matches dynesty's expected signature
         def wrapped_loglike(v):
             nonlocal rho, timesIdeal, kernel
             return loglike(v, rho, timesIdeal, kernel)
         return wrapped_loglike
 
-    def __create_prior_transform_partial(self):
-        # Cache values using nonlocal for faster access
-        halflife = self.data.halflife
-        sigma = self.data.sigma
-
+    @staticmethod
+    def _prior_transform(selected_data: dict):
         # Create wrapper that matches dynesty's expected signature
+        halflife = selected_data["halflife"]
+        sigma = selected_data["sigma"]
+
         def wrapped_prior_transform(v):
             nonlocal halflife, sigma
             return prior_transform(v, halflife, sigma)
         return wrapped_prior_transform
     
-    def _run_nested(
-            self,
-            checkpoint_file: str | None = None,
-            print_progress: bool = False,
-            resume: bool = False, 
-            parc_index: int = 0
-    ) -> dyutils.Results:
-        if resume:
-            sampler = dynesty.DynamicNestedSampler.restore(checkpoint_file)
+    @staticmethod
+    def _run_nested(selected_data: dict) -> dyutils.Results:
+        if selected_data["resume"]:
+            sampler = dynesty.DynamicNestedSampler.restore(selected_data["checkpoint_file"])
         else:
-            loglike = self.__create_loglike_partial()
-            prior_transform = self.__create_prior_transform_partial()
+            loglike = RadialArterySolver._loglike(selected_data)
+            prior_transform = RadialArterySolver._prior_transform(selected_data)
             sampler = dynesty.DynamicNestedSampler(
                 loglikelihood=loglike,
                 prior_transform=prior_transform,
-                ndim=self.ndim,
-                sample=self.data.sample,
-                nlive=self.data.nlive,
-                rstate=self.data.rstate
+                ndim=selected_data["ndim"],
+                sample=selected_data["sample"],
+                nlive=selected_data["nlive"],
+                rstate=selected_data["rstate"]
             )
-        sampler.run_nested(checkpoint_file=checkpoint_file, print_progress=print_progress, resume=resume)
+        sampler.run_nested(
+            checkpoint_file=selected_data["checkpoint_file"], 
+            print_progress=selected_data["print_progress"], 
+            resume=selected_data["resume"]
+        )
         return sampler.results
+        
+    def _run_nested_single(
+            self,
+            checkpoint_file: str | None = None,
+            print_progress: bool = False,
+            resume: bool = False,
+            parc_index: int = 0
+    ) -> dyutils.Results:
+        
+        args = {
+            "rho": self.data.rho,
+            "timesIdeal": self.data.timesIdeal,
+            "kernel": self.data.kernel,
+            "halflife": self.data.halflife, 
+            "sigma": self.data.sigma,
+            "ndim": self.ndim,
+            "sample": self.data.sample,
+            "nlive": self.data.nlive,
+            "rstate": self.data.rstate,
+            "checkpoint_file": checkpoint_file,
+            "resume": resume,
+            "print_progress": print_progress
+        }
 
+        _results = RadialArterySolver._run_nested(args)
+        self._set_cached_dynesty_results(_results)
+        return _results
+    
     def signalmodel(self, v: np.ndarray, parc_index: int = 0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         return signalmodel(v, self.data.timesIdeal, self.data.kernel)
     

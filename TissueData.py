@@ -58,6 +58,8 @@ class TissueData(DynestyData):
             self._data_dict["recovery_coefficient"] = 1.8509
         if "delta_time" not in self._data_dict:
             self._data_dict["delta_time"] = 1
+        if "nparcels" not in self._data_dict:
+            self._data_dict["nparcels"] = 1
 
     @property
     def delta_time(self) -> float:

@@ -70,51 +70,54 @@ class DynestyPlotting:
     def results_fqfp(self):
         return self.context.io.results_fqfp 
     
-    def plot_results(
+    def results_plot(
             self,
             tag: str = "",
             parc_index: int | None = None,
             do_save: bool = True
     ) -> None:
+        
+        # add parc index and tag to results f.q. fileprefix
 
+        fqfp1 = self.context.io.results_fqfp 
+        if isinstance(parc_index, (int, np.integer)) and parc_index > 0:
+            fqfp1 += f"-parc{parc_index}"
         if tag:
             tag = f"-{tag.lstrip('-')}"
-        if parc_index is not None:
-            if f"-parc{parc_index}" not in tag:
-                tag = tag + f"-parc{parc_index}"
-        fqfp1 = self.results_fqfp + tag
-        res = self.context.solver.dynesty_results
-        qm, _, _ = self.context.solver.quantile()
+        fqfp1 += tag
+
+        results = self.context.solver.dynesty_results
+        qm, _, _ = self.context.solver.quantile(results)
 
         # truth plot ------------------------------------------------------------
 
         try:
-            self.plot_truths(qm, parc_index=parc_index)
+            self.truthplot(qm, parc_index=parc_index)
             if do_save:
                 plt.savefig(fqfp1 + "-results.png")
                 plt.savefig(fqfp1 + "-results.svg")
         except Exception as e:
-            print(("PETModel.plot_results: caught an Exception: ", str(e)))
+            print(("PETModel.results_plot: caught an Exception: ", str(e)))
             traceback.print_exc()
 
         # run plot --------------------------------------------------------------
 
         try:
             dyplot.runplot(
-                res,
+                results,
                 label_kwargs={"fontsize": 30})
             plt.tight_layout()
             if do_save:
                 plt.savefig(fqfp1 + "-runplot.png")
                 plt.savefig(fqfp1 + "-runplot.svg")
         except ValueError as e:
-            print(f"PETModel.plot_results.dyplot.runplot: caught a ValueError: {e}")
+            print(f"PETModel.results_plot.dyplot.runplot: caught a ValueError: {e}")
 
         # trace plot ------------------------------------------------------------
 
         try:
             fig, axes = dyplot.traceplot(
-                res,
+                results,
                 labels=self.labels,
                 truths=qm,
                 title_fmt=".2f",
@@ -126,13 +129,13 @@ class DynestyPlotting:
                 plt.savefig(fqfp1 + "-traceplot.png")
                 plt.savefig(fqfp1 + "-traceplot.svg")
         except ValueError as e:
-            print(f"PETModel.plot_results.dyplot.traceplot: caught a ValueError: {e}")
+            print(f"PETModel.results_plot.dyplot.traceplot: caught a ValueError: {e}")
 
         # corner plot ----------------------------------------------------------
 
         try:
             dyplot.cornerplot(
-                res,
+                results,
                 truths=qm,
                 title_fmt=".1f",
                 show_titles=True,
@@ -144,7 +147,7 @@ class DynestyPlotting:
                 plt.savefig(fqfp1 + "-cornerplot.png")
                 plt.savefig(fqfp1 + "-cornerplot.svg")
         except ValueError as e:
-            print(f"PETModel.plot_results.dyplot.cornerplot: caught a ValueError: {e}")
+            print(f"PETModel.results_plot.dyplot.cornerplot: caught a ValueError: {e}")
 
     def plot_variations(
             self,

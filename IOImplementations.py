@@ -128,7 +128,7 @@ class BaseIO(IOInterface):
             print(f"{self.__class__.__name__}.nii_save: caught Exception {e}, but proceeding", file=sys.stderr)
             print(f"{fqfn} may be missing or malformed")
 
-    def pickle_dump(self, data: Any, fqfn: str | None = None) -> None:
+    def pickle_dump(self, data: Any, fqfn: str | None = None) -> str:
         """Save by pickling."""        
         if not fqfn:
             raise ValueError("fqfn must be a valid filename")
@@ -136,6 +136,7 @@ class BaseIO(IOInterface):
             fqfn += ".pickle"        
         with open(fqfn, "wb") as f:
             pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+        return fqfn
             
     def pickle_load(self, fqfn: str) -> Any:
         """Load data from a pickle file."""
@@ -258,6 +259,7 @@ class TissueIO(BaseIO):
             self.context.input_func_type + "-" + 
             self.context.data.tag)
         fqfp1 = fqfp1.replace("ParcSchaeffer-reshape-to-schaeffer-", "")
+        fqfp1 = fqfp1.replace("ParcWmparc-reshape-to-wmparc-", "")
         fqfp1 = fqfp1.replace("ModelAndArtery", "")
         fqfp1 = fqfp1.replace("Model", "")
         fqfp1 = fqfp1.replace("Radial", "")

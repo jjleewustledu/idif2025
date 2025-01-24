@@ -22,14 +22,15 @@
 
 
 from copy import deepcopy
+from multiprocessing import Pool
 import dynesty
 from dynesty import utils as dyutils
 import numpy as np
 from numba import jit, float64
+from numpy.typing import NDArray
 import pandas as pd
 
 from TissueSolver import TissueSolver
-from PETUtilities import PETUtilities
 
 
 @jit(nopython=True)
@@ -42,7 +43,7 @@ def prior_transform(
         v[1] = u[1] * 1.5 + 0.5  # frac. water of metab. at 90 s
         v[2] = u[2] * 0.95 + 0.05  # {v_{post} + 0.5 v_{cap}} / v_1
         v[3] = u[3] * 20  # t_0 (s)
-        v[4] = u[4] * (-5)  # \tau_a (s)
+        v[4] = u[4] * 20  # \tau_a (s)
         v[5] = u[5] * 20  # \tau_d (s)
         v[6] = u[6] * sigma  # sigma ~ fraction of A0
         return v
@@ -235,15 +236,16 @@ class Mintun1984Solver(TissueSolver):
         return [
             r"OEF", r"$f_{H_2O}$", r"$v_p + 0.5 v_c$", r"$t_0$", r"$\tau_a$", r"$\tau_d$", r"$\sigma$"]
 
-    def __create_loglike_partial(self, parc_index: int = 0):
+    @staticmethod
+    def _loglike(selected_data: dict):
         # Cache values using nonlocal for faster access
-        rho = self.data.rho[parc_index]
-        timesMid = self.data.timesMid
-        taus = self.data.taus
-        rho_input_func_interp = self.data.rho_input_func_interp
-        ks = self.data.ks[parc_index]
-        v1 = self.data.v1[parc_index]
-        isidif = self.data.isidif
+        rho = selected_data["rho"]
+        timesMid = selected_data["timesMid"]
+        taus = selected_data["taus"]
+        rho_input_func_interp = selected_data["rho_input_func_interp"]
+        ks = selected_data["ks"]
+        v1 = selected_data["v1"]
+        isidif = selected_data["isidif"]
 
         # Check dimensions
         if rho.ndim != 1:
@@ -269,39 +271,117 @@ class Mintun1984Solver(TissueSolver):
                 isidif)
         return wrapped_loglike
 
-    def __create_prior_transform_partial(self):
+    @staticmethod
+    def _prior_transform(selected_data: dict):
         # Create wrapper that matches dynesty's expected signature
-        sigma = self.data.sigma
+        sigma = selected_data["sigma"]
 
         def wrapped_prior_transform(v):
             nonlocal sigma
             return prior_transform(v, sigma)
         return wrapped_prior_transform
-
-    def _run_nested(
-            self,
-            checkpoint_file: str | None = None,
-            print_progress: bool = False,
-            resume: bool = False, 
-            parc_index: int = 0
-    ) -> dyutils.Results:
-        if resume:
-            sampler = dynesty.DynamicNestedSampler.restore(checkpoint_file)
+    
+    @staticmethod
+    def _run_nested(selected_data: dict) -> dyutils.Results:
+        if selected_data["resume"]:
+            sampler = dynesty.DynamicNestedSampler.restore(selected_data["checkpoint_file"])
         else:
-            loglike = self.__create_loglike_partial(parc_index)
-            prior_transform = self.__create_prior_transform_partial()
+            loglike = Mintun1984Solver._loglike(selected_data)
+            prior_transform = Mintun1984Solver._prior_transform(selected_data)
             sampler = dynesty.DynamicNestedSampler(
                 loglikelihood=loglike,
                 prior_transform=prior_transform,
-                ndim=self.ndim,
-                sample=self.data.sample,
-                nlive=self.data.nlive,
-                rstate=self.data.rstate
+                ndim=selected_data["ndim"],
+                sample=selected_data["sample"],
+                nlive=selected_data["nlive"],
+                rstate=selected_data["rstate"]
             )
-        sampler.run_nested(checkpoint_file=checkpoint_file, print_progress=print_progress, resume=resume)
+        sampler.run_nested(
+            checkpoint_file=selected_data["checkpoint_file"], 
+            print_progress=selected_data["print_progress"], 
+            resume=selected_data["resume"]
+        )
         return sampler.results
+        
+    def _run_nested_pool(
+            self,
+            checkpoint_file: list[str] | None = None,
+            print_progress: bool = False,
+            resume: bool = False,
+            parc_index: list[int] | tuple[int, ...] | NDArray | None = None
+    ) -> list[dyutils.Results]:
     
-    def signalmodel(self, v: np.ndarray, parc_index: int = 0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        if not parc_index:
+            parc_index = range(len(self.data.rho))
+        
+        if checkpoint_file and len(checkpoint_file) != len(parc_index):
+            raise ValueError("checkpoint_file must be a list of strings matching length of parc_index")
+
+        # Create args list suitable for Pool.starmap()
+        args = []
+        for i, pidx in enumerate(parc_index):
+            cf = checkpoint_file[i] if isinstance(checkpoint_file, list) else None
+            selected_data = {
+                "rho": self.data.rho[pidx],
+                "timesMid": self.data.timesMid,
+                "taus": self.data.taus,
+                "rho_input_func_interp": self.data.rho_input_func_interp,
+                "ks": self.data.ks[pidx],
+                "v1": self.data.v1[pidx],
+                "isidif": self.data.isidif,
+                "sigma": self.data.sigma,
+                "ndim": self.ndim,
+                "sample": self.data.sample,
+                "nlive": self.data.nlive,
+                "rstate": self.data.rstate,
+                "checkpoint_file": cf,
+                "resume": resume,
+                "print_progress": False
+            }
+            args.append(selected_data)
+        
+        # Sequential execution for testing
+        # _results = [Mintun1984Solver.__run_nested(*arg) for arg in args]
+        # self._set_cached_dynesty_results(_results)
+        # return _results    
+
+        # Use multiprocessing Pool to parallelize execution is incompatible with instance methods
+        with Pool() as p:
+            _results = p.starmap(Mintun1984Solver._run_nested, [(arg,) for arg in args])
+            self._set_cached_dynesty_results(_results)
+        return _results
+        
+    def _run_nested_single(
+            self,
+            checkpoint_file: str | None = None,
+            print_progress: bool = False,
+            resume: bool = False,
+            parc_index: int = 0
+    ) -> dyutils.Results:
+        
+        args = {
+            "rho": self.data.rho[parc_index],
+            "timesMid": self.data.timesMid,
+            "taus": self.data.taus,
+            "rho_input_func_interp": self.data.rho_input_func_interp,
+            "ks": self.data.ks[parc_index],
+            "v1": self.data.v1[parc_index],
+            "isidif": self.data.isidif,
+            "sigma": self.data.sigma,
+            "ndim": self.ndim,
+            "sample": self.data.sample,
+            "nlive": self.data.nlive,
+            "rstate": self.data.rstate,
+            "checkpoint_file": checkpoint_file,
+            "resume": resume,
+            "print_progress": print_progress
+        }
+
+        _results = Mintun1984Solver._run_nested(args)
+        self._set_cached_dynesty_results(_results)
+        return _results
+    
+    def signalmodel(self, v: np.ndarray, parc_index: int = 0) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         return signalmodel(
             v, 
             self.data.timesMid,

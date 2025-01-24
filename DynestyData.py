@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from abc import abstractmethod
 from copy import deepcopy
 from pprint import pprint
 from typing import Any
@@ -54,6 +55,11 @@ class DynestyData:
     @property
     def results_fqfp(self) -> str:
         return self.context.io.results_fqfp
+    
+    @property
+    @abstractmethod
+    def rho(self) -> NDArray:
+        pass
     
     def fileparts(self, fqfn: str) -> tuple:
         return self.context.io.fileparts(fqfn)

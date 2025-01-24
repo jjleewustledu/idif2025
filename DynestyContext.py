@@ -21,10 +21,10 @@
 # SOFTWARE.
 
 
-# general & system functions
 from __future__ import absolute_import
 from __future__ import print_function
 from abc import ABC, abstractmethod
+from dynesty import utils as dyutils
 
 
 class DynestyContext(ABC):
@@ -59,3 +59,9 @@ class DynestyContext(ABC):
     @abstractmethod
     def solver(self):
         pass
+
+    def pickle_load(self, fqfn: str) -> dyutils.Results | list[dyutils.Results]:
+        return self.solver.pickle_load(fqfn)
+    
+    def pickle_dump(self, tag: str) -> str:
+        return self.solver.pickle_dump(tag)

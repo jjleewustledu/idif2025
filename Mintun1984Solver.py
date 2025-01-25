@@ -42,9 +42,9 @@ def prior_transform(
         v[0] = u[0] * 0.9 + 0.1  # OEF
         v[1] = u[1] * 1.5 + 0.5  # frac. water of metab. at 90 s
         v[2] = u[2] * 0.95 + 0.05  # {v_{post} + 0.5 v_{cap}} / v_1
-        v[3] = u[3] * 20  # t_0 (s)
-        v[4] = u[4] * 20  # \tau_a (s)
-        v[5] = u[5] * 20  # \tau_d (s)
+        v[3] = u[3] * 40 - 10  # t_0 (s)
+        v[4] = u[4] * 30  # \tau_a (s)
+        v[5] = u[5] * 30  # \tau_d (s)
         v[6] = u[6] * sigma  # sigma ~ fraction of A0
         return v
 
@@ -95,8 +95,6 @@ def signalmodel(
 
         n_times = rho_input_func_interp.shape[0]
         timesIdeal = np.arange(0, n_times)
-        
-        # delmit tau_a
 
         # Find indices where input function exceeds 5% of max
         indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))        
@@ -123,13 +121,18 @@ def signalmodel(
                 conv_result[i] += rho_input_func_interp[j] * dispersion[i - j]
         rho_input_func_interp = conv_result[:n_times] / z_dispersion
         if not isidif:
-            # slide input function to left, with decay adjustments, 
+            # slide input function to left, 
             # since its measurements is delayed by radial artery cannulation
             rho_input_func_interp = slide(
                 rho_input_func_interp, 
                 timesIdeal, 
-                -timesIdeal[idx_a] + tau_a, 
-                HL)
+                -timesIdeal[idx_a], 
+                0) 
+        rho_input_func_interp = slide(
+            rho_input_func_interp, 
+            timesIdeal, 
+            t_0, 
+            HL)
 
         # estimate shape of water of metabolism
 
@@ -192,7 +195,7 @@ def signalmodel(
 
         rho_ideal = rho1[:n_times] + rho2[:n_times]  # rho_ideal is interpolated to the input function times
         if not isidif:
-            rho_ideal = slide(rho_ideal, timesIdeal, t_0, HL)
+            # rho_ideal = slide(rho_ideal, timesIdeal, t_0, HL)
             rho_pred = np.interp(timesMid, timesIdeal, rho_ideal)
         else:
             rho_pred = apply_boxcar(rho_ideal, timesMid, taus)
@@ -313,6 +316,8 @@ class Mintun1984Solver(TissueSolver):
     
         if not parc_index:
             parc_index = range(len(self.data.rho))
+        elif isinstance(parc_index, np.ndarray):
+            parc_index = parc_index.tolist()
         
         if checkpoint_file and len(checkpoint_file) != len(parc_index):
             raise ValueError("checkpoint_file must be a list of strings matching length of parc_index")
@@ -382,6 +387,7 @@ class Mintun1984Solver(TissueSolver):
         return _results
     
     def signalmodel(self, v: np.ndarray, parc_index: int = 0) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """ parc_index selects ks and v1"""
         return signalmodel(
             v, 
             self.data.timesMid,
@@ -393,6 +399,7 @@ class Mintun1984Solver(TissueSolver):
         )
     
     def loglike(self, v: np.ndarray, parc_index: int = 0) -> float:
+        """ parc_index selects ks and v1"""
         return loglike(
             v,
             self.data.rho,

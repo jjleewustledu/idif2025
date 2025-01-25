@@ -76,6 +76,7 @@ class DynestyPlotting:
             parc_index: int | None = None,
             do_save: bool = True
     ) -> None:
+        """ plots results for scalar parc_index, selecting from a results list as needed """
         
         # add parc index and tag to results f.q. fileprefix
 
@@ -87,12 +88,14 @@ class DynestyPlotting:
         fqfp1 += tag
 
         results = self.context.solver.dynesty_results
+        if isinstance(results, list):
+            results = results[parc_index]
         qm, _, _ = self.context.solver.quantile(results)
 
         # truth plot ------------------------------------------------------------
 
         try:
-            self.truthplot(qm, parc_index=parc_index)
+            self.truths_plot(qm, parc_index=parc_index)
             if do_save:
                 plt.savefig(fqfp1 + "-results.png")
                 plt.savefig(fqfp1 + "-results.svg")
@@ -149,14 +152,17 @@ class DynestyPlotting:
         except ValueError as e:
             print(f"PETModel.results_plot.dyplot.cornerplot: caught a ValueError: {e}")
 
-    def plot_variations(
+    def variations_plot(
             self,
+            truths: NDArray | None = None,
             tindex: int = 0,
             tmin: float | None = None,
             tmax: float | None = None,
-            truths: NDArray | None = None,
             tag: str = "",
-            do_save: bool = True
+            ncolors: int = 10,
+            alpha: float = 0.6,
+            linewidth: float = 1.5,
+            do_save: bool = False
     ) -> None:
         if truths is None:
             truths = self.context.solver.truths
@@ -167,14 +173,13 @@ class DynestyPlotting:
         fqfp1 = self.results_fqfp + tag + f"-v{tindex}-{tmin}-{tmax}"
 
         fig, ax = plt.subplots(figsize=(12, 0.618*12))  # Create figure and axes explicitly
-        ncolors: int = 75
         viridis = cm.get_cmap("viridis", ncolors)
         dt = (tmax - tmin) / ncolors
         trange = np.arange(tmin, tmax, dt)
         for tidx, t in enumerate(trange):
             truths_[tindex] = t
             _, rho_ideal, timesIdeal = self.context.solver.signalmodel(truths_)
-            ax.plot(timesIdeal, rho_ideal, color=viridis(tidx))
+            ax.plot(timesIdeal, rho_ideal, color=viridis(tidx), alpha=alpha, linewidth=linewidth)
 
         ax.set_xlabel("time of mid-frame (s)")
         ax.set_ylabel("activity (arbitrary)")

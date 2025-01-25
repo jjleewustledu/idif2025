@@ -34,7 +34,7 @@ class InputFuncPlotting(DynestyPlotting):
     def __init__(self, context):
         super().__init__(context)
 
-    def plot_truths(
+    def truths_plot(
             self,
             truths: NDArray | None = None,
             parc_index: int | None = None,

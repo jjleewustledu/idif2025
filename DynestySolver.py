@@ -56,16 +56,20 @@ class DynestySolver(ABC):
     # cache managers
 
     def _get_cached_quantile(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        return self._cache['quantile']
+        a_tuple = self._cache["quantile"]
+        if not a_tuple:
+            return None
+        qm, ql, qh = a_tuple
+        return qm, ql, qh
     
     def _set_cached_quantile(self, qm: np.ndarray, ql: np.ndarray, qh: np.ndarray) -> None:
-        self._cache['quantile'] = (qm, ql, qh)
+        self._cache["quantile"] = (qm, ql, qh)
 
     def _get_cached_dynesty_results(self) -> dyutils.Results | list[dyutils.Results] | None:
-        return self._cache['dynesty_results']
+        return self._cache["dynesty_results"]
     
     def _set_cached_dynesty_results(self, results: dyutils.Results | list[dyutils.Results]) -> None:
-        self._cache['dynesty_results'] = results
+        self._cache["dynesty_results"] = results
 
     def _clear_cache(self) -> None:
         self._cache = {k: None for k in self._cache}
@@ -91,8 +95,8 @@ class DynestySolver(ABC):
     def truths(self) -> np.ndarray | None:
         if not self._get_cached_dynesty_results():
             return None        
-        truths_, _, _ = self.quantile()
-        return np.squeeze(truths_)
+        qm, _, _ = self.quantile(self._get_cached_dynesty_results())
+        return qm
     
     # methods
         
@@ -118,8 +122,8 @@ class DynestySolver(ABC):
             verbose == True prints table of new results. """    
 
         # return cached results
-        if self._get_cached_quantile():
-            return self._get_cached_quantile()
+        # if self._get_cached_quantile():
+        #     return self._get_cached_quantile()
         
         # use self._get_cached_dynesty_results() if no results provided
         if not results:
@@ -152,7 +156,7 @@ class DynestySolver(ABC):
                 print(f"Parameter {label_padded}: {qm[i]:{qm_fmt}} [{ql[i]:{ql_fmt}}, {qh[i]:{qh_fmt}}]")
 
         # cache results
-        self._set_cached_quantile(qm, ql, qh)
+        # self._set_cached_quantile(qm, ql, qh)
         return qm, ql, qh
 
     @abstractmethod

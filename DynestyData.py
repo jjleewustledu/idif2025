@@ -126,8 +126,14 @@ class DynestyData:
         self.print_separator("Truths")
         print(f"{'Parameter':<25} {'Value':>12}")
         print("-" * 40)
-        for label, value in zip(labels, truths):
-            print(f"{label:<25} {value:>12.5f}")
+        if truths.ndim == 2:
+            for i, truth_row in enumerate(truths):
+                print(f"\nRow {i}:")
+                for label, value in zip(labels, truth_row):
+                    print(f"{label:<25} {value:>12.5f}")
+        else:
+            for label, value in zip(labels, truths):
+                print(f"{label:<25} {value:>12.5f}")
         self.print_separator("Truths", closing=True)
     
     def to_csv(self, data: dict, fqfn: str | None = None) -> None:

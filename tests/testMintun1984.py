@@ -99,9 +99,9 @@ class TestMintun1984(TestPreliminaries):
 
     def test_io_idif(self):
         context = Mintun1984Context(self.data_dict_idif)        
-        print("\n")
-        pprint(context.io.fqfp)
-        pprint(context.io.results_fqfp)
+        # print("\n")
+        # pprint(context.io.fqfp)
+        # pprint(context.io.results_fqfp)
         niid = context.io.nii_load(self.data_dict_idif["input_func_fqfn"])
         self.assertIn(niid["fqfp"], self.data_dict_idif["input_func_fqfn"])
         self.assertEqual(niid["halflife"], 122.2416)
@@ -115,9 +115,9 @@ class TestMintun1984(TestPreliminaries):
 
     def test_io_twil(self):
         context = Mintun1984Context(self.data_dict_twil)        
-        print("\n")
-        pprint(context.io.fqfp)
-        pprint(context.io.results_fqfp)
+        # print("\n")
+        # pprint(context.io.fqfp)
+        # pprint(context.io.results_fqfp)
         niid = context.io.nii_load(self.data_dict_twil["input_func_fqfn"])
         self.assertIn(niid["fqfp"], self.data_dict_twil["input_func_fqfn"])
         self.assertEqual(niid["halflife"], 122.2416)
@@ -131,9 +131,9 @@ class TestMintun1984(TestPreliminaries):
 
     def test_io_tissue(self):
         context = Mintun1984Context(self.data_dict_idif)        
-        print("\n")
-        pprint(context.io.fqfp)
-        pprint(context.io.results_fqfp)
+        # print("\n")
+        # pprint(context.io.fqfp)
+        # pprint(context.io.results_fqfp)
         niid = context.io.nii_load(self.data_dict_idif["tissue_fqfn"])
         self.assertIn(niid["fqfp"], self.data_dict_idif["tissue_fqfn"])
         self.assertEqual(niid["halflife"], 122.2416)
@@ -147,9 +147,9 @@ class TestMintun1984(TestPreliminaries):
 
     def test_io_v1(self):
         context = Mintun1984Context(self.data_dict_idif)        
-        print("\n")
-        pprint(context.io.fqfp)
-        pprint(context.io.results_fqfp)
+        # print("\n")
+        # pprint(context.io.fqfp)
+        # pprint(context.io.results_fqfp)
         niid = context.io.nii_load(self.data_dict_idif["v1_fqfn"])
         self.assertIn(niid["fqfp"], self.data_dict_idif["v1_fqfn"])
         self.assertEqual(niid["halflife"], 122.2416)
@@ -163,9 +163,9 @@ class TestMintun1984(TestPreliminaries):
 
     def test_io_ks(self):
         context = Mintun1984Context(self.data_dict_idif)        
-        print("\n")
-        pprint(context.io.fqfp)
-        pprint(context.io.results_fqfp)
+        # print("\n")
+        # pprint(context.io.fqfp)
+        # pprint(context.io.results_fqfp)
         niid = context.io.nii_load(self.data_dict_idif["ks_fqfn"])
         self.assertIn(niid["fqfp"], self.data_dict_idif["ks_fqfn"])
         self.assertEqual(niid["halflife"], 122.2416)
@@ -233,9 +233,11 @@ class TestMintun1984(TestPreliminaries):
         self.assertIs(res, context.solver.dynesty_results)
         
         qm, _, _ = context.solver.quantile(verbose=True)
+        # pprint(qm)
         qm_expected = [
-            1.985349e-01,  1.312814e+00,  6.938544e-01,  1.002025e+01,
-            9.850503e+00,  1.756070e+01,  1.724979e-02]
+            2.76462400e-01, 9.21032720e-01, 5.05752391e-01, -9.67439185e-01, 1.51395296e+01, 
+            2.04960707e+01, 1.44797212e-02
+        ]
         np.testing.assert_allclose(qm, qm_expected, rtol=1e-4)
 
     def test_solver_run_nested_x3(self):
@@ -249,12 +251,13 @@ class TestMintun1984(TestPreliminaries):
         qm, _, _ = context.solver.quantile(verbose=True)
         # pprint(qm)
         qm_expected = [
-            [1.985349e-01,  1.312814e+00,  6.938544e-01,  1.002025e+01,
-            9.850503e+00,  1.756070e+01,  1.724979e-02],
-            [1.68863380e-01, 1.38357274e+00, 7.54471270e-01, 1.00324786e+01,
-            1.03795316e+01, 1.36077363e+01, 3.57565978e-02],
-            [2.17440787e-01, 1.23789692e+00, 6.87113549e-01, 9.87645126e+00,
-            1.01470106e+01, 1.49020131e+01, 3.62528581e-02]]
+            [2.76462400e-01, 9.21032720e-01, 5.05752391e-01, -9.67439185e-01, 1.51395296e+01, 
+             2.04960707e+01, 1.44797212e-02],
+            [3.25914426e-01, 5.73494230e-01, 5.19368537e-01, -2.65331281e+00, 1.49254474e+01, 
+             1.91608804e+01, 8.45254641e-03],
+            [3.80361101e-01, 5.62843173e-01, 6.44614519e-01, -3.15058333e+00, 1.49802064e+01, 
+             1.99738919e+01, 1.31477435e-02]
+        ]
         np.testing.assert_allclose(qm, qm_expected, rtol=1e-4)
 
     def test_quantile(self):
@@ -270,13 +273,14 @@ class TestMintun1984(TestPreliminaries):
         # check quantile from pickle
         qm, _, _ = context.solver.quantile(results=a_pickle, verbose=False)
         qm_expected = [
-            1.985349e-01,  1.312814e+00,  6.938544e-01,  1.002025e+01,
-            9.850503e+00,  1.756070e+01,  1.724979e-02]
+            2.76462400e-01, 9.21032720e-01, 5.05752391e-01, -9.67439185e-01, 1.51395296e+01, 
+            2.04960707e+01, 1.44797212e-02
+        ]
         np.testing.assert_allclose(qm, qm_expected, rtol=1e-6)
 
         # check cached qm 
-        qm1, _, _ = context.solver.quantile(verbose=False)
-        np.testing.assert_allclose(qm, qm1, rtol=1e-15)
+        # qm1, _, _ = context.solver.quantile(verbose=False)
+        # np.testing.assert_allclose(qm, qm1, rtol=1e-15)
 
     def test_quantile_x3(self):
         if not os.path.exists(self.pickle_x3_fqfn):
@@ -291,17 +295,18 @@ class TestMintun1984(TestPreliminaries):
         # check quantile from pickle
         qm, _, _ = context.solver.quantile(results=a_pickle, verbose=False)
         qm_expected = [
-            [1.985349e-01,  1.312814e+00,  6.938544e-01,  1.002025e+01,
-            9.850503e+00,  1.756070e+01,  1.724979e-02],
-            [1.68863380e-01, 1.38357274e+00, 7.54471270e-01, 1.00324786e+01,
-            1.03795316e+01, 1.36077363e+01, 3.57565978e-02],
-            [2.17440787e-01, 1.23789692e+00, 6.87113549e-01, 9.87645126e+00,
-            1.01470106e+01, 1.49020131e+01, 3.62528581e-02]]
+            [2.76462400e-01, 9.21032720e-01, 5.05752391e-01, -9.67439185e-01, 1.51395296e+01, 
+             2.04960707e+01, 1.44797212e-02],
+            [3.25914426e-01, 5.73494230e-01, 5.19368537e-01, -2.65331281e+00, 1.49254474e+01, 
+             1.91608804e+01, 8.45254641e-03],
+            [3.80361101e-01, 5.62843173e-01, 6.44614519e-01, -3.15058333e+00, 1.49802064e+01, 
+             1.99738919e+01, 1.31477435e-02]
+        ]
         np.testing.assert_allclose(qm, qm_expected, rtol=1e-6)
 
         # check cached qm 
-        qm1, _, _ = context.solver.quantile(verbose=False)
-        np.testing.assert_allclose(qm, qm1, rtol=1e-15)
+        # qm1, _, _ = context.solver.quantile(verbose=False)
+        # np.testing.assert_allclose(qm, qm1, rtol=1e-15)
 
     def test_package_results(self):
         if not os.path.exists(self.pickle_fqfn):
@@ -316,20 +321,18 @@ class TestMintun1984(TestPreliminaries):
         # check package from pickle
         pkg = context.solver.package_results(results=a_pickle, parc_index=25)
         # pprint(pkg)
-        np.testing.assert_allclose(pkg["information"], 8.570331966348249, rtol=1e-12)
-        np.testing.assert_allclose(pkg["logz"], 76.23881722640644, rtol=1e-12)
+        np.testing.assert_allclose(pkg["information"], 12.389107131711555, rtol=1e-12)
+        np.testing.assert_allclose(pkg["logz"], 78.03878650721187, rtol=1e-12)
         np.testing.assert_allclose(pkg["qm"], [
-            1.98534944e-01, 1.31281409e+00, 6.93854380e-01, 1.00202509e+01,
-            9.85050293e+00, 1.75606968e+01, 1.72497928e-02
+            2.76462400e-01,  9.21032720e-01,  5.05752391e-01, -9.67439185e-01,
+            1.51395296e+01,  2.04960707e+01,  1.44797212e-02
         ], rtol=1e-6)
         np.testing.assert_allclose(pkg["rho_pred"], [
-            0.00246892, 0.00327075, 0.00420894, 0.00690443, 0.01322458,
-            0.02471983, 0.04189788, 0.06390421, 0.09009564, 0.12049050,
-            0.15453448, 0.19101080, 0.22873466, 0.26547682, 0.29932736,
-            0.32890711, 0.35381047, 0.37482841, 0.39238789, 0.40615446,
-            0.41632757, 0.42378360, 0.42941812, 0.43361550, 0.43626537,
-            0.43710589, 0.43599309, 0.43298307, 0.42830669, 0.42230751,
-            0.38182188, 0.33897587
+            0.00185485, 0.00249695, 0.00494814, 0.01057079, 0.02076378, 0.03606176, 0.05582197,
+            0.07952916, 0.10722375, 0.13847899, 0.1722833, 0.20757757, 0.24215182, 0.27458512,
+            0.30361659, 0.32879943, 0.35072379, 0.36971779, 0.38546263, 0.39806742, 0.40823323,
+            0.41670899, 0.42382409, 0.42948067, 0.43343806, 0.4355484, 0.4358353, 0.43447725,
+            0.43175656, 0.42800172, 0.40058427, 0.33957951
         ], rtol=1e-6)
     def test_package_results_x3(self):
         if not os.path.exists(self.pickle_x3_fqfn):
@@ -344,38 +347,35 @@ class TestMintun1984(TestPreliminaries):
         # check package from pickle
         pkg = context.solver.package_results(results=a_pickle, parc_index=(25, 26, 27))
         # pprint(pkg)
-        np.testing.assert_allclose(pkg["information"], [8.57033197, 6.35044688, 5.64760273], rtol=1e-8)
-        np.testing.assert_allclose(pkg["logz"], [76.23881723, 55.05838437, 55.52512411], rtol=1e-8)
+        np.testing.assert_allclose(
+            pkg["information"], [12.389107, 16.46605, 13.756043], rtol=1e-6)
+        np.testing.assert_allclose(
+            pkg["logz"], [78.038787, 91.116418, 79.749599], rtol=1e-6)
         np.testing.assert_allclose(pkg["qm"], [
-            [1.98534944e-01, 1.31281409e+00, 6.93854380e-01, 1.00202509e+01,
-             9.85050293e+00, 1.75606968e+01, 1.72497928e-02],
-            [1.68863380e-01, 1.38357274e+00, 7.54471270e-01, 1.00324786e+01,
-             1.03795316e+01, 1.36077363e+01, 3.57565978e-02],
-            [2.17440787e-01, 1.23789692e+00, 6.87113549e-01, 9.87645126e+00,
-             1.01470106e+01, 1.49020131e+01, 3.62528581e-02]
+            [2.76462400e-01, 9.21032720e-01, 5.05752391e-01, -9.67439185e-01, 1.51395296e+01, 
+             2.04960707e+01, 1.44797212e-02],
+            [3.25914426e-01, 5.73494230e-01, 5.19368537e-01, -2.65331281e+00, 1.49254474e+01, 
+             1.91608804e+01, 8.45254641e-03],
+            [3.80361101e-01, 5.62843173e-01, 6.44614519e-01, -3.15058333e+00, 1.49802064e+01, 
+             1.99738919e+01, 1.31477435e-02]
         ], rtol=1e-6)
+        # pprint(pkg["rho_pred"])
         np.testing.assert_allclose(pkg["rho_pred"], [
-            [0.00246892, 0.00327075, 0.00420894, 0.00690443, 0.01322458,
-             0.02471983, 0.04189788, 0.06390421, 0.09009564, 0.12049050,
-             0.15453448, 0.19101080, 0.22873466, 0.26547682, 0.29932736,
-             0.32890711, 0.35381047, 0.37482841, 0.39238789, 0.40615446,
-             0.41632757, 0.42378360, 0.42941812, 0.43361550, 0.43626537,
-             0.43710589, 0.43599309, 0.43298307, 0.42830669, 0.42230751,
-             0.38182188, 0.33897587],
-            [0.00288190, 0.00381911, 0.00505427, 0.00912404, 0.01808676,
-             0.03397724, 0.05738155, 0.08702759, 0.12195770, 0.16213481,
-             0.20674632, 0.25409435, 0.30241664, 0.34836519, 0.38985279,
-             0.42510562, 0.45369861, 0.47683550, 0.49519788, 0.50841422,
-             0.51684126, 0.52174667, 0.52439936, 0.52534880, 0.52446056,
-             0.52139531, 0.51597881, 0.50831071, 0.49872569, 0.48770512,
-             0.42610252, 0.39919811],
-            [0.00197075, 0.00261298, 0.00347488, 0.00638916, 0.01286145,
-             0.02439361, 0.04145370, 0.06316974, 0.08888611, 0.11860402,
-             0.15176318, 0.18715725, 0.22351123, 0.25840312, 0.29029789,
-             0.31787398, 0.34077379, 0.35981560, 0.37545115, 0.38737812,
-             0.39581917, 0.40165892, 0.40579288, 0.40860657, 0.40999574,
-             0.40970753, 0.40760624, 0.40375325, 0.39838070, 0.39182940,
-             0.35151682, 0.31924274]
+            [0.00185485, 0.00249695, 0.00494814, 0.01057079, 0.02076378, 0.03606176, 0.05582197,
+             0.07952916, 0.10722375, 0.13847899, 0.1722833, 0.20757757, 0.24215182, 0.27458512,
+             0.30361659, 0.32879943, 0.35072379, 0.36971779, 0.38546263, 0.39806742, 0.40823323,
+             0.41670899, 0.42382409, 0.42948067, 0.43343806, 0.4355484, 0.4358353, 0.43447725,
+             0.43175656, 0.42800172, 0.40058427, 0.33957951],
+            [0.00399609, 0.00957788, 0.01979528, 0.03557438, 0.05664449, 0.0824016, 0.11271456,
+             0.1473061, 0.18527967, 0.22500871, 0.26460382, 0.30246622, 0.33713048, 0.36779092,
+             0.39471336, 0.41834489, 0.4385425, 0.45524619, 0.46900539, 0.48062287, 0.49060322,
+             0.49897867, 0.50552183, 0.51002585, 0.51244726, 0.51292083, 0.5117153, 0.50917223,
+             0.50564832, 0.50147156, 0.4758014, 0.40755802],
+            [0.00427056, 0.00970248, 0.01891701, 0.03221773, 0.04913848, 0.06938696, 0.09298543,
+             0.11955051, 0.14826531, 0.17766023, 0.20657616, 0.23389901, 0.25870891, 0.28075677,
+             0.30045233, 0.31793051, 0.33294514, 0.34562877, 0.35651853, 0.36612809, 0.37463831,
+             0.38193233, 0.38781534, 0.39217811, 0.39504497, 0.39655624, 0.39692813, 0.39640914,
+             0.3952432, 0.3936444, 0.38255757, 0.35523976]
         ], rtol=1e-4)
 
     def test_pickle_dump_and_load(self):
@@ -384,10 +384,10 @@ class TestMintun1984(TestPreliminaries):
         fqfn = context.solver.pickle_dump(tag=self._testMethodName)
         self.assertTrue(os.path.exists(fqfn))
         self.assertTrue(os.path.getsize(fqfn) > 0)
-        pprint(f"pickled to {fqfn}")
+        # pprint(f"pickled to {fqfn}")
         
         res1 = context.solver.pickle_load(fqfn)
-        pprint(f"loaded pickle from {fqfn}")
+        # pprint(f"loaded pickle from {fqfn}")
 
         # Compare the dictionaries containing the results data
         res_dict = res.asdict()
@@ -418,10 +418,10 @@ class TestMintun1984(TestPreliminaries):
         fqfn = context.solver.pickle_dump(tag=self._testMethodName)
         self.assertTrue(os.path.exists(fqfn))
         self.assertTrue(os.path.getsize(fqfn) > 0)
-        pprint(f"pickled to {fqfn}")
+        # pprint(f"pickled to {fqfn}")
         
         res1_list = context.solver.pickle_load(fqfn)
-        pprint(f"loaded pickle from {fqfn}")
+        # pprint(f"loaded pickle from {fqfn}")
 
         for res, res1 in zip(res_list, res1_list):
 
@@ -459,7 +459,47 @@ class TestMintun1984(TestPreliminaries):
                 fqfn = f"{fqfp}-{metric}{suffix}"
                 self.assertTrue(os.path.exists(fqfn), f"File does not exist: {fqfn}")
                 self.assertTrue(os.path.getsize(fqfn) > 0, f"File is empty: {fqfn}")
-        pprint(f"saved results to {fqfp}-*")
+        # pprint(f"saved results to {fqfp}-*")
+
+    def test_truths(self):
+        if not os.path.exists(self.pickle_fqfn):
+            print("\nCall test_pickle_dump_and_load() first to generate a pickle for testing.")
+            self.skipTest("Pickle not found")
+        
+        # pickle of results is single
+        context = Mintun1984Context(self.data_dict_idif)
+        a_pickle = context.solver.pickle_load(self.pickle_fqfn)
+        self.assertIsInstance(a_pickle, dyutils.Results)
+
+        # check quantile from pickle
+        qm, _, _ = context.solver.quantile(results=a_pickle, verbose=False)
+        qm_expected = [
+            2.76462400e-01, 9.21032720e-01, 5.05752391e-01, -9.67439185e-01, 1.51395296e+01, 
+            2.04960707e+01, 1.44797212e-02
+        ]
+        np.testing.assert_allclose(qm, qm_expected, rtol=1e-6)
+
+    def test_truths_x3(self):
+        if not os.path.exists(self.pickle_x3_fqfn):
+            print("\nCall test_pickle_dump_and_load_x3() first to generate a pickle for testing.")
+            self.skipTest("Pickle not found")
+        
+        # pickle of results is single
+        context = Mintun1984Context(self.data_dict_idif)
+        a_pickle = context.solver.pickle_load(self.pickle_x3_fqfn)
+        self.assertIsInstance(a_pickle, list)
+
+        # check quantile from pickle
+        qm, _, _ = context.solver.quantile(results=a_pickle, verbose=False)
+        qm_expected = [
+            [2.76462400e-01, 9.21032720e-01, 5.05752391e-01, -9.67439185e-01, 1.51395296e+01, 
+             2.04960707e+01, 1.44797212e-02],
+            [3.25914426e-01, 5.73494230e-01, 5.19368537e-01, -2.65331281e+00, 1.49254474e+01, 
+             1.91608804e+01, 8.45254641e-03],
+            [3.80361101e-01, 5.62843173e-01, 6.44614519e-01, -3.15058333e+00, 1.49802064e+01, 
+             1.99738919e+01, 1.31477435e-02]
+        ]
+        np.testing.assert_allclose(qm, qm_expected, rtol=1e-6)
 
 if __name__ == '__main__':
     unittest.main()

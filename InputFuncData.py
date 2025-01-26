@@ -52,6 +52,8 @@ class InputFuncData(DynestyData):
             self._data_dict["rstate"] = np.random.default_rng(916301)
         if "tag" not in self._data_dict:
             self._data_dict["tag"] = ""
+        if "pfrac" not in self._data_dict:
+            self._data_dict["pfrac"] = 1.0
 
     @property
     def input_func_fqfn(self) -> str:
@@ -72,6 +74,10 @@ class InputFuncData(DynestyData):
     @property
     def nlive(self) -> int:
         return self.data_dict["nlive"]
+    
+    @property
+    def pfrac(self) -> float:
+        return self.data_dict["pfrac"]
     
     @property
     def rstate(self) -> np.random.Generator:

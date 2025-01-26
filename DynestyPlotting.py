@@ -47,7 +47,7 @@ rcParams.update({"ytick.minor.size": "3.5"})
 rcParams.update({"ytick.minor.width": "1.0"})
 rcParams.update({"font.size": 24})
 
-from dynesty import utils as dyutils, plotting as dyplot
+from dynesty import dynesty, utils as dyutils, plotting as dyplot
 
 
 class DynestyPlotting:
@@ -89,6 +89,8 @@ class DynestyPlotting:
 
         results = self.context.solver.dynesty_results
         if isinstance(results, list):
+            if not isinstance(parc_index, (int, np.integer)):
+                raise ValueError("parc_index must be an integer when results is a list")
             results = results[parc_index]
         qm, _, _ = self.context.solver.quantile(results)
 
@@ -100,7 +102,7 @@ class DynestyPlotting:
                 plt.savefig(fqfp1 + "-results.png")
                 plt.savefig(fqfp1 + "-results.svg")
         except Exception as e:
-            print(("PETModel.results_plot: caught an Exception: ", str(e)))
+            print(("DynestyPlotting.results_plot: caught an Exception: ", str(e)))
             traceback.print_exc()
 
         # run plot --------------------------------------------------------------
@@ -114,7 +116,7 @@ class DynestyPlotting:
                 plt.savefig(fqfp1 + "-runplot.png")
                 plt.savefig(fqfp1 + "-runplot.svg")
         except ValueError as e:
-            print(f"PETModel.results_plot.dyplot.runplot: caught a ValueError: {e}")
+            print(f"DynestyPlotting.results_plot.dyplot.runplot: caught a ValueError: {e}")
 
         # trace plot ------------------------------------------------------------
 
@@ -132,7 +134,7 @@ class DynestyPlotting:
                 plt.savefig(fqfp1 + "-traceplot.png")
                 plt.savefig(fqfp1 + "-traceplot.svg")
         except ValueError as e:
-            print(f"PETModel.results_plot.dyplot.traceplot: caught a ValueError: {e}")
+            print(f"DynestyPlotting.results_plot.dyplot.traceplot: caught a ValueError: {e}")
 
         # corner plot ----------------------------------------------------------
 
@@ -150,7 +152,7 @@ class DynestyPlotting:
                 plt.savefig(fqfp1 + "-cornerplot.png")
                 plt.savefig(fqfp1 + "-cornerplot.svg")
         except ValueError as e:
-            print(f"PETModel.results_plot.dyplot.cornerplot: caught a ValueError: {e}")
+            print(f"DynestyPlotting.results_plot.dyplot.cornerplot: caught a ValueError: {e}")
 
     def variations_plot(
             self,
@@ -159,9 +161,9 @@ class DynestyPlotting:
             tmin: float | None = None,
             tmax: float | None = None,
             tag: str = "",
-            ncolors: int = 10,
-            alpha: float = 0.6,
-            linewidth: float = 1.5,
+            ncolors: int = 1000,
+            alpha: float = 0.3,
+            linewidth: float = 3,
             do_save: bool = False
     ) -> None:
         if truths is None:

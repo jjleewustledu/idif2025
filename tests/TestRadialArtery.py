@@ -22,6 +22,7 @@
 
 from __future__ import absolute_import
 from copy import deepcopy
+import pickle
 import unittest
 import os
 from pprint import pprint
@@ -155,11 +156,12 @@ class TestRadialArtery(TestPreliminaries):
         self.assertIs(res, context.solver.dynesty_results)
         
         qm, _, _ = context.solver.quantile(verbose=True)
+        pprint(qm)
         qm_expected = [
-            1.87825047e+01,  7.21877943e+00,  1.54331710e+01,  3.48161027e+00,
-            3.89219304e+00,  2.93431483e+00, -1.40935949e+00, -1.94278285e+00,
-            3.88042029e+02,  3.58691650e-01,  5.12421307e-02,  2.42558096e-01,
-            2.47405036e+00,  3.72795087e-02]
+            2.00408660e+01,  7.89517310e+00,  2.07840470e+00,  3.16761881e+00,
+            2.88766928e+00, -1.52671856e+00, -1.91966022e+00,  3.46588704e+02,
+            3.42252058e-01,  4.41218604e-02,  2.52249429e+00,  3.16381137e-02
+        ]
         np.testing.assert_allclose(qm, qm_expected, rtol=1e-4)
         
         # context.solver.results_save()
@@ -179,12 +181,60 @@ class TestRadialArtery(TestPreliminaries):
         self.assertIs(res, context.solver.dynesty_results)
         
         qm, _, _ = context.solver.quantile(verbose=True)
+        pprint(qm)
         qm_expected = [
-            2.91118853e+00,  1.15354483e+01,  1.46693758e+01,  2.34838967e+00,
-            1.20049803e+01,  2.88627654e+00, -2.37518329e-01, -2.50799388e+00,
-            4.46668826e+02,  3.74820885e-01,  7.34415066e-02,  2.53170537e-01,
-            2.47131843e+00,  3.51385766e-02]
+            5.39469999e+00,  1.15253824e+01,  1.45972196e+00,  1.06675563e+01,
+            2.74603346e+00, -2.17361511e-01, -2.49932207e+00,  4.03538587e+02,
+            3.65797652e-01,  6.98445424e-02,  2.52172979e+00,  3.08879888e-02
+        ]
         np.testing.assert_allclose(qm, qm_expected, rtol=1e-4)
+
+    def test_pickle_dump_and_load(self):
+        context = RadialArteryContext(self.data_dict)
+        res = context.solver.run_nested(print_progress=True)
+        fqfn = context.solver.pickle_dump(tag=self._testMethodName)
+        self.assertTrue(os.path.exists(fqfn))
+        self.assertTrue(os.path.getsize(fqfn) > 0)
+        # pprint(f"pickled to {fqfn}")
+        
+        res1 = context.solver.pickle_load(fqfn)
+        # pprint(f"loaded pickle from {fqfn}")
+
+        # Compare the dictionaries containing the results data
+        res_dict = res.asdict()
+        res1_dict = res1.asdict()
+        
+        # Check all keys match
+        res_keys = set(res_dict.keys())
+        res1_keys = set(res1_dict.keys())
+        if res_keys != res1_keys:
+            print("Mismatched keys:", res_keys.symmetric_difference(res1_keys))
+        self.assertEqual(res_keys, res1_keys)
+        
+        # Compare each dict object in the results
+        for key in res_dict:
+            if key == "bound":
+                continue
+            # Compare binary representations of objects using pickle
+            # This handles both arrays and other objects consistently
+            self.assertEqual(pickle.dumps(res_dict[key]), pickle.dumps(res1_dict[key]))
+
+        # Also verify the importanceweights match exactly
+        # Note: importance_weights may differ slightly due to floating point rounding
+        self.assertEqual(pickle.dumps(res.importance_weights()), pickle.dumps(res1.importance_weights()))
+
+    def test_results_save(self):
+        context = RadialArteryContext(self.data_dict)
+        res = context.solver.run_nested(print_progress=True)
+        fqfp = context.solver.results_save(tag=self._testMethodName, results=res)
+        metrics = ["resid", "qm", "ql", "qh", "information", "logz", "rho-ideal", "rho-pred", "signal", "ideal"]
+        suffixes = [".nii.gz", ".json"]
+        for metric in metrics:
+            for suffix in suffixes:
+                fqfn = f"{fqfp}-{metric}{suffix}"
+                self.assertTrue(os.path.exists(fqfn), f"File does not exist: {fqfn}")
+                self.assertTrue(os.path.getsize(fqfn) > 0, f"File is empty: {fqfn}")
+        # pprint(f"saved results to {fqfp}-*")
 
 
 if __name__ == '__main__':

@@ -107,7 +107,7 @@ class TissuePlotting(DynestyPlotting):
     def truths_plot(
             self,
             truths: list[float] | tuple[float, ...] | NDArray | None = None,
-            parc_index: int = 0,
+            parc_index: int | None = None,
             activity_units: str = "kBq/mL"
     ) -> None:
         """ plots PET measurement, rho_pred from signal model, and input function prediction """
@@ -115,6 +115,8 @@ class TissuePlotting(DynestyPlotting):
             truths = self.context.solver.truths
 
         if isinstance(truths, np.ndarray) and truths.ndim == 2:
+            if parc_index is None:
+                raise ValueError("parc_index must not be None when truths is 2-dimensional")
             truths = truths[parc_index]
 
         A_max = self.context.data.max_tissue_measurement

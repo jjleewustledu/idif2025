@@ -37,7 +37,7 @@ class TissueSolver(DynestySolver):
     def package_results(
             self, 
             results: dyutils.Results |list[dyutils.Results] | None = None,
-            parc_index: int |list[int] | tuple[int, ...] | NDArray = 0
+            parc_index: int |list[int] | tuple[int, ...] | NDArray | None = None
     ) -> dict:
         """ provides a super dictionary also containing dynesty_results in entry "res" """
         
@@ -72,11 +72,18 @@ class TissueSolver(DynestySolver):
     def _package_results_pool(
             self,
             results: list[dyutils.Results] | None = None,
-            parc_index: list[int] | tuple[int, ...] | NDArray = 0
+            parc_index: list[int] | tuple[int, ...] | NDArray | None = None
     ) -> dict:
         
+        if not isinstance(results, list) or not all(isinstance(r, dyutils.Results) for r in results):
+            raise ValueError("results must be a list of dynesty.utils.Results objects")
+        if not isinstance(parc_index, (list, tuple, np.ndarray)):
+            raise ValueError("parc_index must be a list, tuple or numpy array")
+        if len(results) != len(parc_index):
+            raise ValueError(f"results length {len(results)} != parc_index length {len(parc_index)}")
+        
         qms, qls, qhs = self.quantile(results=results)
-        expected_shape = (len(parc_index), self.ndim)
+        expected_shape = (len(results), self.ndim)
         assert qms.shape == expected_shape, f"qms shape {qms.shape} != expected {expected_shape}"
         assert qls.shape == expected_shape, f"qls shape {qls.shape} != expected {expected_shape}"
         assert qhs.shape == expected_shape, f"qhs shape {qhs.shape} != expected {expected_shape}"
@@ -157,7 +164,7 @@ class TissueSolver(DynestySolver):
             self, 
             tag: str = "", 
             results: dyutils.Results | list[dyutils.Results] | None = None,
-            parc_index: int | list[int] | tuple[int, ...] | NDArray = 0
+            parc_index: int | list[int] | tuple[int, ...] | NDArray | None = None
     ) -> str:
         """ Saves .nii.gz and -quantiles.csv.  Returns f.q. fileprefix. """
         
@@ -241,7 +248,7 @@ class TissueSolver(DynestySolver):
     ) -> dyutils.Results | list[dyutils.Results]:
         
         self._clear_cache()
-
+        
         if (isinstance(parc_index, (int, np.integer)) or 
             (isinstance(parc_index, np.ndarray) and parc_index.size == 1)):
             return self._run_nested_single(checkpoint_file, print_progress, resume, parc_index)

@@ -31,10 +31,10 @@ from TissuePlotting import TissuePlotting
 class Mintun1984Context(TissueContext):
     def __init__(self, data_dict: dict):
         super().__init__(data_dict)
-        self._io = TissueIO(self)
+        # self._io = TissueIO(self)
         self._data = Mintun1984Data(self, data_dict)
         self._solver = Mintun1984Solver(self)
-        self._plotting = TissuePlotting(self)
+        # self._plotting = TissuePlotting(self)
                
     @property
     def data(self):
@@ -44,13 +44,13 @@ class Mintun1984Context(TissueContext):
     def input_func_type(self):
         return self.data.input_func_type
     
-    @property
-    def io(self):
-        return self._io
+    # @property
+    # def io(self):
+    #     return self._io
     
-    @property
-    def plotting(self):
-        return self._plotting
+    # @property
+    # def plotting(self):
+    #     return self._plotting
         
     @property
     def solver(self):

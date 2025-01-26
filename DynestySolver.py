@@ -101,14 +101,18 @@ class DynestySolver(ABC):
     # methods
         
     @abstractmethod
-    def loglike(self, v: np.ndarray, parc_index: int = 0) -> float:
+    def loglike(
+            self,
+            v: np.ndarray,
+            parc_index: int | list[int] | tuple[int, ...] | NDArray | None = None
+    ) -> float:
         pass
 
     @abstractmethod
     def package_results(
             self, 
             results: dyutils.Results |list[dyutils.Results] | None = None,
-            parc_index: int |list[int] | tuple[int, ...] | NDArray = 0
+            parc_index: int |list[int] | tuple[int, ...] | NDArray | None = None
     ) -> dict:
         pass
 
@@ -164,7 +168,7 @@ class DynestySolver(ABC):
             self, 
             tag: str = "", 
             results: dyutils.Results | list[dyutils.Results] | None = None,
-            parc_index: int | list[int] | tuple[int, ...] | NDArray = 0
+            parc_index: int | list[int] | tuple[int, ...] | NDArray = None
     ) -> str:
         pass
     
@@ -184,7 +188,7 @@ class DynestySolver(ABC):
             checkpoint_file: str | None = None,
             print_progress: bool = False,
             resume: bool = False,
-            parc_index: int = 0
+            parc_index: int | list[int] | tuple[int, ...] | NDArray | None = None
     ) -> dyutils.Results:
         pass
 
@@ -204,5 +208,9 @@ class DynestySolver(ABC):
         return self.context.io.pickle_load(fqfn)
 
     @abstractmethod
-    def signalmodel(self, v: np.ndarray, parc_index: int = 0) -> tuple[np.ndarray, ...]:
+    def signalmodel(
+            self,
+            v: np.ndarray,
+            parc_index: int | list[int] | tuple[int, ...] | NDArray | None = None
+    ) -> tuple[np.ndarray, ...]:
         pass

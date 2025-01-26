@@ -26,6 +26,7 @@ import dynesty
 from dynesty import utils as dyutils
 import numpy as np
 from numba import jit, float64
+from numpy.typing import NDArray
 import pandas as pd
 
 from InputFuncSolver import InputFuncSolver
@@ -36,18 +37,16 @@ def prior_transform(u: np.ndarray, halflife: float, sigma: float) -> np.ndarray:
     v = u
     v[0] = u[0] * 30  # t_0
     v[1] = u[1] * 30  # \tau_2 ~ t_2 - t_0
-    v[2] = u[2] * 30  # \tau_3 ~ t_3 - t_2
-    v[3] = u[3] * 20  # \alpha - 1
-    v[4] = u[4] * 30 + 3  # 1/\beta
-    v[5] = u[5] * 2.382 + 0.618  # p
-    v[6] = u[6] * 3 - 3  # \delta p_2 ~ p_2 - p
-    v[7] = u[7] * 3 - 3  # \delta p_3 ~ p_3 - p_2
-    v[8] = u[8] * 5 * halflife  # 1/\gamma for s.s.
-    v[9] = u[9] * 0.5 # f_2
-    v[10] = u[10] * 0.5  # f_3
-    v[11] = u[11] * 0.5  # f_{ss}
-    v[12] = u[12] * 4 + 0.5  # A is amplitude adjustment
-    v[13] = u[13] * sigma  # sigma ~ fraction of M0
+    v[2] = u[2] * 20  # \alpha - 1
+    v[3] = u[3] * 30 + 3  # 1/\beta
+    v[4] = u[4] * 2.5 + 0.5  # p
+    v[5] = u[5] * 3 - 3  # \delta p_2 ~ p_2 - p
+    v[6] = u[6] * 3 - 3  # \delta p_3 ~ p_3 - p_2
+    v[7] = u[7] * 5 * halflife  # 1/\gamma for s.s.
+    v[8] = u[8] * 0.9 # f_2
+    v[9] = u[9] * 0.9  # f_3
+    v[10] = u[10] * 4 + 0.5  # A is amplitude adjustment
+    v[11] = u[11] * sigma  # sigma ~ fraction of M0
     return v
 
 @jit(nopython=True)
@@ -61,7 +60,7 @@ def loglike(
     sigma = v[-1]
     residsq = (rho_pred - rho) ** 2 / sigma ** 2
     loglike = -0.5 * np.sum(residsq + np.log(2 * np.pi * sigma ** 2))
-    if not np.isfinite(loglike):
+    if not np.isfinite(loglike) or np.isnan(loglike):
         loglike = -1e300
     return loglike
 
@@ -73,17 +72,15 @@ def signalmodel(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     t_0 = v[0]
     tau_2 = v[1]
-    tau_3 = v[2]
-    a = v[3]
-    b = 1 / v[4]  # \beta <- 1/\beta    
-    p = v[5]
-    dp_2 = v[6]
-    dp_3 = v[7]
-    g = 1 / v[8]  # \gamma <- 1/\gamma
-    f_2 = v[9]
-    f_3 = v[10]
-    f_ss = v[11]
-    A = v[12]
+    a = v[2]
+    b = 1 / v[3]  # \beta <- 1/\beta    
+    p = v[4]
+    dp_2 = v[5]
+    dp_3 = v[6]
+    g = 1 / v[7]  # \gamma <- 1/\gamma
+    f_2 = v[8]
+    f_3 = v[9]
+    A = v[10]
 
     rho_ = A * solution_3bolus_series(timesIdeal, t_0, tau_2, a, b, p, dp_2, dp_3, g, f_2, f_3)
     rho = apply_dispersion(rho_, kernel)
@@ -105,8 +102,8 @@ def solution_3bolus_series(
     f_3_ = (1 - f_2/2) * f_3 
     rho = (
         f_1_ * solution_1bolus(t, t_0, a, b, p) +
-        f_2_ * solution_1bolus(t, t_0 + tau_2, a, b, max(0.618, p + dp_2)) +
-        f_3_ * solution_1bolus(t, t_0, a, b + g, max(0.618, p + dp_2 + dp_3))
+        f_2_ * solution_1bolus(t, t_0 + tau_2, a, b, max(0.5, p + dp_2)) +
+        f_3_ * solution_1bolus(t, t_0, a, b + g, max(0.5, p + dp_2 + dp_3))
     )
     return rho
 
@@ -150,10 +147,11 @@ class RadialArterySolver(InputFuncSolver):
     @property
     def labels(self):
         return [
-            r"$t_0$", r"$\tau_2$", r"$\tau_3$",
+            r"$t_0$", r"$\tau_2$", 
             r"$\alpha - 1$", r"$1/\beta$", r"$p$", r"$\delta p_2$", r"$\delta p_3$", r"$1/\gamma$",
-            r"$f_2$", r"$f_3$", r"$f_{ss}$",
-            r"$A$", r"$\sigma$"]  
+            r"$f_2$", r"$f_3$", 
+            r"$A$", 
+            r"$\sigma$"]  
     
     @staticmethod
     def _loglike(selected_data: dict):
@@ -197,7 +195,8 @@ class RadialArterySolver(InputFuncSolver):
         sampler.run_nested(
             checkpoint_file=selected_data["checkpoint_file"], 
             print_progress=selected_data["print_progress"], 
-            resume=selected_data["resume"]
+            resume=selected_data["resume"],
+            wt_kwargs={"pfrac": selected_data["pfrac"]}
         )
         return sampler.results
         
@@ -205,8 +204,7 @@ class RadialArterySolver(InputFuncSolver):
             self,
             checkpoint_file: str | None = None,
             print_progress: bool = False,
-            resume: bool = False,
-            parc_index: int = 0
+            resume: bool = False
     ) -> dyutils.Results:
         
         args = {
@@ -221,6 +219,7 @@ class RadialArterySolver(InputFuncSolver):
             "rstate": self.data.rstate,
             "checkpoint_file": checkpoint_file,
             "resume": resume,
+            "pfrac": self.data.pfrac,
             "print_progress": print_progress
         }
 
@@ -228,8 +227,22 @@ class RadialArterySolver(InputFuncSolver):
         self._set_cached_dynesty_results(_results)
         return _results
     
-    def signalmodel(self, v: np.ndarray, parc_index: int = 0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def signalmodel(
+            self,
+            v: list | tuple | NDArray,
+            parc_index: int | None = None
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        v = np.array(v, dtype=float)
+        if not isinstance(v, np.ndarray) or v.ndim != 1 or len(v) != self.ndim:
+            raise ValueError(f"v must be 1-dimensional array of length {self.ndim}")
         return signalmodel(v, self.data.timesIdeal, self.data.kernel)
     
-    def loglike(self, v: np.ndarray, parc_index: int = 0) -> float:
+    def loglike(
+            self,
+            v: list | tuple | NDArray,
+            parc_index: int | None = None
+    ) -> float:
+        v = np.array(v, dtype=float)
+        if not isinstance(v, np.ndarray) or v.ndim != 1 or len(v) != self.ndim:
+            raise ValueError(f"v must be 1-dimensional array of length {self.ndim}")
         return loglike(v, self.data.rho, self.data.timesIdeal, self.data.kernel)

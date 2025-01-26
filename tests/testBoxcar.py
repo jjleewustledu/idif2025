@@ -143,11 +143,12 @@ class TestBoxcar(TestPreliminaries):
         self.assertIs(res, context.solver.dynesty_results)
         
         qm, _, _ = context.solver.quantile(verbose=True)
+        pprint(qm)
         qm_expected = [ 
-            1.02630760e+01,  2.75903261e+01,  1.69716793e+01,  6.65476908e-01,
-            8.44111071e+00,  1.38995527e+00, -1.82413010e+00, -1.38948735e+00,
-            3.08785180e+02,  1.09157707e-01,  4.54813424e-02,  2.65391466e-01,
-            2.18509272e+00,  3.30312016e-02]
+            1.01101476e+01,  8.03895578e+00,  6.97662170e-01,  8.50752218e+00,
+            1.86828465e+00, -5.42531819e-01, -1.88788937e+00,  2.28818040e+02,
+            1.54435622e-01,  7.40541228e-02,  2.36314048e+00,  3.33619431e-02
+        ]
         np.testing.assert_allclose(qm, qm_expected, rtol=1e-4)
         
         # context.solver.results_save()
@@ -166,11 +167,12 @@ class TestBoxcar(TestPreliminaries):
         self.assertIs(res, context.solver.dynesty_results)
         
         qm, _, _ = context.solver.quantile(verbose=True)
+        pprint(qm)
         qm_expected = [ 
-            4.54640122e+00,  6.46147546e+00,  1.45195640e+01,  3.09892431e+00,
-            3.57240214e+00,  2.68976936e+00, -1.23835124e+00, -1.88842400e+00,
-            3.23358536e+02,  4.87485335e-01,  5.61298715e-02,  2.83563275e-01,
-            2.46602518e+00,  4.98233343e-02]
+            4.03704673e+00,  8.54552045e+00,  1.39230754e+00,  4.88473266e+00,
+            2.49603081e+00, -7.09519937e-01, -1.94139632e+00,  3.22944116e+02,
+            5.84015819e-01,  7.10187591e-02,  2.49533000e+00,  5.06061812e-02   
+        ]
         np.testing.assert_allclose(qm, qm_expected, rtol=1e-4)
 
 if __name__ == '__main__':

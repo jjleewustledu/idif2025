@@ -120,6 +120,9 @@ def signalmodel(
             for j in range(max(0, i - n_disp + 1), min(i + 1, n_input)):
                 conv_result[i] += rho_input_func_interp[j] * dispersion[i - j]
         rho_input_func_interp = conv_result[:n_times] / z_dispersion
+
+        # slide input function to fit
+
         if not isidif:
             # slide input function to left, 
             # since its measurements is delayed by radial artery cannulation
@@ -195,7 +198,6 @@ def signalmodel(
 
         rho_ideal = rho1[:n_times] + rho2[:n_times]  # rho_ideal is interpolated to the input function times
         if not isidif:
-            # rho_ideal = slide(rho_ideal, timesIdeal, t_0, HL)
             rho_pred = np.interp(timesMid, timesIdeal, rho_ideal)
         else:
             rho_pred = apply_boxcar(rho_ideal, timesMid, taus)
@@ -237,7 +239,8 @@ class Mintun1984Solver(TissueSolver):
     @property
     def labels(self):
         return [
-            r"OEF", r"$f_{H_2O}$", r"$v_p + 0.5 v_c$", r"$t_0$", r"$\tau_a$", r"$\tau_d$", r"$\sigma$"]
+            r"OEF", r"$f_{H_2O}$", r"$v_p + 0.5 v_c$", r"$t_0$", r"$\tau_a$", r"$\tau_d$", r"$\sigma$"
+        ]
 
     @staticmethod
     def _loglike(selected_data: dict):
@@ -302,7 +305,8 @@ class Mintun1984Solver(TissueSolver):
         sampler.run_nested(
             checkpoint_file=selected_data["checkpoint_file"], 
             print_progress=selected_data["print_progress"], 
-            resume=selected_data["resume"]
+            resume=selected_data["resume"],
+            wt_kwargs={"pfrac": selected_data["pfrac"]}
         )
         return sampler.results
         
@@ -341,6 +345,7 @@ class Mintun1984Solver(TissueSolver):
                 "rstate": self.data.rstate,
                 "checkpoint_file": cf,
                 "resume": resume,
+                "pfrac": self.data.pfrac,
                 "print_progress": False
             }
             args.append(selected_data)
@@ -361,9 +366,10 @@ class Mintun1984Solver(TissueSolver):
             checkpoint_file: str | None = None,
             print_progress: bool = False,
             resume: bool = False,
-            parc_index: int = 0
+            parc_index: int | None = None
     ) -> dyutils.Results:
-        
+        if parc_index is None:
+            raise ValueError("parc_index must be provided")
         args = {
             "rho": self.data.rho[parc_index],
             "timesMid": self.data.timesMid,
@@ -379,6 +385,7 @@ class Mintun1984Solver(TissueSolver):
             "rstate": self.data.rstate,
             "checkpoint_file": checkpoint_file,
             "resume": resume,
+            "pfrac": self.data.pfrac,
             "print_progress": print_progress
         }
 
@@ -386,8 +393,17 @@ class Mintun1984Solver(TissueSolver):
         self._set_cached_dynesty_results(_results)
         return _results
     
-    def signalmodel(self, v: np.ndarray, parc_index: int = 0) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def signalmodel(
+            self,
+            v: list | tuple | NDArray,
+            parc_index: int | None = None
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """ parc_index selects ks and v1"""
+        v = np.array(v, dtype=float)
+        if not isinstance(v, np.ndarray) or v.ndim != 1 or len(v) != self.ndim:
+            raise ValueError(f"v must be 1-dimensional array of length {self.ndim}")
+        if parc_index is None:
+            raise ValueError("parc_index must be provided")
         return signalmodel(
             v, 
             self.data.timesMid,
@@ -398,8 +414,17 @@ class Mintun1984Solver(TissueSolver):
             self.data.isidif
         )
     
-    def loglike(self, v: np.ndarray, parc_index: int = 0) -> float:
+    def loglike(
+            self,
+            v: list | tuple | NDArray,
+            parc_index: int | None = None
+    ) -> float:
         """ parc_index selects ks and v1"""
+        v = np.array(v, dtype=float)
+        if not isinstance(v, np.ndarray) or v.ndim != 1 or len(v) != self.ndim:
+            raise ValueError(f"v must be 1-dimensional array of length {self.ndim}")
+        if parc_index is None:
+            raise ValueError("parc_index must be provided")
         return loglike(
             v,
             self.data.rho,

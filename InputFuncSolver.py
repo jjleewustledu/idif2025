@@ -142,10 +142,9 @@ class InputFuncSolver(DynestySolver):
             self,
             checkpoint_file: str | list[str] | None = None,
             print_progress: bool = False,
-            resume: bool | list[bool] = False,
-            parc_index: int | list[int] | tuple[int, ...] | NDArray | None = None
+            resume: bool | list[bool] = False
     ) -> dyutils.Results | list[dyutils.Results]:
         
         self._clear_cache()
 
-        return self._run_nested_single(checkpoint_file, print_progress, resume, parc_index)
+        return self._run_nested_single(checkpoint_file, print_progress, resume)

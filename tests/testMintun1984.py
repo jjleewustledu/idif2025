@@ -30,6 +30,7 @@ from pprint import pprint
 import nibabel as nib
 import numpy as np
 import dynesty.utils as dyutils
+import pandas as pd
 
 from testPreliminaries import TestPreliminaries 
 from IOImplementations import TissueIO
@@ -490,6 +491,50 @@ class TestMintun1984(TestPreliminaries):
             [3.79994477e-01, 5.61937730e-01, 6.43803636e-01, -3.14646704e+00, 1.51870981e+01, 1.99857768e+01, 1.31206361e-02]
         ]
         np.testing.assert_allclose(qm, qm_expected, rtol=1e-6)
+
+    def test_call(self):
+        data_dict = self.data_dict_idif
+        data_dict["tag"] = ""
+        m = Mintun1984Context(data_dict)
+        m()
+        # self.assertTrue(os.path.exists(ra.data.results_fqfp))
+        # self.assertTrue(os.path.getsize(ra.data.results_fqfp) > 0)
+
+    def test_to_csv(self):
+        context = Mintun1984Context(self.data_dict_idif)
+        petpath = os.path.dirname(self.data_dict_idif["tissue_fqfn"])
+        pkl = os.path.join(petpath, "sub-108293_ses-20210421150523_trc-oo_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames_timeAppend-4-schaeffer-TissueIO-Boxcar.pickle")
+        res = context.solver.pickle_load(pkl)
+        qm, ql, qh = context.solver.quantile(results=res)
+
+        fqfp1 = os.path.splitext(pkl)[0]
+        
+        # Handle both 1D and 2D cases
+        if np.ndim(qm) == 1:            
+            df = {"label": context.solver.labels}
+            df.update({
+                "qm": qm,
+                "ql": ql, 
+                "qh": qh
+            })
+            df = pd.DataFrame(df)
+            df.to_csv(fqfp1 + "-quantiles.csv")
+        else:
+            # Create separate dataframes for qm, ql, qh
+            df_qm = {"label": context.solver.labels}
+            df_ql = {"label": context.solver.labels}
+            df_qh = {"label": context.solver.labels}
+
+            for i in range(qm.shape[0]):
+                df_qm.update({f"qm_{i}": qm[i,:]})
+                df_ql.update({f"ql_{i}": ql[i,:]})
+                df_qh.update({f"qh_{i}": qh[i,:]})
+
+            # Convert to dataframes and save to separate CSV files
+            pd.DataFrame(df_qm).to_csv(fqfp1 + "-quantiles-qm.csv")
+            pd.DataFrame(df_ql).to_csv(fqfp1 + "-quantiles-ql.csv") 
+            pd.DataFrame(df_qh).to_csv(fqfp1 + "-quantiles-qh.csv")
+
 
 if __name__ == '__main__':
     unittest.main()

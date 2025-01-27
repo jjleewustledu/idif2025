@@ -21,6 +21,11 @@
 # SOFTWARE.
 
 
+import os
+import sys
+import logging
+import matplotlib
+
 from DynestyContext import DynestyContext
 from IOImplementations import BoxcarIO
 from BoxcarData import BoxcarData
@@ -29,6 +34,15 @@ from InputFuncPlotting import InputFuncPlotting
 
 
 class BoxcarContext(DynestyContext):
+    def __call__(self) -> None:
+        logging.basicConfig(
+            filename=self.data.results_fqfp + ".log",
+            filemode="w",
+            format="%(name)s - %(levelname)s - %(message)s")        
+        self.solver.run_nested(print_progress=False)
+        self.solver.results_save()
+        self.plotting.results_plot(do_save=True)
+
     def __init__(self, data_dict: dict):
         super().__init__()
         self._io = BoxcarIO(self)
@@ -59,3 +73,15 @@ class BoxcarContext(DynestyContext):
     @tag.setter
     def tag(self, tag):
         self._data.tag = tag
+
+
+
+if __name__ == "__main__":
+    matplotlib.use('Agg')  # disable interactive plotting
+
+    data_dict = {
+        "input_func_fqfn": sys.argv[1],        
+        "nlive": int(sys.argv[2])
+    }
+    bc = BoxcarContext(data_dict)
+    bc()

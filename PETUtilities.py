@@ -233,7 +233,7 @@ class PETUtilities:
         if match:
             return match.group(1)
         else:
-            raise ValueError(f"tracer not identifiable from filename {fqfn}")    
+            raise ValueError(f"tracer not identifiable from filename {filename}")    
 
     @staticmethod
     def slice_parc(img: NDArray, xindex: int) -> NDArray:

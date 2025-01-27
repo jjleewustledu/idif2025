@@ -200,7 +200,9 @@ class DynestySolver(ABC):
         
         if tag:
             tag = f"-{tag.lstrip('-')}"
-        fqfp1 = self.context.io.results_fqfp + tag        
+        fqfp1 = self.context.io.results_fqfp + tag  
+        if fqfp1.endswith("-"):
+            fqfp1 = fqfp1[:-1]      
         fqfn = self.context.io.pickle_dump(self._get_cached_dynesty_results(), fqfp1)
         return fqfn
     

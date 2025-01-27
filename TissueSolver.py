@@ -75,6 +75,9 @@ class TissueSolver(DynestySolver):
             parc_index: list[int] | tuple[int, ...] | NDArray | None = None
     ) -> dict:
         
+        if not parc_index:
+            parc_index = np.arange(len(results))
+        
         if not isinstance(results, list) or not all(isinstance(r, dyutils.Results) for r in results):
             raise ValueError("results must be a list of dynesty.utils.Results objects")
         if not isinstance(parc_index, (list, tuple, np.ndarray)):
@@ -176,6 +179,8 @@ class TissueSolver(DynestySolver):
         if tag:
             tag = f"-{tag.lstrip('-')}"
         fqfp1 += tag
+        if fqfp1.endswith("-"):
+            fqfp1 = fqfp1[:-1]
 
         # =========== pickle dynesty results ===========   
 
@@ -229,13 +234,32 @@ class TissueSolver(DynestySolver):
         # =========== save .csv ===========
 
         qm, ql, qh = self.quantile(results=results)
-        df = {
-            "label": self.labels,
-            "qm": qm,
-            "ql": ql,
-            "qh": qh}
-        df = pd.DataFrame(df)
-        df.to_csv(fqfp1 + "-quantiles.csv")
+
+        # Handle both 1D and 2D cases
+        if np.ndim(qm) == 1:            
+            df = {"label": self.labels}
+            df.update({
+                "qm": qm,
+                "ql": ql, 
+                "qh": qh
+            })
+            df = pd.DataFrame(df)
+            df.to_csv(fqfp1 + "-quantiles.csv")
+        else:
+            # Create separate dataframes for qm, ql, qh
+            df_qm = {"label": self.labels}
+            df_ql = {"label": self.labels}
+            df_qh = {"label": self.labels}
+
+            for i in range(qm.shape[0]):
+                df_qm.update({f"qm_{i}": qm[i,:]})
+                df_ql.update({f"ql_{i}": ql[i,:]})
+                df_qh.update({f"qh_{i}": qh[i,:]})
+
+            # Convert to dataframes and save to separate CSV files
+            pd.DataFrame(df_qm).to_csv(fqfp1 + "-quantiles-qm.csv")
+            pd.DataFrame(df_ql).to_csv(fqfp1 + "-quantiles-ql.csv") 
+            pd.DataFrame(df_qh).to_csv(fqfp1 + "-quantiles-qh.csv")
 
         return fqfp1  
     
@@ -248,7 +272,7 @@ class TissueSolver(DynestySolver):
     ) -> dyutils.Results | list[dyutils.Results]:
         
         self._clear_cache()
-        
+
         if (isinstance(parc_index, (int, np.integer)) or 
             (isinstance(parc_index, np.ndarray) and parc_index.size == 1)):
             return self._run_nested_single(checkpoint_file, print_progress, resume, parc_index)

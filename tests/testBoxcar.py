@@ -175,5 +175,16 @@ class TestBoxcar(TestPreliminaries):
         ]
         np.testing.assert_allclose(qm, qm_expected, rtol=1e-4)
 
+    def test_call(self):
+        data_dict = {
+            "input_func_fqfn": self.input_func_fqfn,
+            "nlive": 300
+        }
+        bc = BoxcarContext(data_dict)
+        bc()
+        # self.assertTrue(os.path.exists(ra.data.results_fqfp))
+        # self.assertTrue(os.path.getsize(ra.data.results_fqfp) > 0)
+
+
 if __name__ == '__main__':
     unittest.main()

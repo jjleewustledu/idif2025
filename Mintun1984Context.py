@@ -20,6 +20,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+
+import os
+import sys
+import logging
+import matplotlib
+
 from DynestyContext import DynestyContext
 from IOImplementations import TissueIO
 from Mintun1984Data import Mintun1984Data
@@ -29,6 +35,14 @@ from TissuePlotting import TissuePlotting
 
 
 class Mintun1984Context(TissueContext):
+    def __call__(self) -> None:
+        logging.basicConfig(
+            filename=self.data.results_fqfp + ".log",
+            filemode="w",
+            format="%(name)s - %(levelname)s - %(message)s")        
+        self.solver.run_nested(print_progress=False)
+        self.solver.results_save()
+
     def __init__(self, data_dict: dict):
         super().__init__(data_dict)
         # self._io = TissueIO(self)
@@ -63,3 +77,17 @@ class Mintun1984Context(TissueContext):
     @tag.setter
     def tag(self, tag):
         self._data.tag = tag
+ 
+
+if __name__ == "__main__":
+    matplotlib.use('Agg')  # disable interactive plotting
+
+    data_dict = {
+        "input_func_fqfn": sys.argv[1],
+        "tissue_fqfn": sys.argv[2],
+        "v1_fqfn": sys.argv[3],
+        "ks_fqfn": sys.argv[4],
+        "nlive": int(sys.argv[5])
+    }
+    m = Mintun1984Context(data_dict)
+    m()

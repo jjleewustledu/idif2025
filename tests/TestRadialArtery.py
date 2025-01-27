@@ -27,6 +27,7 @@ import unittest
 import os
 from pprint import pprint
 
+import matplotlib
 import nibabel as nib
 import numpy as np
 import dynesty.utils as dyutils
@@ -236,6 +237,18 @@ class TestRadialArtery(TestPreliminaries):
                 self.assertTrue(os.path.getsize(fqfn) > 0, f"File is empty: {fqfn}")
         # pprint(f"saved results to {fqfp}-*")
 
+    def test_call(self):
+        data_dict = {
+            "input_func_fqfn": self.input_func_fqfn,
+            "kernel_fqfn": self.kernel_fqfn,
+            "nlive": 300
+        }
+        ra = RadialArteryContext(data_dict)
+        ra()
+        # self.assertTrue(os.path.exists(ra.data.results_fqfp))
+        # self.assertTrue(os.path.getsize(ra.data.results_fqfp) > 0)
 
 if __name__ == '__main__':
+    matplotlib.use('Agg')  # disable interactive plotting
     unittest.main()
+

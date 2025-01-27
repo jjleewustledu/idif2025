@@ -21,6 +21,11 @@
 # SOFTWARE.
 
 
+import os
+import sys
+import logging
+import matplotlib
+
 from DynestyContext import DynestyContext
 from IOImplementations import RadialArteryIO
 from RadialArteryData import RadialArteryData
@@ -29,7 +34,16 @@ from InputFuncPlotting import InputFuncPlotting
 
 
 class RadialArteryContext(DynestyContext):
-    def __init__(self, data_dict: dict):
+    def __call__(self) -> None:
+        logging.basicConfig(
+            filename=self.data.results_fqfp + ".log",
+            filemode="w",
+            format="%(name)s - %(levelname)s - %(message)s")        
+        self.solver.run_nested(print_progress=False)
+        self.solver.results_save()
+        self.plotting.results_plot(do_save=True)
+
+    def __init__(self, data_dict: dict) -> None:
         super().__init__()
         self._io = RadialArteryIO(self)
         self._data = RadialArteryData(self, data_dict)
@@ -59,3 +73,46 @@ class RadialArteryContext(DynestyContext):
     @tag.setter
     def tag(self, tag):
         self._data.tag = tag
+
+
+def fqfn2kernel(artery_fqfn: str):
+    """
+    :param artery_fqfn: The fully qualified file name for an artery.
+    :return: The fully qualified file name for the corresponding kernel file.
+
+    This method takes a fully qualified file name for an artery and returns the fully qualified file name for the corresponding kernel file. It uses the artery_fqfn parameter to determine
+    * which kernel file to return based on the substring contained in the artery_fqfn.
+
+    Example usage:
+        artery_file = "/path/to/sub-108293_artery.nii.gz"
+        kernel_file = fqfn2kernel(artery_file)
+        print(kernel_file)  # /path/to/CCIR_01211/sourcedata/kernel_hct=46.8.nii.gz
+    """
+    sourcedata = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2024", "data", "kernels")
+    if "sub-108293" in artery_fqfn:
+        return os.path.join(sourcedata, "kernel_hct=46.8.nii.gz")
+    if "sub-108237" in artery_fqfn:
+        return os.path.join(sourcedata, "kernel_hct=43.9.nii.gz")
+    if "sub-108254" in artery_fqfn:
+        return os.path.join(sourcedata, "kernel_hct=37.9.nii.gz")
+    if "sub-108250" in artery_fqfn:
+        return os.path.join(sourcedata, "kernel_hct=42.8.nii.gz")
+    if "sub-108284" in artery_fqfn:
+        return os.path.join(sourcedata, "kernel_hct=39.7.nii.gz")
+    if "sub-108306" in artery_fqfn:
+        return os.path.join(sourcedata, "kernel_hct=41.1.nii.gz")
+
+    # mean hct for females and males
+    return os.path.join(sourcedata, "kernel_hct=44.5.nii.gz")        
+
+
+if __name__ == "__main__":
+    matplotlib.use('Agg')  # disable interactive plotting
+
+    data_dict = {
+        "input_func_fqfn": sys.argv[1],
+        "kernel_fqfn": fqfn2kernel(sys.argv[1]),
+        "nlive": int(sys.argv[2])
+    }
+    ra = RadialArteryContext(data_dict)
+    ra()

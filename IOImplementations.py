@@ -71,7 +71,7 @@ class BaseIO(IOInterface):
     def fqfileprefix(fqfn: str) -> str:
         return PETUtilities.fqfileprefix(fqfn)
 
-    def nii_load(self, fqfn: str) -> dict:
+    def nii_load(self, fqfn: str, do_trim: bool = True, time_last: float | None = None) -> dict:
         """Load a NIfTI file and associated json."""
         if not fqfn.endswith(".nii.gz"):
             fqfn += ".nii.gz"
@@ -105,7 +105,9 @@ class BaseIO(IOInterface):
         if "raichleks" in j:
             niid["raichleks"] = np.array(j["raichleks"], dtype=float).squeeze()
 
-        return self.trim_nii_dict(niid)
+        if do_trim:
+            niid = self.trim_nii_dict(niid, time_last=time_last)
+        return niid
 
     def nii_save(self, data: dict, fqfn: str | None = None) -> None:
         """Save data to a NIfTI file and associated json."""
@@ -157,7 +159,7 @@ class BaseIO(IOInterface):
         df.to_csv(fqfn)
         
     @staticmethod
-    def trim_nii_dict(niid: dict, time_last: float = None) -> dict:
+    def trim_nii_dict(niid: dict, time_last: float | None = None) -> dict:
         """ Examines niid and trims copies of its entries to
             (i) remove inviable temporal samples indicated by np.isnan(timesMid)
             (ii) remove temporal samples occurring after time_last
@@ -166,6 +168,7 @@ class BaseIO(IOInterface):
         if not isinstance(niid, dict):
             raise TypeError(f"Expected niid to be dict but it has type {type(niid)}.")
 
+        niid = deepcopy(niid)
         img = niid["img"].copy()
         timesMid = niid["timesMid"].copy()
         taus = niid["taus"].copy()

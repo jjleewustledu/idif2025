@@ -67,8 +67,8 @@ class DynestyData:
     def fqfileprefix(self, fqfn: str) -> str:
         return self.context.io.fqfileprefix(fqfn)
     
-    def nii_load(self, fqfn: str) -> dict:
-        return self.context.io.nii_load(fqfn)
+    def nii_load(self, fqfn: str, time_last: float | None = None) -> dict:
+        return self.context.io.nii_load(fqfn, time_last=time_last)
     
     def nii_save(self, data: dict, fqfn: str | None = None) -> None:
         return self.context.io.nii_save(data, fqfn)

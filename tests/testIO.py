@@ -90,3 +90,34 @@ class TestIO(TestPreliminaries):
         self.assertTrue(np.array_equal(data['img'], data1['img']))
         self.assertEqual(data['nii'].shape, data1['nii'].shape)
         self.assertEqual(data['nii'].header, data1['nii'].header)
+
+    def test_trim_nii_dict_for_nan(self):
+        fqfn = self.fqfn_ParcSchaeffer("oo1", singularity=False)
+        niid = self.io.nii_load(fqfn=fqfn, do_trim=False)
+
+        # construct a new timesMid with NaNs
+        tM = np.copy(niid['timesMid'])
+        tM[20:31] = np.nan
+        niid['timesMid'] = tM
+
+        # verify that niid has NaNs
+        self.assertTrue(np.isnan(niid['timesMid']).any())
+
+        # verify that niid_trimmed has no NaNs
+        niid_trimmed = self.io.trim_nii_dict(niid)
+        self.assertFalse(np.isnan(niid_trimmed['timesMid']).any())
+
+        # verifty that timesMid, taus, and times have same length as img
+        self.assertEqual(len(niid_trimmed['timesMid']), niid_trimmed['img'].shape[1])
+        self.assertEqual(len(niid_trimmed['taus']), niid_trimmed['img'].shape[1])
+        self.assertEqual(len(niid_trimmed['times']), niid_trimmed['img'].shape[1])
+
+    def test_trim_nii_dict_for_time_last(self):
+        fqfn = self.fqfn_ParcSchaeffer("oo1", singularity=False)
+        niid = self.io.nii_load(fqfn=fqfn)
+
+        niid_trimmed = self.io.trim_nii_dict(niid, time_last=30)
+        self.assertTrue(np.all(niid_trimmed['timesMid'] <= 30))
+        self.assertTrue(np.all(niid_trimmed['taus'] <= 30))
+        self.assertTrue(np.all(niid_trimmed['times'] <= 30))
+        self.assertEqual(niid_trimmed['img'].shape[1], 26)

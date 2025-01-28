@@ -26,7 +26,6 @@ submit_main="${HOME}/PycharmProjects/dynesty/idif2024/submit-tissue.sh"
 tissue_context="${HOME}/PycharmProjects/dynesty/idif2024/Raichle1983Context.py"
 derivatives="${SINGULARITY_HOME}/CCIR_01211/derivatives"
 subs=("sub-108293" "sub-108237" "sub-108254" "sub-108250" "sub-108284" "sub-108306")
-len_subs="${#subs[@]}"
 
 # Find all session folders for subjects
 find_sessions() {
@@ -105,13 +104,15 @@ for session in "${sessions[@]}"; do
         
         # Skip if either file is empty
         if [ -z "$if_file" ] || [ -z "$pet_file" ]; then
-            echo "Warning: Missing files in session $session" >&2
+            # echo "Warning: Missing files in session $session:" >&2
+            # [ -z "$if_file" ] && echo "  - Input function file not found" >&2
+            # [ -z "$pet_file" ] && echo "  - PET file not found" >&2
             continue
         fi
         
         # Submit job for this pair
         submit_single_job "$if_file" "$pet_file"
-    else
+    ### else
         ### echo "Warning: Could not find matching pair of files in session $session" >&2
     fi
 done

@@ -28,6 +28,7 @@ import numpy as np
 from numpy.typing import NDArray
 import pandas as pd
 from DynestySolver import DynestySolver
+from PETUtilities import PETUtilities
 
 
 class InputFuncSolver(DynestySolver):
@@ -83,32 +84,30 @@ class InputFuncSolver(DynestySolver):
 
         # =========== save .nii.gz ===========
 
-        pkg = self.package_results(results=results)
-
         ifm = self.context.data.input_func_measurement
         A0 = np.max(ifm["img"])
-
-        json = ifm["json"]
-        if not np.array_equal(json["timesMid"], ifm["timesMid"]):
-            json["timesMid"] = ifm["timesMid"].tolist()
-        if not np.array_equal(json["taus"], ifm["taus"]):
-            json["taus"] = ifm["taus"].tolist()
+        pkg = self.package_results(results=results)
 
         self.context.io.nii_save({
             "timesMid": ifm["timesMid"],
             "taus": ifm["taus"],
             "img": A0 * pkg["rho_pred"],
             "nii": ifm["nii"],
-            "fqfp": ifm["fqfp"],
-            "json": json
+            "fqfp": fqfp1,
+            "json": ifm["json"]
         }, fqfp1 + "-signal.nii.gz")
 
+        json = deepcopy(ifm["json"])
+        json["taus"] = np.ones(pkg["timesIdeal"].shape).tolist()
+        json["times"] = pkg["timesIdeal"].tolist()
+        json["timesMid"] = self.context.io.data2timesMid(json).tolist()
         self.context.io.nii_save({
-            "times": pkg["timesIdeal"],
             "taus": np.ones(pkg["timesIdeal"].shape),
+            "times": pkg["timesIdeal"],
+            "timesMid": self.context.io.data2timesMid(json),
             "img": A0 * pkg["rho_ideal"],
             "nii": ifm["nii"],
-            "fqfp": ifm["fqfp"],
+            "fqfp": fqfp1,
             "json": json
         }, fqfp1 + "-ideal.nii.gz")
 

@@ -83,4 +83,4 @@ echo "nlive is ${nlive}" 1>&2
 
 export CCHOME=/home/jjlee && \
 export PATH="${CCHOME}/miniconda3/envs/dynesty12/bin:${PATH}" && \
-python ${CCHOME}/PycharmProjects/dynesty/idif2024/${the_main} "${inputf}" "${pet}" "${nlive}" > "${filepath}/${fileprefix}-submit-${date2save}.log"
+python ${the_main} "${inputf}" "${pet}" "${nlive}" > "${filepath}/${fileprefix}-submit-${date2save}.log"

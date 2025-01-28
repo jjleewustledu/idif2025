@@ -63,6 +63,11 @@ class PETUtilities:
         return times + taus / 2
     
     @staticmethod
+    def data2timesMidLast(data: dict) -> float:
+        """Retrieve last timeMid from data dictionary."""
+        return data["timesMid"][-1]
+    
+    @staticmethod
     def data2timesInterp(data: dict) -> np.ndarray:
         """Retrieve times array from data dictionary and interpolate to 1-second resolution from 0 sec."""
         tinterp0 = data["times"][0]  # sec
@@ -74,20 +79,42 @@ class PETUtilities:
     def data2timesMidInterp(data: dict) -> np.ndarray:
         """Retrieve timesMid array from data dictionary and interpolate to 1-second resolution from 0.5 sec."""
         return PETUtilities.data2timesInterp(data) + 0.5  # sec
-    
-    @staticmethod
-    def decay_correct(tac: dict) -> dict:
-        _tac = deepcopy(tac)
-        img = _tac["img"] * np.power(2, _tac["timesMid"] / _tac["halflife"])
-        _tac["img"] = img
-        return _tac
 
     @staticmethod
-    def decay_uncorrect(tac: dict) -> dict:
+    def decay_correct(tac: dict) -> dict:
+        return PETUtilities._decay_correction_helper(tac, sign=1)
+    
+    @staticmethod
+    def _decay_correction_helper(tac: dict, sign: int) -> dict:
+        """ anticipates a common error whereby img is passed with wrong choice of times or timesMid """
         _tac = deepcopy(tac)
-        img = _tac["img"] * np.power(2, -_tac["timesMid"] / _tac["halflife"])
-        _tac["img"] = img
-        return _tac
+        img = _tac["img"]
+        
+        # Handle 1D case
+        if img.ndim == 1:
+            if len(img) == len(_tac["timesMid"]):
+                _tac["img"] = img * np.power(2, sign * _tac["timesMid"] / _tac["halflife"])
+                return _tac
+            if len(img) == len(_tac["times"]):
+                _tac["img"] = img * np.power(2, sign * _tac["times"] / _tac["halflife"]) 
+                return _tac
+                
+        # Handle 2D case
+        elif img.ndim == 2:
+            if img.shape[1] == len(_tac["timesMid"]):
+                _tac["img"] = img * np.power(2, sign * _tac["timesMid"] / _tac["halflife"])
+                return _tac
+            if img.shape[1] == len(_tac["times"]):
+                _tac["img"] = img * np.power(2, sign * _tac["times"] / _tac["halflife"])
+                return _tac
+                
+        raise ValueError(
+            f"img shape {_tac['img'].shape} not compatible with times length {len(_tac['times'])} "
+            f"or timesMid length {len(_tac['timesMid'])}")
+
+    @staticmethod 
+    def decay_uncorrect(tac: dict) -> dict:
+        return PETUtilities._decay_correction_helper(tac, sign=-1)
 
     @staticmethod
     def fileparts(fqfn: str) -> tuple:

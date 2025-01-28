@@ -42,7 +42,7 @@ class TestPreliminaries(unittest.TestCase):
                  "createNiftiMovingAvgFrames_timeAppend-4-ParcSchaeffer-reshape-"
                  "to-schaeffer-schaeffer.nii.gz")
         elif tracer == "oo2":
-            fn = "sub-108293_ses-20210421154248_trc-oo_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames_timeAppend-4-ParcSchaeffer-reshape-to-schaeffer-schaeffer.nii.gz"
+            fn = "sub-108293_ses-20210421154248_trc-oo_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames-ParcSchaeffer-reshape-to-schaeffer-schaeffer.nii.gz"
         elif tracer == "fdg":
             fn = "sub-108293_ses-20210421155709_trc-fdg_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames_timeAppend-4-ParcSchaeffer-reshape-to-schaeffer-schaeffer.nii.gz"
         return os.path.join(self.petdir(tracer, singularity), fn)

@@ -1,4 +1,55 @@
 #!/bin/bash
+# -*- coding: utf-8 -*-
+# submit-mintun1984.sh
+# ===================
+#
+# This script submits Mintun 1984 model analysis jobs to SLURM for processing PET data.
+#
+# The script configures and submits a SLURM job with specific resource requirements for analyzing
+# CMRO2 using the Mintun 1984 model. It sets up email notifications, resource allocations, and 
+# outputs job information to stdout/stderr.
+#
+# Structure:
+# ---------
+# 1. SLURM configuration
+#    - Job name and output files
+#    - Email notifications
+#    - Resource requirements (CPUs, memory, time)
+#    - Partition and account settings
+# 2. Job information output
+#    - Prints SLURM environment variables
+#    - Logs execution details
+#
+# Usage:
+# -----
+# ./submit-mintun1984.sh <input_func> <v1_file> <ks_file>
+#
+# Arguments:
+# ---------
+# input_func : str
+#     Path to the input function file (RadialArteryIO or BoxcarIO)
+# v1_file : str
+#     Path to the V1 parameter file
+# ks_file : str
+#     Path to the Ks parameter file
+#
+# Resources:
+# ---------
+# - 30 CPUs per task
+# - 3GB memory per CPU
+# - 48 hour time limit
+# - Tier 2 CPU partition
+#
+# Notes:
+# -----
+# The script is configured for the Aristeidis Sotiras research group's
+# reservation and account on the SLURM cluster.
+#
+# See Also:
+# --------
+# submit-radial-artery.sh : Script for radial artery input function analysis
+# submit-boxcar.sh : Script for boxcar input function analysis
+# submit-tissue.sh : Script for tissue analysis
 
 # SLURM
 

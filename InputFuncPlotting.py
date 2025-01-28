@@ -31,6 +31,21 @@ from DynestyPlotting import DynestyPlotting
 
 
 class InputFuncPlotting(DynestyPlotting):
+    """Plotting utilities for input functions and their predictions.
+
+    This class extends DynestyPlotting to provide specialized plotting methods for input functions,
+    including measured data, model predictions, and ideal curves.
+
+    Args:
+        context: The context object containing solver, data, and IO information.
+
+    Attributes:
+        Inherits all attributes from DynestyPlotting parent class.
+
+    Example:
+        >>> plotter = InputFuncPlotting(context)
+        >>> plotter.truths_plot(truths=model_params)
+    """
     def __init__(self, context):
         super().__init__(context)
 

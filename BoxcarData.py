@@ -25,6 +25,20 @@ from InputFuncData import InputFuncData
 
 
 class BoxcarData(InputFuncData):
+    """Class for handling boxcar input function data from PET imaging.
+
+    This class extends InputFuncData to provide specialized handling of boxcar input functions,
+    which are derived from image-derived input functions (IDIFs). It requires all incoming PET 
+    data to be decay corrected.
+
+    Args:
+        context: The context object containing solver, data, and IO information.
+        data_dict (dict, optional): Dictionary containing configuration and data. Defaults to {}.
+
+    Attributes:
+        Inherits all attributes from InputFuncData parent class.
+    """
+    
     """ input function data assumed to be decay-corrected, consistent with tomography """
     
     def __init__(self, context, data_dict: dict = {}):

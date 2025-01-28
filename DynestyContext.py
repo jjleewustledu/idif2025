@@ -28,7 +28,40 @@ from dynesty import utils as dyutils
 
 
 class DynestyContext(ABC):
-    """ Requires all incoming PET and input function data to be decay corrected. """
+    """Base context class for dynesty-based model implementations.
+
+    This abstract base class provides the foundation for implementing models that use dynesty
+    for nested sampling analysis. It defines the required interface and common functionality
+    for data handling, I/O operations, and result visualization.
+
+    All PET and input function data must be decay corrected before use.
+
+    Attributes:
+        data: Abstract property for accessing model data.
+        fqfp (str): Fully qualified file path for I/O operations.
+        io: Abstract property for I/O handler.
+        plotting: Abstract property for plotting utilities.
+        results_fqfp (str): Fully qualified file path for results.
+        solver: Abstract property for model solver.
+
+    Example:
+        >>> class MyModel(DynestyContext):
+        ...     def __init__(self):
+        ...         super().__init__()
+        ...         self._data = ModelData()
+        ...         self._io = ModelIO()
+        ...         self._solver = ModelSolver()
+        ...         self._plotting = ModelPlotting()
+
+    Note:
+        Subclasses must implement the abstract properties:
+        - data
+        - io
+        - plotting
+        - solver
+        
+        Requires all incoming PET and input function data to be decay corrected. 
+    """
     def __init__(self):
         pass
 

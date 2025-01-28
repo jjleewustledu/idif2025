@@ -31,6 +31,28 @@ from numpy.typing import NDArray
 
 
 class DynestyData:
+    """Base class for handling data used in dynesty nested sampling.
+
+    This class provides core functionality for data management, file I/O operations,
+    and data persistence used by specialized data handling classes.
+
+    Args:
+        context: The context object containing solver, data, and IO information.
+        data_dict (dict, optional): Dictionary containing configuration and data. Defaults to {}.
+
+    Attributes:
+        context: The context object containing solver, data, and IO information.
+        data_dict (dict): Dictionary containing the data configuration.
+        fqfp (str): Fully qualified file prefix for saving data.
+        results_fqfp (str): Fully qualified file prefix for results.
+        rho (NDArray): Abstract property for normalized data values.
+
+    Example:
+        >>> context = MyContext()
+        >>> data = {"param1": value1, "param2": value2}
+        >>> dynesty_data = DynestyData(context, data)
+        >>> file_prefix = dynesty_data.fqfp
+    """
     def __init__(self, context, data_dict: dict = {}):
         self.context = context
         self._data_dict = data_dict

@@ -35,6 +35,37 @@ from TissuePlotting import TissuePlotting
 
 
 class Mintun1984Context(TissueContext):
+    """Context class for the Mintun 1984 tissue model implementation.
+
+    This class provides the context for analyzing PET data using the Mintun 1984 tissue model.
+    It coordinates the data handling, solver, and I/O operations specific to this model.
+
+    Args:
+        data_dict (dict): Dictionary containing input data including:
+            - input_func_fqfn (str): Fully qualified filename for input function data
+            - tissue_fqfn (str): Fully qualified filename for tissue data
+
+    Attributes:
+        data (Mintun1984Data): Data handler for the Mintun 1984 model
+        solver (Mintun1984Solver): Solver implementing the Mintun 1984 model
+        tag (str): Identifier tag for the analysis
+        input_func_type (str): Type of input function used
+
+    Example:
+        >>> data = {"input_func_fqfn": "input.csv", "tissue_fqfn": "tissue.csv"}
+        >>> context = Mintun1984Context(data)
+        >>> context()  # Run the analysis
+        >>> results = context.solver.results_load()
+
+    Notes:
+        The Mintun 1984 model is described in:
+        Mintun MA, Raichle ME, Martin WR, Herscovitch P.
+        Brain oxygen utilization measured with O-15 radiotracers and positron emission tomography.
+        J Nucl Med. 1984 Feb;25(2):177-87. PMID: 6610032.
+
+        Requires all incoming PET and input function data to be decay corrected. 
+    """
+    
     def __call__(self) -> None:
         logging.basicConfig(
             filename=self.data.results_fqfp + ".log",
@@ -49,6 +80,7 @@ class Mintun1984Context(TissueContext):
         self._data = Mintun1984Data(self, data_dict)
         self._solver = Mintun1984Solver(self)
         # self._plotting = TissuePlotting(self)
+        self.tag += "-Mintun1984"        
                
     @property
     def data(self):

@@ -233,6 +233,31 @@ def slide(rho: np.ndarray, t: np.ndarray, dt: float, halflife: float=None) -> np
 
 
 class Mintun1984Solver(TissueSolver):
+    """Solver implementing the Mintun 1984 tissue model for PET data analysis.
+
+    This class implements the tissue model described in Mintun et al. 1984 [1]_ for analyzing
+    PET data using dynamic nested sampling. The model accounts for oxygen extraction fraction (OEF),
+    water fraction (f_H2O), vascular volume (v_p + 0.5v_c), time offset (t0), arterial dispersion (τa),
+    and venous dispersion (τd).
+
+    Args:
+        context: Context object containing PET data and configuration.
+
+    Attributes:
+        context: Reference to the context object.
+        data: Reference to the context's data object containing PET measurements.
+
+    Example:
+        >>> context = TissueContext(data_dict)
+        >>> solver = Mintun1984Solver(context)
+        >>> results = solver.run_nested()
+        >>> qm, ql, qh = solver.quantile(results)
+
+    References:
+        .. [1] Mintun MA, Raichle ME, Martin WR, Herscovitch P.
+               Brain oxygen utilization measured with O-15 radiotracers and positron emission tomography.
+               J Nucl Med. 1984 Feb;25(2):177-87. PMID: 6610032.
+    """
     def __init__(self, context):
         super().__init__(context)
 

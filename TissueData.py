@@ -31,6 +31,32 @@ from IOImplementations import TissueIO
 from PETUtilities import PETUtilities
 
 class TissueData(DynestyData):
+    """Class for handling tissue time-activity curve data from PET imaging.
+
+    This class extends DynestyData to provide specialized handling of tissue time-activity curves,
+    including decay correction, data interpolation, and measurement access. It requires all incoming
+    PET and input function data to be decay corrected.
+
+    Args:
+        context: The context object containing solver, data, and IO information.
+        data_dict (dict, optional): Dictionary containing configuration and data. Defaults to {}.
+
+    Attributes:
+        delta_time (float): Time step for interpolation in seconds.
+        halflife (float): Radiotracer half-life in seconds.
+        input_func_fqfn (str): Fully qualified filename for input function data.
+        input_func_interp (NDArray): Input function interpolated to tissue timepoints.
+        recovery_coefficient (float): Recovery coefficient for partial volume correction.
+        sigma (float): Measurement uncertainty.
+        tissue_fqfn (str): Fully qualified filename for tissue data.
+
+    Example:
+        >>> context = MyContext()
+        >>> data = {"input_func_fqfn": "input.nii", "tissue_fqfn": "tissue.nii"}
+        >>> tissue_data = TissueData(context, data)
+        >>> activity = tissue_data.input_func_interp
+    """
+    
     """ Requires all incoming PET and input function data to be decay corrected,
         and immediately decay uncorrects [15O] data on loading so that kinetics and decays will commute. """
     def __init__(self, context, data_dict: dict = {}):

@@ -1,4 +1,45 @@
 #!/bin/bash
+# -*- coding: utf-8 -*-
+# submit-tissue.sh
+# ===============
+#
+# This script submits tissue analysis jobs to SLURM for processing PET data.
+#
+# The script configures and submits a SLURM job with specific resource requirements
+# for analyzing tissue data. It sets up email notifications, resource allocations,
+# and outputs job information to stdout/stderr.
+#
+# Structure:
+# ---------
+# 1. SLURM configuration
+#    - Job name and output files
+#    - Email notifications
+#    - Resource requirements (CPUs, memory, time)
+#    - Partition and account settings
+# 2. Job information output
+#    - Prints SLURM environment variables
+#    - Logs execution details
+#
+# Usage:
+# -----
+# ./submit-tissue.sh
+#
+# Resources:
+# ---------
+# - 31 CPUs per task
+# - 3GB memory per CPU
+# - 48 hour time limit
+# - Tier 2 CPU partition
+#
+# Notes:
+# -----
+# The script is configured for the Aristeidis Sotiras research group's
+# reservation and account on the SLURM cluster.
+#
+# See Also:
+# --------
+# submit-boxcar.sh : Similar script for boxcar input function analysis
+# submit-radial-artery.sh : Similar script for radial artery analysis
 
 # SLURM
 

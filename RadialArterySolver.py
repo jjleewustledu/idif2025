@@ -140,6 +140,38 @@ def apply_dispersion(rho: np.ndarray, kernel: np.ndarray) -> np.ndarray:
 
 
 class RadialArterySolver(InputFuncSolver):
+    """Solver for fitting radial artery input functions to PET data.
+
+    This class implements methods for fitting a radial artery input function model to PET data
+    using dynamic nested sampling. The model consists of three gamma distributions with variable
+    parameters and relative weights, convolved with a dispersion kernel.
+
+    Args:
+        context: The context object containing data and configuration for the solver.
+
+    Attributes:
+        data: Reference to the context's data object containing PET measurements and metadata.
+        labels (list): Parameter labels for plotting and output.
+
+    Example:
+        >>> context = RadialArteryContext(data_dict)
+        >>> solver = RadialArterySolver(context)
+        >>> results = solver.run_nested()
+        >>> qm, ql, qh = solver.quantile(results)
+
+    Notes:
+        The radial artery model uses 12 parameters:
+        - t_0: Time offset
+        - tau_2: Time delay for second bolus
+        - alpha: Shape parameter
+        - beta: Scale parameter
+        - p: KWW shape parameter
+        - dp_2, dp_3: Shape parameter offsets
+        - gamma: Steady state decay rate
+        - f_2, f_3: Relative weights
+        - A: Amplitude adjustment
+        - sigma: Noise parameter
+    """
     def __init__(self, context):
         super().__init__(context)
         self.data = self.context.data

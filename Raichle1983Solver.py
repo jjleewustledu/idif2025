@@ -166,6 +166,31 @@ def slide(rho: np.ndarray, t: np.ndarray, dt: float, halflife: float=None) -> np
 
 
 class Raichle1983Solver(TissueSolver):
+    """Solver implementing the Raichle 1983 tissue model for PET data analysis.
+
+    This class implements the tissue model described in Raichle et al. 1983 [1]_ for analyzing
+    PET data using dynamic nested sampling. The model accounts for blood flow (f),
+    blood-tissue partition coefficient (λ), permeability-surface area product (ps),
+    time offset (t0), and arterial dispersion (τa).
+
+    Args:
+        context: Context object containing PET data and configuration.
+
+    Attributes:
+        context: Reference to the context object.
+        data: Reference to the context's data object containing PET measurements.
+
+    Example:
+        >>> context = TissueContext(data_dict)
+        >>> solver = Raichle1983Solver(context)
+        >>> results = solver.run_nested()
+        >>> qm, ql, qh = solver.quantile(results)
+
+    References:
+        .. [1] Raichle ME, Martin WR, Herscovitch P, Mintun MA, Markham J.
+               Brain blood flow measured with intravenous H2(15)O. II. Implementation and validation.
+               J Nucl Med. 1983 Sep;24(9):790-8. PMID: 6604140.
+    """
     def __init__(self, context):
         super().__init__(context)
 

@@ -28,6 +28,34 @@ from TissuePlotting import TissuePlotting
 
 
 class TissueContext(DynestyContext):
+    """Base context class for tissue model implementations.
+
+    This class provides the base context for analyzing PET data using various tissue models.
+    It coordinates the data handling, solver, I/O operations, and plotting functionality
+    common across different tissue model implementations.
+
+    Args:
+        data_dict (dict): Dictionary containing input data including:
+            - input_func_fqfn (str): Fully qualified filename for input function data
+            - tissue_fqfn (str): Fully qualified filename for tissue data
+
+    Attributes:
+        io (TissueIO): I/O handler for tissue data
+        plotting (TissuePlotting): Plotting utilities for tissue data
+        input_func_type (str): Type of input function used
+
+    Example:
+        >>> data = {"input_func_fqfn": "input.csv", "tissue_fqfn": "tissue.csv"}
+        >>> context = TissueContext(data)
+        >>> context.io.load_data()
+        >>> context.plotting.plot_results()
+
+    Notes:
+        This is an abstract base class that should be inherited by specific tissue model
+        implementations like Mintun1984Context or Raichle1983Context.
+        
+        Requires all incoming PET and input function data to be decay corrected. 
+    """
     def __init__(self, data_dict: dict):
         super().__init__()
         self._io = TissueIO(self)

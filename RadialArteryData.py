@@ -30,6 +30,23 @@ from InputFuncData import InputFuncData
 from PETUtilities import PETUtilities
 
 class RadialArteryData(InputFuncData):
+    """Class for handling radial artery input function data from PET imaging.
+
+    This class extends InputFuncData to provide specialized handling of radial artery input functions,
+    including kernel convolution for dispersion correction. It requires all incoming PET data to be
+    decay corrected.
+
+    Args:
+        context: The context object containing solver, data, and IO information.
+        data_dict (dict, optional): Dictionary containing configuration and data. Defaults to {}.
+            Required keys:
+                kernel_fqfn (str): Fully qualified filename for dispersion kernel data.
+
+    Attributes:
+        kernel (NDArray): Dispersion kernel array used for convolution.
+        kernel_fqfn (str): Fully qualified filename for dispersion kernel data.
+    """
+    
     """ input function data assumed to be decay-corrected, consistent with tomography """
     
     def __init__(self, context, data_dict: dict = {}):

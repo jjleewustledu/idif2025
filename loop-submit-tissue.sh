@@ -1,4 +1,52 @@
 #!/bin/bash
+# -*- coding: utf-8 -*-
+# loop-submit-tissue.sh
+# ====================
+#
+# This script submits tissue analysis jobs to SLURM for multiple subjects and sessions.
+#
+# The script processes PET data using either radial artery or boxcar input functions
+# and submits analysis jobs using submit-tissue.sh.
+#
+# Structure:
+# ---------
+# 1. Command line argument handling for input function selection
+# 2. Global variable definitions for file patterns and paths
+# 3. Helper functions for finding sessions and files
+# 4. Main execution loop for job submission
+#
+# Functions:
+# ---------
+# find_sessions()
+#     Finds all session directories for the configured subjects
+#     
+#     Returns:
+#     -------
+#     array
+#         Array of session directory paths
+#
+# find_files_in_session(session_path)
+#     Finds matching PET and input function files in a session directory
+#     
+#     Parameters:
+#     ----------
+#     session_path : str
+#         Path to the session directory to search
+#         
+#     Returns:
+#     -------
+#     array
+#         Array of matching file paths
+#
+# Usage:
+# -----
+# ./loop-submit-tissue.sh [artery|twilite]
+#
+# Arguments:
+# ---------
+# artery|twilite : str, optional
+#     Specify input function type. If provided, uses RadialArteryIO,
+#     otherwise uses BoxcarIO.
 
 set -e
 trap 'echo "Script submit_inputf.sh exited with error: $?" >&2; exit $?' ERR

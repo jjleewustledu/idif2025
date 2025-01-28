@@ -37,8 +37,26 @@ from PETUtilities import PETUtilities
 
 
 class BaseIO(IOInterface):
-    """Base implementation of IOInterface with common functionality."""
+    """Base implementation of IOInterface providing common I/O functionality.
 
+    This class implements the IOInterface abstract base class and provides common file I/O
+    operations and data manipulation methods used across different data types.
+
+    The class includes methods for:
+        - Loading and parsing NIfTI files and associated JSON metadata
+        - Extracting timing information from data dictionaries
+        - File path manipulation and validation
+        - Data interpolation and time series operations
+
+    Attributes:
+        fqfp: Fully qualified file prefix property (returns None in base class)
+        results_fqfp: Results file prefix property (returns None in base class)
+
+    Note:
+        This is an abstract base class that should be inherited by concrete implementations.
+        Subclasses must implement the fqfp and results_fqfp abstract properties.
+    """
+    
     @property
     def fqfp(self):
         return None

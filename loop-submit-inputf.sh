@@ -1,4 +1,44 @@
 #!/bin/bash
+# -*- coding: utf-8 -*-
+# loop-submit-inputf.sh
+# ====================
+#
+# This script submits input function analysis jobs to SLURM for multiple subjects and sessions.
+#
+# The script processes PET data to generate both radial artery and boxcar input functions
+# by submitting jobs using submit-radial-artery.sh and submit-boxcar.sh.
+#
+# Structure:
+# ---------
+# 1. Global variable definitions for paths and subjects
+# 2. Helper function for job submission
+# 3. Main execution for both input function types
+#
+# Functions:
+# ---------
+# submit_jobs(proc, submit_main)
+#     Submits SLURM jobs for input function processing
+#     
+#     Parameters:
+#     ----------
+#     proc : str
+#         Pattern to match input function files
+#     submit_main : str
+#         Path to submission script to use
+#
+# Usage:
+# -----
+# ./loop-submit-inputf.sh
+#
+# Notes:
+# -----
+# The script submits two types of jobs:
+# - Radial artery input function generation using submit-radial-artery.sh
+# - Boxcar input function generation using submit-boxcar.sh
+#
+# The script expects specific file naming patterns:
+# - *proc-TwiliteKit-do-make-input-func-nomodel_inputfunc.nii.gz for radial artery
+# - *proc-MipIdif_idif.nii.gz for boxcar
 
 set -e
 trap 'echo "Script submit_inputf.sh exited with error: $?" >&2; exit $?' ERR

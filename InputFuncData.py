@@ -29,6 +29,31 @@ from DynestyData import DynestyData
 from PETUtilities import PETUtilities
 
 class InputFuncData(DynestyData):
+    """Class for handling input function data from PET imaging.
+
+    This class extends DynestyData to provide specialized handling of input functions,
+    including decay correction, data interpolation, and measurement access. All input
+    function data is assumed to be decay-corrected, consistent with tomography.
+
+    Args:
+        context: The context object containing solver, data, and IO information.
+        data_dict (dict, optional): Dictionary containing configuration and data. Defaults to {}.
+
+    Attributes:
+        halflife (float): Radiotracer half-life in seconds.
+        input_func_fqfn (str): Fully qualified filename for input function data.
+        nlive (int): Number of live points for nested sampling.
+        pfrac (float): Plasma fraction for input function.
+        rho (NDArray): Normalized input function values.
+        sigma (float): Measurement uncertainty.
+
+    Example:
+        >>> context = MyContext()
+        >>> data = {"input_func_fqfn": "input.nii"}
+        >>> input_data = InputFuncData(context, data)
+        >>> halflife = input_data.halflife
+    """
+    
     """ input function data assumed to be decay-corrected, consistent with tomography """
     
     def __init__(self, context, data_dict: dict = {}):

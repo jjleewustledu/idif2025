@@ -51,6 +51,21 @@ from dynesty import dynesty, utils as dyutils, plotting as dyplot
 
 
 class DynestyPlotting:
+    """Plotting utilities for dynesty sampling results.
+
+    This class provides methods for visualizing results from dynesty nested sampling,
+    including plotting of truths, results, and other diagnostic plots.
+
+    Args:
+        context: The context object containing solver, data, and IO information.
+
+    Attributes:
+        context: The context object containing solver, data, and IO information.
+        fqfp (str): Fully qualified file prefix for saving plots.
+        labels (list): Parameter labels for plotting.
+        ndim (int): Number of dimensions/parameters.
+        results_fqfp (str): Fully qualified file prefix for results plots.
+    """
     def __init__(self, context):
         self.context = context
     

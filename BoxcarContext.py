@@ -34,6 +34,32 @@ from InputFuncPlotting import InputFuncPlotting
 
 
 class BoxcarContext(DynestyContext):
+    """Context class for analyzing input functions with boxcar averaging.
+
+    This class provides the context for analyzing PET input functions using boxcar averaging.
+    It coordinates the data handling, solver, and I/O operations specific to boxcar analysis.
+
+    Args:
+        data_dict (dict): Dictionary containing input data including:
+            - input_func_fqfn (str): Fully qualified filename for input function data
+            - nlive (int): Number of live points for nested sampling
+
+    Attributes:
+        data (BoxcarData): Data handler for boxcar analysis
+        solver (BoxcarSolver): Solver implementing boxcar averaging
+        io (BoxcarIO): I/O handler for boxcar data
+        plotting (InputFuncPlotting): Plotting utilities for input functions
+        tag (str): Identifier tag for the analysis
+
+    Example:
+        >>> data = {"input_func_fqfn": "input.csv", "nlive": 1000}
+        >>> context = BoxcarContext(data)
+        >>> context()  # Run the analysis
+        >>> results = context.solver.results_load()
+
+    Notes:
+        Requires all incoming PET and input function data to be decay corrected.
+    """
     def __call__(self) -> None:
         logging.basicConfig(
             filename=self.data.results_fqfp + ".log",

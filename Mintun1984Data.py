@@ -31,6 +31,29 @@ from IOImplementations import TissueIO
 from PETUtilities import PETUtilities
 
 class Mintun1984Data(TissueData):
+    """Data class for handling Mintun 1984 PET data.
+
+    This class extends TissueData to provide specific functionality for processing and analyzing
+    PET data according to the Mintun 1984 model. It handles data loading, measurement adjustments,
+    and provides access to volume of distribution (v1) and binding site density (ks) measurements.
+
+    Args:
+        context: The analysis context object containing configuration and utilities
+        data_dict (dict, optional): Dictionary containing input data. Defaults to empty dict.
+            Required keys:
+                - v1_fqfn: Fully qualified filename for v1 measurements
+                - ks_fqfn: Fully qualified filename for ks measurements
+
+    Attributes:
+        v1 (NDArray): Volume of distribution measurements as a numpy array
+        v1_measurement (dict): Raw volume of distribution measurements with metadata
+        ks (NDArray): Binding site density measurements as a numpy array
+        ks_measurement (dict): Raw binding site density measurements with metadata
+
+    Note:
+        When using RadialArtery input function type, v1 measurements are automatically
+        adjusted using the recovery coefficient.
+    """
     def __init__(self, context, data_dict: dict = {}):
         super().__init__(context, data_dict)
 

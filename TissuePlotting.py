@@ -31,6 +31,21 @@ from DynestyPlotting import DynestyPlotting
 
 
 class TissuePlotting(DynestyPlotting):
+    """Plotting utilities for tissue time-activity curves and model predictions.
+
+    This class extends DynestyPlotting to provide specialized plotting methods for tissue
+    time-activity curves, including measured data, model predictions, and input functions.
+
+    Args:
+        context: The context object containing solver, data, and IO information.
+
+    Attributes:
+        Inherits all attributes from DynestyPlotting parent class.
+
+    Example:
+        >>> plotter = TissuePlotting(context)
+        >>> plotter.parcs_plot(activity_units="kBq/mL")
+    """
     def __init__(self, context):
         super().__init__(context)
 

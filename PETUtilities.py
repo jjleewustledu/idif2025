@@ -34,7 +34,24 @@ from scipy.interpolate import interp1d
 
 
 class PETUtilities:
+    """Utility class providing static methods for PET data processing and analysis.
 
+    This class contains static utility methods for handling PET (Positron Emission Tomography) data,
+    particularly focused on time-activity curve (TAC) processing and temporal data management.
+
+    Methods:
+        data2times: Extract or calculate times array from data dictionary
+        data2taus: Extract or calculate taus (time durations) array from data dictionary 
+        data2timesMid: Extract or calculate timesMid (midpoint times) array from data dictionary
+        data2timesMidLast: Get the last timesMid value from data dictionary
+        data2timesInterp: Get interpolated times array at 1-second resolution
+        data2timesMidInterp: Get interpolated timesMid array at 1-second resolution
+        decay_correct: Apply decay correction to time-activity curve data
+
+    Note:
+        All methods are static and operate on dictionary inputs containing PET temporal data.
+        The dictionaries are expected to have some combination of "times", "timesMid", and "taus" arrays.
+    """
     @staticmethod
     def data2times(data: dict, use_trivial: bool=True) -> NDArray:
         """Retrieve times array from data dictionary."""

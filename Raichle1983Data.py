@@ -31,6 +31,24 @@ from IOImplementations import TissueIO
 from PETUtilities import PETUtilities
 
 class Raichle1983Data(TissueData):
+    """Data class for handling Raichle 1983 PET data.
+
+    This class extends TissueData to provide specific functionality for processing and analyzing
+    PET data according to the Raichle 1983 model. It handles data loading, measurement adjustments,
+    and provides access to volume of distribution (v1) measurements.
+
+    Args:
+        context: The analysis context object containing configuration and utilities
+        data_dict (dict, optional): Dictionary containing input data. Defaults to empty dict.
+
+    Attributes:
+        v1 (NDArray): Volume of distribution measurements as a numpy array
+        v1_measurement (dict): Raw volume of distribution measurements with metadata
+
+    Note:
+        When using RadialArtery input function type, v1 measurements are automatically
+        adjusted using the recovery coefficient.
+    """
     def __init__(self, context, data_dict: dict = {}):
         super().__init__(context, data_dict)
     

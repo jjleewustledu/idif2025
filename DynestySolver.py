@@ -42,6 +42,42 @@ import pandas as pd
 
 
 class DynestySolver(ABC):
+    """Abstract base class for implementing nested sampling solvers using dynesty.
+
+    This class provides a framework for implementing nested sampling parameter estimation
+    using the dynesty package. It handles caching of results and provides abstract methods
+    that must be implemented by concrete subclasses.
+
+    Args:
+        context: Context object containing data and configuration for the solver.
+
+    Attributes:
+        context: Reference to the context object.
+        data: Reference to the context's data object.
+        _cache (dict): Cache for storing computed results.
+            Keys:
+                - "quantile": Tuple of (qm, ql, qh) arrays for parameter quantiles
+                - "dynesty_results": Results object from dynesty run
+
+    Properties:
+        dynesty_results: Results from most recent dynesty run
+        labels: List of parameter labels (must be implemented by subclass)
+        ndim: Number of parameters being fit
+
+    Example:
+        >>> class MySolver(DynestySolver):
+        ...     @property
+        ...     def labels(self):
+        ...         return ["param1", "param2"]
+        >>> solver = MySolver(context)
+        >>> results = solver.run_nested()
+        >>> qm, ql, qh = solver.quantile(results)
+
+    Notes:
+        Subclasses must implement:
+        - labels property: List of parameter labels
+        - Any additional methods needed for the specific model
+    """
 
     def __init__(self, context):
         self.context = context

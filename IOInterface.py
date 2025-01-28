@@ -32,7 +32,26 @@ from copy import deepcopy
 
 
 class IOInterface(ABC):
-    """Abstract interface class for filesystem I/O operations."""
+    """Abstract interface class for filesystem I/O operations.
+
+    This class defines the interface for file system input/output operations used across
+    the PET data analysis pipeline. It provides abstract methods that must be implemented
+    by concrete subclasses to handle various I/O tasks.
+
+    The interface includes methods for:
+        - Loading and saving NIfTI files and associated metadata
+        - Extracting timing information from data dictionaries
+        - File path manipulation and validation
+        - Data interpolation and time series operations
+
+    Attributes:
+        fqfp: Fully qualified file prefix property
+        results_fqfp: Results file prefix property
+
+    Note:
+        This is an abstract base class that cannot be instantiated directly.
+        Concrete implementations must override all abstract methods.
+    """
 
     @property
     @abstractmethod

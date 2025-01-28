@@ -35,6 +35,37 @@ from TissuePlotting import TissuePlotting
 
 
 class Raichle1983Context(TissueContext):
+    """Context class for the Raichle 1983 tissue model implementation.
+
+    This class provides the context for analyzing PET data using the Raichle 1983 tissue model.
+    It coordinates the data handling, solver, and I/O operations specific to this model.
+
+    Args:
+        data_dict (dict): Dictionary containing input data including:
+            - input_func_fqfn (str): Fully qualified filename for input function data
+            - tissue_fqfn (str): Fully qualified filename for tissue data
+
+    Attributes:
+        data (Raichle1983Data): Data handler for the Raichle 1983 model
+        solver (Raichle1983Solver): Solver implementing the Raichle 1983 model
+        tag (str): Identifier tag for the analysis
+        input_func_type (str): Type of input function used
+
+    Example:
+        >>> data = {"input_func_fqfn": "input.csv", "tissue_fqfn": "tissue.csv"}
+        >>> context = Raichle1983Context(data)
+        >>> context()  # Run the analysis
+        >>> results = context.solver.results_load()
+
+    Notes:
+        The Raichle 1983 model is described in:
+        Raichle ME, Martin WR, Herscovitch P, Mintun MA, Markham J.
+        Brain blood flow measured with intravenous H2(15)O. II. Implementation and validation.
+        J Nucl Med. 1983 Sep;24(9):790-8. PMID: 6604140.
+
+        Requires all incoming PET and input function data to be decay corrected. 
+    """
+
     def __call__(self) -> None:
         logging.basicConfig(
             filename=self.data.results_fqfp + ".log",
@@ -49,6 +80,7 @@ class Raichle1983Context(TissueContext):
         self._data = Raichle1983Data(self, data_dict)
         self._solver = Raichle1983Solver(self)
         # self._plotting = TissuePlotting(self)
+        self.tag += "-Raichle1983"
                
     @property
     def data(self):

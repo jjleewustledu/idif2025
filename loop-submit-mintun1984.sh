@@ -1,4 +1,52 @@
 #!/bin/bash
+# -*- coding: utf-8 -*-
+# loop-submit-mintun1984.sh
+# ========================
+#
+# This script submits Mintun 1984 model analysis jobs to SLURM for multiple subjects and sessions.
+#
+# The script processes PET data using either radial artery or boxcar input functions along with
+# V1 and Ks parameter files to estimate CMRO2 using the Mintun 1984 model. Jobs are submitted
+# using submit-mintun1984.sh.
+#
+# Structure:
+# ---------
+# 1. Command line argument handling for input function selection
+# 2. Global variable definitions for file patterns and paths
+# 3. Helper functions for finding sessions and parameter files
+# 4. Main execution loop for job submission
+#
+# Functions:
+# ---------
+# find_v1_ks_files(session_path)
+#     Finds matching V1 and Ks parameter files in a session directory
+#     
+#     Parameters:
+#     ----------
+#     session_path : str
+#         Path to the session directory to search
+#         
+#     Returns:
+#     -------
+#     tuple
+#         (v1_file, ks_file) paths for the session
+#
+# Usage:
+# -----
+# ./loop-submit-mintun1984.sh [artery|twilite]
+#
+# Arguments:
+# ---------
+# artery|twilite : str, optional
+#     Specify input function type. If provided, uses RadialArteryIO files,
+#     otherwise uses BoxcarIO files.
+#
+# Notes:
+# -----
+# The script expects specific file naming patterns for:
+# - Input functions (*RadialArteryIO-ideal.nii.gz or *BoxcarIO-ideal.nii.gz)
+# - V1 parameter files (*martinv1.nii.gz)
+# - Ks parameter files (*TissueIO*qm.nii.gz)
 
 set -e
 trap 'echo "Script submit_inputf.sh exited with error: $?" >&2; exit $?' ERR

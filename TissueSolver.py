@@ -32,6 +32,30 @@ from PETUtilities import PETUtilities
 
 
 class TissueSolver(DynestySolver):
+    """Base class for solvers that fit tissue models to PET data.
+
+    This abstract class provides common functionality for fitting tissue models to PET data
+    using dynamic nested sampling. Subclasses implement specific tissue kinetic models.
+
+    Args:
+        context: The context object containing data and configuration for the solver.
+
+    Attributes:
+        context: Reference to the context object.
+        data: Reference to the context's data object containing PET measurements and metadata.
+
+    Example:
+        >>> context = TissueContext(data_dict)
+        >>> solver = ConcreteTissueSolver(context)
+        >>> results = solver.run_nested()
+        >>> qm, ql, qh = solver.quantile(results)
+
+    Notes:
+        Subclasses must implement:
+        - labels property: Parameter labels for plotting and output
+        - _loglike method: Log-likelihood function for nested sampling
+        - signalmodel method: Forward model for generating predicted signals
+    """
     def __init__(self, context):
         super().__init__(context)
 

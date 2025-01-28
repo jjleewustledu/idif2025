@@ -67,11 +67,11 @@ class DynestyData:
     def fqfileprefix(self, fqfn: str) -> str:
         return self.context.io.fqfileprefix(fqfn)
     
-    def nii_load(self, fqfn: str, time_last: float | None = None) -> dict:
-        return self.context.io.nii_load(fqfn, time_last=time_last)
+    def nii_load(self, fqfn: str, time_last: float | None = None, check_validity: bool = False) -> dict:
+        return self.context.io.nii_load(fqfn, time_last=time_last, check_validity=check_validity)
     
-    def nii_save(self, data: dict, fqfn: str | None = None) -> None:
-        return self.context.io.nii_save(data, fqfn)
+    def nii_save(self, data: dict, fqfn: str | None = None, check_validity: bool = False) -> None:
+        return self.context.io.nii_save(data, fqfn, check_validity=check_validity)
     
     def pickle_dump(self, data: Any, fqfn: str | None = None) -> None:
         return self.context.io.pickle_dump(data, fqfn)

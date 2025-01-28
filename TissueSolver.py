@@ -91,38 +91,37 @@ class TissueSolver(DynestySolver):
         assert qms.shape == expected_shape, f"qms shape {qms.shape} != expected {expected_shape}"
         assert qls.shape == expected_shape, f"qls shape {qls.shape} != expected {expected_shape}"
         assert qhs.shape == expected_shape, f"qhs shape {qhs.shape} != expected {expected_shape}"
-
-        for res in results:
             
-            logzs = []
-            informations = []
-            rho_preds = []
-            timesMids = []
-            rho_ideals = []
-            timesIdeals = []
-            resids = []
-            
-            for i, res in enumerate(results):
-                resd = res.asdict()
-                logzs.append(resd["logz"][-1])
-                informations.append(resd["information"][-1])
-                rho_pred, timesMid, rho_ideal, timesIdeal = self.signalmodel(qms[i], parc_index[i])
-                rho_preds.append(rho_pred)
-                timesMids.append(timesMid)
-                rho_ideals.append(rho_ideal) 
-                timesIdeals.append(timesIdeal)
-                resids.append(rho_pred - self.data.rho[i,])
-            
-            logzs = np.array(logzs)
-            informations = np.array(informations)
-            qms = np.vstack(qms)
-            qls = np.vstack(qls)
-            qhs = np.vstack(qhs)
-            rho_preds = np.vstack(rho_preds)
-            timesMids = np.vstack(timesMids)
-            rho_ideals = np.vstack(rho_ideals)
-            timesIdeals = np.vstack(timesIdeals)
-            resids = np.vstack(resids)
+        logzs = []
+        informations = []
+        rho_preds = []
+        timesMids = []
+        rho_ideals = []
+        timesIdeals = []
+        resids = []
+        
+        for i, res in enumerate(results):
+            resd = res.asdict()
+            logzs.append(resd["logz"][-1])
+            informations.append(resd["information"][-1])
+            rho_pred, timesMid, rho_ideal, timesIdeal = self.signalmodel(qms[i], parc_index[i])
+            rho_preds.append(rho_pred)
+            timesMids.append(timesMid)
+            rho_ideals.append(rho_ideal) 
+            timesIdeals.append(timesIdeal)
+            resids.append(rho_pred - self.data.rho[i,])
+        
+        logzs = np.array(logzs)
+        informations = np.array(informations)
+        qms = np.vstack(qms)
+        qls = np.vstack(qls)
+        qhs = np.vstack(qhs)
+        rho_preds = np.vstack(rho_preds)
+        timesMids = np.vstack(timesMids)
+        rho_ideals = np.vstack(rho_ideals)
+        timesIdeals = np.vstack(timesIdeals)
+        resids = np.vstack(resids)
+        
         return {
             "logz": logzs,
             "information": informations, 
@@ -130,9 +129,9 @@ class TissueSolver(DynestySolver):
             "ql": qls,
             "qh": qhs,
             "rho_pred": rho_preds,
-            "timesMid": timesMids,
+            "timesMid": timesMids[0],
             "rho_ideal": rho_ideals,
-            "timesIdeal": timesIdeals,
+            "timesIdeal": timesIdeals[0],
             "resid": resids
         }
     
@@ -168,9 +167,11 @@ class TissueSolver(DynestySolver):
             self, 
             tag: str = "", 
             results: dyutils.Results | list[dyutils.Results] | None = None,
-            parc_index: int | list[int] | tuple[int, ...] | NDArray | None = None
+            parc_index: int | list[int] | tuple[int, ...] | NDArray | None = None,
+            do_pickle: bool = True
     ) -> str:
-        """ Saves .nii.gz and -quantiles.csv.  Returns f.q. fileprefix. """
+        """ Saves .nii.gz and -quantiles.csv.  Returns f.q. fileprefix. 
+            do_pickle (bool) is useful for efficient unit-testing. """
         
         # add parc index and tag to results f.q. fileprefix
 
@@ -185,7 +186,8 @@ class TissueSolver(DynestySolver):
 
         # =========== pickle dynesty results ===========   
 
-        self.pickle_dump(tag)
+        if do_pickle:
+            self.pickle_dump(tag)
 
         # =========== save .nii.gz ===========
 
@@ -193,41 +195,64 @@ class TissueSolver(DynestySolver):
         A0 = self.context.data.max_tissue_measurement
         pkg = self.package_results(results=results, parc_index=parc_index)
 
-        self.context.io.nii_save({
+        data_signal = {
             "timesMid": pkg["timesMid"],
             "taus": tm["taus"],
+            "times": self.context.io.data2times(tm),
             "img": A0 * pkg["rho_pred"],
             "nii": tm["nii"],
             "fqfp": fqfp1,
             "json": tm["json"]
-        }, fqfp1 + "-signal.nii.gz")
+        }
+        self.context.io.nii_save(
+            data_signal, 
+            fqfp1 + "-signal.nii.gz", 
+            check_validity=True
+        )
 
-        json = deepcopy(tm["json"])
-        json["taus"] = np.ones(pkg["timesIdeal"].shape).tolist()
-        json["times"] = pkg["timesIdeal"].tolist()
-        json["timesMid"] = self.context.io.data2timesMid(json).tolist()
-        self.context.io.nii_save({
+        product = deepcopy(data_signal)
+        product["img"] = pkg["rho_pred"]
+        self.context.io.nii_save(
+            product, 
+            fqfp1 + "-rho-pred.nii.gz",
+            check_validity=True
+        )
+
+        json_ideal = deepcopy(tm["json"])
+        json_ideal["timesMid"] = self.context.io.data2timesMidInterp(json_ideal).tolist()
+        json_ideal["taus"] = np.ones(pkg["timesIdeal"].shape).tolist()
+        json_ideal["times"] = pkg["timesIdeal"].tolist()
+        data_ideal = {
+            "timesMid": self.context.io.data2timesMidInterp(json_ideal),
             "taus": np.ones(pkg["timesIdeal"].shape),
             "times": pkg["timesIdeal"],
-            "timesMid": self.context.io.data2timesMid(json),
             "img": A0 * pkg["rho_ideal"],
             "nii": tm["nii"],
             "fqfp": fqfp1,
-            "json": json
-        }, fqfp1 + "-ideal.nii.gz")
+            "json": json_ideal
+        }
+        self.context.io.nii_save(
+            data_ideal, 
+            fqfp1 + "-ideal.nii.gz", 
+            check_validity=True
+        )
 
-        product = deepcopy(tm)
-        product["img"] = A0 * pkg["rho_pred"]
-        self.context.io.nii_save(product, fqfp1 + "-rho-pred.nii.gz")
-
-        product = deepcopy(tm)
-        product["img"] = A0 * pkg["rho_ideal"]
-        self.context.io.nii_save(product, fqfp1 + "-rho-ideal.nii.gz")
+        product = deepcopy(data_ideal)
+        product["img"] = pkg["rho_ideal"]
+        self.context.io.nii_save(
+            product, 
+            fqfp1 + "-rho-ideal.nii.gz",
+            check_validity=True
+        )
 
         for key in ["logz", "information", "qm", "ql", "qh", "resid"]:
-            product = deepcopy(tm)
+            product = deepcopy(data_signal)
             product["img"] = pkg[key]
-            self.context.io.nii_save(product, fqfp1 + f"-{key}.nii.gz")
+            self.context.io.nii_save(
+                product, 
+                fqfp1 + f"-{key}.nii.gz", 
+                check_validity=False
+            )
 
         # =========== save .csv ===========
 

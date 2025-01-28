@@ -23,6 +23,8 @@ case "$1" in
     ;;
 esac
 echo "using pattern for input func:  ${pattern_if}"
+echo "using pattern for v1:  ${pattern_v1}"
+echo "using pattern for ks:  ${pattern_ks}"
 
 # global variables
 pattern_pet="trc-oo_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames-ParcSchaeffer-reshape-to-schaeffer-schaeffer.nii.gz"
@@ -167,7 +169,7 @@ for sub in "${subs[@]}"; do
             
             # Submit job for this pair
             submit_single_job "$if_file" "$pet_file" "$v1_file" "$ks_file"
-        else
+        ### else
             ### echo "Warning: Could not find matching pair of files in session $session" >&2
         fi
     done < <(find "$sub_path" -maxdepth 1 -type d -name "ses-*")

@@ -36,48 +36,48 @@ from scipy.interpolate import interp1d
 class PETUtilities:
 
     @staticmethod
-    def data2times(data: dict) -> np.ndarray:
+    def data2times(data: dict, use_trivial: bool=True) -> NDArray:
         """Retrieve times array from data dictionary."""
-        if "times" in data:
-            return data["times"]
-        timesMid = data["timesMid"]
-        taus = data["taus"]
+        if "times" in data and use_trivial:
+            return np.asarray(data["times"])
+        timesMid = np.asarray(data["timesMid"])
+        taus = np.asarray(data["taus"])
         return timesMid - taus / 2
 
     @staticmethod
-    def data2taus(data: dict) -> np.ndarray:
+    def data2taus(data: dict, use_trivial: bool=True) -> NDArray:
         """Retrieve taus array from data dictionary."""
-        if "taus" in data:
-            return data["taus"] 
-        timesMid = data["timesMid"]
-        times = data["times"]
+        if "taus" in data and use_trivial:
+            return np.asarray(data["taus"]) 
+        timesMid = np.asarray(data["timesMid"])
+        times = np.asarray(data["times"])
         return 2 * (timesMid - times)
 
     @staticmethod
-    def data2timesMid(data: dict) -> np.ndarray:
+    def data2timesMid(data: dict, use_trivial: bool=True) -> NDArray:
         """Retrieve timesMid array from data dictionary."""
-        if "timesMid" in data:
-            return data["timesMid"]
-        times = data["times"]
-        taus = data["taus"]
+        if "timesMid" in data and use_trivial:
+            return np.asarray(data["timesMid"])
+        times = np.asarray(data["times"])
+        taus = np.asarray(data["taus"])
         return times + taus / 2
     
     @staticmethod
     def data2timesMidLast(data: dict) -> float:
         """Retrieve last timeMid from data dictionary."""
-        return data["timesMid"][-1]
+        return np.asarray(data["timesMid"])[-1]
     
     @staticmethod
-    def data2timesInterp(data: dict) -> np.ndarray:
+    def data2timesInterp(data: dict) -> NDArray:
         """Retrieve times array from data dictionary and interpolate to 1-second resolution from 0 sec."""
-        tinterp0 = data["times"][0]  # sec
-        tinterpF = data["times"][-1] + data["taus"][-1] - 1  # sec  
-        N_tinterp = (tinterpF - tinterp0 + 1).astype(int)  # N of 1-sec samples
+        tinterp0 = np.asarray(data["times"])[0]  # sec
+        tinterpF = np.asarray(data["times"])[-1] + np.asarray(data["taus"])[-1] - 1  # sec  
+        N_tinterp = int(tinterpF - tinterp0 + 1)  # N of 1-sec samples
         return np.linspace(tinterp0, tinterpF, N_tinterp)  # e.g., [0.1, 1.1, 2.1, ..., N_tinterp+0.1]
     
     @staticmethod
-    def data2timesMidInterp(data: dict) -> np.ndarray:
-        """Retrieve timesMid array from data dictionary and interpolate to 1-second resolution from 0.5 sec."""
+    def data2timesMidInterp(data: dict) -> NDArray:
+        """Retrieve timesMid array from data dictionary and interpolate to 1-second resolution from times[0]+ 0.5 sec."""
         return PETUtilities.data2timesInterp(data) + 0.5  # sec
 
     @staticmethod
@@ -86,31 +86,21 @@ class PETUtilities:
     
     @staticmethod
     def _decay_correction_helper(tac: dict, sign: int) -> dict:
-        """ anticipates a common error whereby img is passed with wrong choice of times or timesMid """
+        """ https://niftypet.readthedocs.io/en/latest/tutorials/corrqnt/ and
+            http://www.turkupetcentre.net/petanalysis/decay.html """
         _tac = deepcopy(tac)
         img = _tac["img"]
-        
-        # Handle 1D case
-        if img.ndim == 1:
-            if len(img) == len(_tac["timesMid"]):
-                _tac["img"] = img * np.power(2, sign * _tac["timesMid"] / _tac["halflife"])
-                return _tac
-            if len(img) == len(_tac["times"]):
-                _tac["img"] = img * np.power(2, sign * _tac["times"] / _tac["halflife"]) 
-                return _tac
-                
-        # Handle 2D case
-        elif img.ndim == 2:
-            if img.shape[1] == len(_tac["timesMid"]):
-                _tac["img"] = img * np.power(2, sign * _tac["timesMid"] / _tac["halflife"])
-                return _tac
-            if img.shape[1] == len(_tac["times"]):
-                _tac["img"] = img * np.power(2, sign * _tac["times"] / _tac["halflife"])
-                return _tac
-                
-        raise ValueError(
-            f"img shape {_tac['img'].shape} not compatible with times length {len(_tac['times'])} "
-            f"or timesMid length {len(_tac['timesMid'])}")
+        taus = _tac["taus"]
+        times = _tac["times"]
+        _lambda = np.log(2) / _tac["halflife"]
+    
+        # for infinitessimal time frames:
+        # _tac["img"] = img * np.power(2, sign * _tac["timesMid"] / _tac["halflife"])
+
+        # for finite time frames:
+        C_decay = _lambda * taus * np.exp(_lambda * times) / (1 - np.exp(-_lambda * taus))
+        _tac["img"] = np.asarray(img * np.power(C_decay, sign))
+        return _tac
 
     @staticmethod 
     def decay_uncorrect(tac: dict) -> dict:

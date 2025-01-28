@@ -76,6 +76,7 @@ fileprefix="${fileprefix%.*}"
 date2save=$(date +"%m-%d-%y")
 
 echo "Executing ${the_main}" 1>&2
+echo "inputf is ${inputf}" 1>&2
 echo "pet is ${pet}" 1>&2
 echo "nlive is ${nlive}" 1>&2
 

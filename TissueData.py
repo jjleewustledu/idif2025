@@ -91,7 +91,7 @@ class TissueData(DynestyData):
             return deepcopy(self._data_dict["input_func_measurement"])
 
         timesMidLast = PETUtilities.data2timesMidLast(self.tissue_measurement)
-        input_func_meas = self.nii_load(self.input_func_fqfn, time_last=timesMidLast)
+        input_func_meas = self.nii_load(self.input_func_fqfn, time_last=timesMidLast, check_validity=True)
         if PETUtilities.parse_isotope(self.input_func_fqfn) == "15O":
             input_func_meas = self.decay_uncorrect(input_func_meas)
         self._data_dict["input_func_measurement"] = input_func_meas
@@ -222,7 +222,7 @@ class TissueData(DynestyData):
         if hasattr(self._data_dict, "tissue_measurement"):
             return deepcopy(self._data_dict["tissue_measurement"])
 
-        tiss_meas = self.nii_load(self.tissue_fqfn)
+        tiss_meas = self.nii_load(self.tissue_fqfn, check_validity=True)
         if PETUtilities.parse_isotope(self.tissue_fqfn) == "15O":
             tiss_meas = self.decay_uncorrect(tiss_meas)
         self._data_dict["tissue_measurement"] = tiss_meas

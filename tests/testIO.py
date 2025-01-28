@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 from __future__ import absolute_import
+from copy import deepcopy
 import unittest 
 import os
 import sys
@@ -121,3 +122,60 @@ class TestIO(TestPreliminaries):
         self.assertTrue(np.all(niid_trimmed['taus'] <= 30))
         self.assertTrue(np.all(niid_trimmed['times'] <= 30))
         self.assertEqual(niid_trimmed['img'].shape[1], 26)
+
+    def test_validate_nii_dict(self):
+        fqfn = self.fqfn_ParcSchaeffer("oo1", singularity=False)
+        niid = self.io.nii_load(fqfn=fqfn)
+        self.io.validate_nii_dict(niid)
+
+        # Test timesMid validation
+        niid_bad = deepcopy(niid)
+        idx = np.random.randint(0, len(niid_bad["timesMid"]))
+        niid_bad["timesMid"][idx] *= 2
+        with self.assertRaises(AssertionError):
+            self.io.validate_nii_dict(niid_bad)
+
+        # Test taus validation 
+        niid_bad = deepcopy(niid)
+        idx = np.random.randint(0, len(niid_bad["taus"]))
+        niid_bad["taus"][idx] *= 2
+        with self.assertRaises(AssertionError):
+            self.io.validate_nii_dict(niid_bad)
+
+        # Test times validation
+        niid_bad = deepcopy(niid)
+        idx = np.random.randint(0, len(niid_bad["times"]))
+        niid_bad["times"][idx] *= 2
+        with self.assertRaises(AssertionError):
+            self.io.validate_nii_dict(niid_bad)
+
+        # Test truncated timesMid validation
+        niid_bad = deepcopy(niid)
+        niid_bad["timesMid"] = niid_bad["timesMid"][:-1]
+        with self.assertRaises(AssertionError):
+            self.io.validate_nii_dict(niid_bad)
+
+        # Test truncated taus validation
+        niid_bad = deepcopy(niid)
+        niid_bad["taus"] = niid_bad["taus"][:-1]
+        with self.assertRaises(AssertionError):
+            self.io.validate_nii_dict(niid_bad)
+
+        # Test truncated times validation
+        niid_bad = deepcopy(niid)
+        niid_bad["times"] = niid_bad["times"][:-1]
+        with self.assertRaises(AssertionError):
+            self.io.validate_nii_dict(niid_bad)
+
+        # Test json timesMid validation
+        # niid_bad = deepcopy(niid)
+        # idx = np.random.randint(0, len(niid_bad["json"]["timesMid"]))
+        # niid_bad["json"]["timesMid"][idx] *= 2
+        # with self.assertRaises(AssertionError):
+        #     self.io.validate_nii_dict(niid_bad)
+
+        # Test json truncated timesMid validation
+        # niid_bad = deepcopy(niid)
+        # niid_bad["json"]["timesMid"] = niid_bad["json"]["timesMid"][:-1]
+        # with self.assertRaises(AssertionError):
+        #     self.io.validate_nii_dict(niid_bad)

@@ -51,31 +51,51 @@
 set -e
 trap 'echo "Script submit_inputf.sh exited with error: $?" >&2; exit $?' ERR
 
-# determine the pattern for input func
-case "$1" in
-  -h|--help)
-    echo "Usage: $0 [artery|twilite]"
-    echo "  Providing 'artery' or 'twilite' will use RadialArteryIO-ideal.nii.gz" 
-    echo "  Otherwise BoxcarIO-ideal.nii.gz will be used"
-    exit 0
-    ;;
-  artery|twilite)
-    pattern_if="trc-oo_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc-RadialArteryIO-ideal.nii.gz"
-    pattern_v1="trc-co_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames-ParcSchaeffer-reshape-to-schaeffer-schaeffer-twilite_martinv1.nii.gz"
-    pattern_ks="trc-ho_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames-schaeffer-TissueIO-RadialArtery-qm.nii.gz"
-    ;;
-  *)
-    pattern_if="trc-oo_proc-MipIdif_idif-BoxcarIO-ideal.nii.gz"
-    pattern_v1="trc-co_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames-ParcSchaeffer-reshape-to-schaeffer-schaeffer-idif_martinv1.nii.gz"
-    pattern_ks="trc-ho_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames-schaeffer-TissueIO-Boxcar-qm.nii.gz"
-    ;;
-esac
+# Parse arguments
+dry_run=false
+input_type=""
+
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help)
+      echo "Usage: $0 [artery|twilite] [--dry-run]"
+      echo "  Providing 'artery' or 'twilite' will use RadialArteryIO-ideal.nii.gz" 
+      echo "  Otherwise BoxcarIO-ideal.nii.gz will be used"
+      echo "  --dry-run: Print commands without executing them"
+      exit 0
+      ;;
+    --dry-run)
+      dry_run=true
+      ;;
+    artery|twilite)
+      input_type="$arg"
+      ;;
+  esac
+done
+
+# Set patterns based on input type
+if [ "$input_type" = "artery" ] || [ "$input_type" = "twilite" ]; then
+  pattern_if="trc-oo_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc-RadialArteryIO-ideal.nii.gz"
+  pattern_v1="trc-co_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames-ParcSchaeffer-reshape-to-schaeffer-schaeffer-twilite_martinv1.nii.gz"
+  pattern_ks="trc-ho_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames-schaeffer-TissueIO-Artery-qm.nii.gz"
+else
+  pattern_if="trc-oo_proc-MipIdif_idif-BoxcarIO-ideal.nii.gz"
+  pattern_v1="trc-co_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames-ParcSchaeffer-reshape-to-schaeffer-schaeffer-idif_martinv1.nii.gz"
+  pattern_ks="trc-ho_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames-schaeffer-TissueIO-Boxcar-qm.nii.gz"
+fi
+
 echo "using pattern for input func:  ${pattern_if}"
 echo "using pattern for v1:  ${pattern_v1}"
 echo "using pattern for ks:  ${pattern_ks}"
+if [ "$dry_run" = true ]; then
+  echo ""
+  echo "DRY RUN MODE: Commands will be printed but not executed"
+  echo "-------------------------------------------------------"
+  echo ""
+fi
 
 # global variables
-pattern_pet="trc-oo_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames-ParcSchaeffer-reshape-to-schaeffer-schaeffer.nii.gz"
+pattern_pet="trc-oo_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames_timeAppend-4-ParcSchaeffer-reshape-to-schaeffer-schaeffer.nii.gz"
 submit_main="${HOME}/PycharmProjects/dynesty/idif2024/submit-mintun1984.sh"
 tissue_context="${HOME}/PycharmProjects/dynesty/idif2024/Mintun1984Context.py"
 derivatives="${SINGULARITY_HOME}/CCIR_01211/derivatives"
@@ -128,7 +148,12 @@ find_files_in_session() {
     done < <(find "$session_path" -type f -name "*$pattern_pet*")
 
     if [ ${#files_found[@]} -gt 1 ]; then
+        echo ""
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
         echo "Error: Multiple PET files found in $session_path matching pattern: $pattern_pet" >&2
+        echo "Found files: ${files_found[@]}" >&2
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        echo ""
         exit 1
     fi
 
@@ -142,7 +167,12 @@ find_files_in_session() {
     done < <(find "$session_path" -type f -name "*$pattern_if*")
 
     if [ ${#files_found[@]} -gt 1 ]; then
+        echo ""
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
         echo "Error: Multiple input function files found in $session_path matching pattern: $pattern_if" >&2
+        echo "Found files: ${files_found[@]}" >&2
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        echo ""
         exit 1
     fi
 
@@ -159,14 +189,24 @@ submit_single_job() {
     local pet_file=$2
     local v1_file=$3
     local ks_file=$4
-
-    echo "Submitting job with: ${submit_main} ${tissue_context} ${if_file} ${pet_file} ${v1_file} ${ks_file}"    
-    ### sbatch "${submit_main}" "${tissue_context}" "${if_file}" "${pet_file}" "${v1_file}" "${ks_file}"
+    echo ""
+    echo "Submitting job with: ${submit_main} \\
+        <path>/${if_file##*/} \\
+        <path>/${pet_file##*/} \\
+        <path>/${v1_file##*/} \\
+        <path>/${ks_file##*/}"    
+    echo ""
+    if [ "$dry_run" = false ]; then
+        ### echo "sbatch pending"
+        sbatch "${submit_main}" "${if_file}" "${pet_file}" "${v1_file}" "${ks_file}"
+    fi
 }
 
 # Process each subject
 for sub in "${subs[@]}"; do
+    echo ""
     echo "Processing subject: $sub"
+    echo ""
     sub_path="$derivatives/$sub"
     
     # First find v1 and ks files for this subject
@@ -194,8 +234,9 @@ for sub in "${subs[@]}"; do
         continue
     fi
     
-    echo "Found v1 file: $v1_file"
-    echo "Found ks file: $ks_file"
+    echo "Found v1 file: $(basename "$v1_file")"
+    echo "Found ks file: $(basename "$ks_file")"
+    echo ""
     
     # Now process each session with these v1 and ks files
     while IFS= read -r session; do
@@ -208,17 +249,21 @@ for sub in "${subs[@]}"; do
         if [ ${#files[@]} -eq 2 ]; then
             if_file="${files[0]}"
             pet_file="${files[1]}"
-            
-            # Skip if either file is empty
-            if [ -z "$if_file" ] || [ -z "$pet_file" ]; then
-                echo "Warning: Missing files in session $session" >&2
+
+            # Check if both files exist
+            if [ -z "$pet_file" ] || [ -z "$if_file" ]; then
+                ##echo "Warning: Missing required files in session $session" >&2
                 continue
             fi
             
+            echo "Found both required files:"
+            echo "  PET file: $(basename "$pet_file")"
+            echo "  Input function file: $(basename "$if_file")"
+            
             # Submit job for this pair
             submit_single_job "$if_file" "$pet_file" "$v1_file" "$ks_file"
-        ### else
-            ### echo "Warning: Could not find matching pair of files in session $session" >&2
+        else
+            echo "Warning: Could not find matching pair of files in session $session" >&2
         fi
     done < <(find "$sub_path" -maxdepth 1 -type d -name "ses-*")
 done

@@ -26,6 +26,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from DynestyData import DynestyData
+from IOImplementations import BaseIO
 from PETUtilities import PETUtilities
 
 class InputFuncData(DynestyData):
@@ -143,3 +144,51 @@ class InputFuncData(DynestyData):
     @property
     def timesMid(self) -> NDArray:
         return self.data_dict["timesMid"].copy()
+
+    @staticmethod
+    def nii_hstack(
+        fqfn1: str, 
+        fqfn2: str, 
+        t_crossover: float | None = None, 
+        output_format: str="fqfn"
+    ) -> str:
+        """ Horizontally stacks two nii input functions and saves the result. """
+
+        niid1 = BaseIO().nii_load(fqfn1)
+        niid2 = BaseIO().nii_load(fqfn2)
+
+        niid = deepcopy(niid1)
+        if not t_crossover:
+            niid["img"] = np.hstack((niid1["img"], niid2["img"]))
+            niid["timesMid"] = np.hstack((niid1["timesMid"], niid2["timesMid"]))
+            niid["taus"] = np.hstack((niid1["taus"], niid2["taus"]))
+            niid["times"] = np.hstack((niid1["times"], niid2["times"]))
+            niid["json"]["timesMid"] = niid["timesMid"].tolist()
+            niid["json"]["taus"] = niid["taus"].tolist()
+            niid["json"]["times"] = niid["times"].tolist()
+        else:
+            idx_crossover = np.where(niid1["timesMid"] >= t_crossover)[0][0]
+            niid["img"] = np.hstack((niid1["img"][:idx_crossover], niid2["img"][idx_crossover:]))
+            niid["timesMid"] = np.hstack((niid1["timesMid"][:idx_crossover], niid2["timesMid"][idx_crossover:]))
+            niid["taus"] = np.hstack((niid1["taus"][:idx_crossover], niid2["taus"][idx_crossover:]))
+            niid["times"] = np.hstack((niid1["times"][:idx_crossover], niid2["times"][idx_crossover:]))
+            niid["json"]["timesMid"] = niid["timesMid"].tolist()
+            niid["json"]["taus"] = niid["taus"].tolist()
+            niid["json"]["times"] = niid["times"].tolist()
+        
+        # Check for duplicates using vectorized operations
+        times = niid["times"]
+        timesMid = niid["timesMid"]
+        if len(np.unique(times)) != len(times):
+            raise ValueError("Duplicate entries found in times array")
+        if len(np.unique(timesMid)) != len(timesMid):
+            raise ValueError("Duplicate entries found in timesMid array")
+
+        if output_format == "fqfn":
+            fqfn = niid["fqfp"] + f"-nii-hstack-t{t_crossover}.nii.gz"
+            BaseIO().nii_save(niid, fqfn)
+            return fqfn
+        elif output_format == "niid":
+            return niid
+        else:
+            raise ValueError(f"Invalid output format: {output_format}")

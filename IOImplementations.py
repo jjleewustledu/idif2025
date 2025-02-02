@@ -92,6 +92,7 @@ class BaseIO(IOInterface):
     @staticmethod
     def fqfileprefix(fqfn: str) -> str:
         return PETUtilities.fqfileprefix(fqfn)
+    
     def nii_load(
         self, 
         fqfn: str, 
@@ -99,7 +100,31 @@ class BaseIO(IOInterface):
         time_last: float | None = None, 
         check_validity: bool = False
     ) -> dict:
-        """Load a NIfTI file and associated json."""
+        """Load a NIfTI file and associated json.
+
+        Args:
+            fqfn (str): Fully qualified filename of the NIfTI file (.nii.gz extension optional)
+            do_trim (bool, optional): Whether to trim the by trim_nii_dict(). Defaults to True.
+            time_last (float | None, optional): Last time point to include if trimming. Defaults to None.
+            check_validity (bool, optional): Whether to validate timing integrity. Defaults to False.
+
+        Returns:
+            dict: Dictionary containing:
+                - fqfp (str): Fully qualified file prefix
+                - nii (nibabel.Nifti1Image): NIfTI image object
+                - img (numpy.ndarray): Image data array
+                - json (dict): Associated JSON metadata
+                - halflife (float): Isotope half-life
+                - timesMid (numpy.ndarray, optional): Mid-frame times if in JSON
+                - taus (numpy.ndarray, optional): Frame durations if in JSON  
+                - times (numpy.ndarray, optional): Frame start times if in JSON
+                - martinv1 (numpy.ndarray, optional): Martin v1 values if in JSON
+                - raichleks (numpy.ndarray, optional): Raichle ks values if in JSON
+
+        Raises:
+            FileNotFoundError: If the NIfTI file is not found
+        """
+        
         if not fqfn.endswith(".nii.gz"):
             fqfn += ".nii.gz"
         if not os.path.isfile(fqfn):
@@ -170,12 +195,14 @@ class BaseIO(IOInterface):
                 self.validate_nii_dict(data)
 
             # defer to nibabel
-            _data = deepcopy(data)
-            nii = _data["nii"]
-            nii = nib.Nifti1Image(_data["img"], nii.affine, nii.header)
+            nii = data["nii"]
+            nii = nib.Nifti1Image(data["img"], nii.affine, nii.header)
             nib.save(nii, fqfn)
 
             # save updated json
+            data["json"]["timesMid"] = data["timesMid"].tolist()
+            data["json"]["taus"] = data["taus"].tolist()
+            data["json"]["times"] = data["times"].tolist()
             jfile1 = self.fqfileprefix(fqfn) + ".json"
             with open(jfile1, "w") as f:
                 json.dump(data["json"], f, indent=4)

@@ -30,25 +30,20 @@ from TissueData import TissueData
 from IOImplementations import TissueIO
 from PETUtilities import PETUtilities
 
-class Mintun1984Data(TissueData):
-    """Data class for handling Mintun 1984 PET data.
+class Huang1980Data(TissueData):
+    """Data class for handling Huang 1980 PET data.
 
     This class extends TissueData to provide specific functionality for processing and analyzing
-    PET data according to the Mintun 1984 model. It handles data loading, measurement adjustments,
-    and provides access to volume of distribution (v1) and binding site density (ks) measurements.
+    PET data according to the Huang 1980 model. It handles data loading, measurement adjustments,
+    and provides access to volume of distribution (v1) measurements.
 
     Args:
         context: The analysis context object containing configuration and utilities
         data_dict (dict, optional): Dictionary containing input data. Defaults to empty dict.
-            Required keys:
-                - v1_fqfn: Fully qualified filename for v1 measurements
-                - ks_fqfn: Fully qualified filename for ks measurements
 
     Attributes:
         v1 (NDArray): Volume of distribution measurements as a numpy array
         v1_measurement (dict): Raw volume of distribution measurements with metadata
-        ks (NDArray): Binding site density measurements as a numpy array
-        ks_measurement (dict): Raw binding site density measurements with metadata
 
     Note:
         When using RadialArtery input function type, v1 measurements are automatically
@@ -57,21 +52,6 @@ class Mintun1984Data(TissueData):
     def __init__(self, context, data_dict: dict = {}):
         super().__init__(context, data_dict)
         assert "v1_fqfn" in self.data_dict, "data_dict missing required key 'v1_fqfn'"
-        assert "ks_fqfn" in self.data_dict, "data_dict missing required key 'ks_fqfn'"
-    
-    @property   
-    def ks(self) -> NDArray:
-        return self.ks_measurement["img"].copy()
-
-    @property
-    def ks_measurement(self) -> dict:
-        """ adjusts for recovery coefficient if RadialArtery used """
-        
-        if hasattr(self._data_dict, "ks_measurement"):
-            return deepcopy(self._data_dict["ks_measurement"])
-
-        self._data_dict["ks_measurement"] = self.nii_load(self._data_dict["ks_fqfn"])
-        return deepcopy(self._data_dict["ks_measurement"])
     
     @property
     def v1(self) -> NDArray:
@@ -80,7 +60,7 @@ class Mintun1984Data(TissueData):
     @property
     def v1_measurement(self) -> dict:
         """ adjusts for recovery coefficient if RadialArtery used """
-
+        
         if hasattr(self._data_dict, "v1_measurement"):
             return deepcopy(self._data_dict["v1_measurement"])
 

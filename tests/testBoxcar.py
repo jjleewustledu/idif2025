@@ -185,6 +185,31 @@ class TestBoxcar(TestPreliminaries):
         # self.assertTrue(os.path.exists(ra.data.results_fqfp))
         # self.assertTrue(os.path.getsize(ra.data.results_fqfp) > 0)
 
+    def test_nii_hstack(self):
+        fdgdir = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2024", "data", "ses-20210421155709", "pet")
+
+        idif_embed = os.path.join(fdgdir, "sub-108293_ses-20210421155709_trc-fdg_proc-MipIdif_idif.nii.gz")
+        idif_deconv = os.path.join(fdgdir, "sub-108293_ses-20210421155709_trc-fdg_proc-MipIdif_idif-BoxcarIO-ideal.nii.gz")  # deconv., decay corrected
+
+        niid_hstack = BoxcarData.nii_hstack(idif_deconv, idif_embed, t_crossover=300, output_format="niid")
+        context = BoxcarContext(self.data_dict)
+        io = BoxcarIO(context)
+        # niid_deconv = RadialArteryIO.nii_load(twil_deconv)
+        niid_embed = io.nii_load(idif_embed)
+
+        # Plot the stacked input function
+        import matplotlib.pyplot as plt
+        plt.figure(figsize=(12, 6))
+        plt.plot(niid_embed["timesMid"], niid_embed["img"], 'k+', linestyle='none', markersize=6, label='Embedded Input Function')
+        plt.plot(niid_hstack["timesMid"], niid_hstack["img"], 'm-', linewidth=2, label='Stacked Input Function', alpha=0.5)
+        plt.xlabel('Time (s)')
+        plt.ylabel('Activity')
+        plt.grid(True)
+        plt.legend()
+        plt.savefig(os.path.join(fdgdir, "testBoxcar_test_nii_hstack.png"))
+        plt.close()
+        # plt.show()
+
 
 if __name__ == '__main__':
     unittest.main()

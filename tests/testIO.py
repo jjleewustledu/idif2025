@@ -28,6 +28,7 @@ import sys
 from pprint import pprint
 
 import numpy as np
+from PETUtilities import PETUtilities
 from tests.testPreliminaries import TestPreliminaries
 from IOImplementations import TrivialArteryIO
 
@@ -43,6 +44,31 @@ class TestIO(TestPreliminaries):
     def test_IO_ctor(self):
         io = TrivialArteryIO()
         self.assertIsInstance(io, TrivialArteryIO)
+
+    def test_json_roundtrip(self):
+        fqfn = self.fqfn_ParcSchaeffer("oo1", singularity=False)
+        data = self.io.nii_load(fqfn=fqfn)
+
+        # mark data
+        data["img"][0, 0] = 3.1415
+        data["timesMid"][0] = 3.1415
+        data["taus"][0] = 0.05
+        data["times"][0] = 3.0415
+
+        fqfp1 = PETUtilities.fqfileprefix(fqfn) + "-json-roundtrip"
+        self.io.nii_save(data=data, fqfn=fqfp1)
+
+        data1 = self.io.nii_load(fqfn=fqfp1)
+        self.assertAlmostEqual(data["img"][0, 0], data1["img"][0, 0], delta=1e-4)
+        self.assertAlmostEqual(data["timesMid"][0], data1["timesMid"][0], delta=1e-4)
+        self.assertAlmostEqual(data["taus"][0], data1["taus"][0], delta=1e-4)
+        self.assertAlmostEqual(data["times"][0], data1["times"][0], delta=1e-4)
+
+        # Clean up any generated test files
+        for ext in [".json", ".log", ".nii.gz"]:
+            fqfn1 = fqfp1 + ext
+            if os.path.exists(fqfn1):
+                os.remove(fqfn1)
 
     def test_nii_load(self):
         fqfn = self.fqfn_ParcSchaeffer("oo1", singularity=False)

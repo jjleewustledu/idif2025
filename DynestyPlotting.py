@@ -179,6 +179,7 @@ class DynestyPlotting:
             ncolors: int = 1000,
             alpha: float = 0.3,
             linewidth: float = 3,
+            do_show_xlabel: bool = True,
             do_save: bool = False
     ) -> None:
         if truths is None:
@@ -198,13 +199,15 @@ class DynestyPlotting:
             _, rho_ideal, timesIdeal = self.context.solver.signalmodel(truths_)
             ax.plot(timesIdeal, rho_ideal, color=viridis(tidx), alpha=alpha, linewidth=linewidth)
 
-        ax.set_xlabel("time of mid-frame (s)")
         ax.set_ylabel("activity (arbitrary)")
+        if do_show_xlabel:
+            ax.set_xlabel("time of mid-frame (s)")
 
         # Add a colorbar to understand colors
         sm = plt.cm.ScalarMappable(cmap=viridis)
         sm.set_array(trange)
-        plt.colorbar(sm, ax=ax, label="Varying " + self.labels[tindex])  # Pass the ax argument
+        cbar = plt.colorbar(sm, ax=ax)
+        cbar.set_label("Varying " + self.labels[tindex], fontsize=36)  # Pass the ax argument
         plt.tight_layout()
 
         if do_save:

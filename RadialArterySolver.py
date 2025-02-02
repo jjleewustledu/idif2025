@@ -42,7 +42,7 @@ def prior_transform(u: np.ndarray, halflife: float, sigma: float) -> np.ndarray:
     v[4] = u[4] * 2.5 + 0.5  # p
     v[5] = u[5] * 3 - 3  # \delta p_2 ~ p_2 - p
     v[6] = u[6] * 3 - 3  # \delta p_3 ~ p_3 - p_2
-    v[7] = u[7] * 5 * halflife  # 1/\gamma for s.s.
+    v[7] = u[7] * 5 * halflife + 1  # 1/\gamma for s.s.
     v[8] = u[8] * 0.9 # f_2
     v[9] = u[9] * 0.9  # f_3
     v[10] = u[10] * 4 + 0.5  # A is amplitude adjustment

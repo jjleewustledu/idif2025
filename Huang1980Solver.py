@@ -39,12 +39,13 @@ def prior_transform(
     sigma: float
 ) -> np.ndarray:
         v = u
-        v[0] = u[0] * 0.016 + 0.0011  # f (1/s)
-        v[1] = u[1] * 1.95 + 0.05  # \lambda (cm^3/mL)
-        v[2] = u[2] * 0.0272 + 0.0011  # ps (mL cm^{-3}s^{-1})
-        v[3] = u[3] * 40 - 10  # t_0 (s)
-        v[4] = u[4] * 30  # \tau_a (s)
-        v[5] = u[5] * sigma  # sigma ~ fraction of A0
+        v[0] = u[0] * 2  # k_1 (1/s)
+        v[1] = u[1] * 0.5 + 0.00001  # k_2 (1/s)
+        v[2] = u[2] * 0.05 + 0.00001  # k_3 (1/s)
+        v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
+        v[4] = u[4] * 20  # t_0 (s)
+        v[5] = u[5] * 120 - 60  # \tau_a (s)
+        v[6] = u[6] * sigma  # sigma ~ fraction of A0
         return v
 
 @jit(nopython=True)
@@ -54,9 +55,10 @@ def loglike(
     timesMid: np.ndarray,
     taus: np.ndarray,
     rho_input_func_interp: np.ndarray,
+    v1: float,
     isidif: bool
 ) -> float:
-    rho_pred, _, _, _ = signalmodel(v, timesMid, taus, rho_input_func_interp, isidif)
+    rho_pred, _, _, _ = signalmodel(v, timesMid, taus, rho_input_func_interp, v1, isidif)
     sigma = v[-1]
     residsq = (rho_pred - rho) ** 2 / sigma ** 2
     loglike = -0.5 * np.sum(residsq + np.log(2 * np.pi * sigma ** 2))
@@ -70,17 +72,17 @@ def signalmodel(
     timesMid: np.ndarray,
     taus: np.ndarray,
     rho_input_func_interp: np.ndarray,
+    v1: float,
     isidif: bool
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """ Raichle1983Model is only valid for [15O] """
-        HL = 122.2416  # [15O]
-        ALPHA = np.log(2) / HL
+        """ Huang1980Model assumes all input params to be decay-corrected """
 
-        f = v[0]
-        lamb = v[1]
-        ps = v[2]
-        t_0 = v[3]
-        tau_a = v[4]
+        k1 = v[0]
+        k2 = v[1]
+        k3 = v[2]
+        k4 = v[3]
+        t_0 = v[4]
+        tau_a = v[5]
 
         n_times = rho_input_func_interp.shape[0]
         timesIdeal = np.arange(0, n_times)
@@ -106,30 +108,43 @@ def signalmodel(
         rho_input_func_interp = slide(
             rho_input_func_interp, 
             timesIdeal, 
-            t_0, 
-            HL)
+            t_0)
 
         # propagate input function
 
-        m = 1 - np.exp(-ps / f)
-        propagator = np.exp(-m * f * timesIdeal / lamb - ALPHA * timesIdeal)
+        k234 = k2 + k3 + k4
+        bminusa = np.sqrt(np.power(k234, 2) - 4 * k2 * k4)
+        alpha = 0.5 * (k234 - bminusa)
+        beta = 0.5 * (k234 + bminusa)
+        propagator_a = np.exp(-alpha * timesIdeal)
+        propagator_b = np.exp(-beta * timesIdeal)
 
         # numpy ------------------------------------------------------------
         # conv_h2o = np.convolve(propagator, artery_h2o, mode="full")
         # conv_o2 = np.convolve(propagator, artery_o2, mode="full")        
         # numba jit --------------------------------------------------------
-        n_propagator = len(propagator)
+        n_propagator = len(propagator_a)
         n_artery = len(rho_input_func_interp) 
         n_conv = n_propagator + n_artery - 1        
-        conv_h2o = np.zeros(n_conv)     
+        conv_a = np.zeros(n_conv)     
         for i in range(n_conv):
             for j in range(max(0, i - n_propagator + 1), min(i + 1, n_artery)):
-                conv_h2o[i] += propagator[i - j] * rho_input_func_interp[j]
-        rho1 = m * f * conv_h2o
+                conv_a[i] += propagator_a[i - j] * rho_input_func_interp[j]
+        conv_b = np.zeros(n_conv)     
+        for i in range(n_conv):
+            for j in range(max(0, i - n_propagator + 1), min(i + 1, n_artery)):
+                conv_b[i] += propagator_b[i - j] * rho_input_func_interp[j]
+        conva = conva[:n_times]  # interpolated to the input function times
+        convb = convb[:n_times]  # interpolated to the input function times
 
         # package compartments
+        
+        conv2 = (k4 - alpha) * conva + (beta - k4) * convb
+        conv3 = conva - convb
+        q2 = (k1 / bminusa) * conv2
+        q3 = (k3 * k1 / bminusa) * conv3    
 
-        rho_ideal = rho1[:n_times]  # rho_ideal is interpolated to the input function times
+        rho_ideal = v1 * (rho_input_func_interp + q2 + q3)
         if not isidif:
             rho_pred = np.interp(timesMid, timesIdeal, rho_ideal)
         else:
@@ -146,6 +161,7 @@ def apply_boxcar(rho: np.ndarray, timesMid: np.ndarray, taus: np.ndarray) -> np.
     # for idx, (t0, tF) in enumerate(zip(times0_int, timesF_int)):
     #     rho_sampled[idx] = np.mean(rho[t0:tF])        
     # return np.nan_to_num(rho_sampled, 0)
+
     # Optimized implementation using cumsum ------------------------------------
     # padding rho with 0 at beginning 
     cumsum = np.cumsum(np.concatenate((np.zeros(1), rho)))
@@ -165,8 +181,8 @@ def slide(rho: np.ndarray, t: np.ndarray, dt: float, halflife: float=None) -> np
         return rho
 
 
-class Raichle1983Solver(TissueSolver):
-    """Solver implementing the Raichle 1983 tissue model for PET data analysis.
+class Huang1980Solver(TissueSolver):
+    """Solver implementing the Huang 1980 tissue model for PET data analysis.
 
     This class implements the tissue model described in Raichle et al. 1983 [1]_ for analyzing
     PET data using dynamic nested sampling. The model accounts for blood flow (f),
@@ -182,21 +198,21 @@ class Raichle1983Solver(TissueSolver):
 
     Example:
         >>> context = TissueContext(data_dict)
-        >>> solver = Raichle1983Solver(context)
+        >>> solver = Huang1980Solver(context)
         >>> results = solver.run_nested()
         >>> qm, ql, qh = solver.quantile(results)
 
     References:
-        .. [1] Raichle ME, Martin WR, Herscovitch P, Mintun MA, Markham J.
-               Brain blood flow measured with intravenous H2(15)O. II. Implementation and validation.
-               J Nucl Med. 1983 Sep;24(9):790-8. PMID: 6604140.
+        .. [1] Huang SC, Phelps ME, Hoffman EJ, Sideris K, Selin CJ, Kuhl DE. 
+               Noninvasive determination of local cerebral metabolic rate of glucose in man. 
+               Am J Physiol. 1980;238(1):E69-82. doi:10.1152/ajpendo.1980.238.1.E69
     """
     def __init__(self, context):
         super().__init__(context)
 
     @property
     def labels(self):
-        return [r"$f$", r"$\lambda$", r"ps", r"$t_0$", r"$\tau_a$", r"$\sigma$"]
+        return [r"$k_1$", r"$k_2$", r"$k_3$", r"$k_4$", r"$t_0$", r"$\tau_a$", r"$\sigma$"]
 
     @staticmethod
     def _loglike(selected_data: dict):
@@ -205,6 +221,7 @@ class Raichle1983Solver(TissueSolver):
         timesMid = selected_data["timesMid"]
         taus = selected_data["taus"]
         rho_input_func_interp = selected_data["rho_input_func_interp"]
+        v1 = selected_data["v1"]
         isidif = selected_data["isidif"]
 
         # Check dimensions
@@ -212,16 +229,19 @@ class Raichle1983Solver(TissueSolver):
             raise ValueError("rho must be 1-dimensional")
         if rho_input_func_interp.ndim != 1:
             raise ValueError("rho_input_func_interp must be 1-dimensional") 
+        if not np.isscalar(v1):
+            raise ValueError("v1 must be scalar")
         
         # Create wrapper that matches dynesty's expected signature
         def wrapped_loglike(v):
-            nonlocal rho, timesMid, taus, rho_input_func_interp, isidif
+            nonlocal rho, timesMid, taus, rho_input_func_interp, v1, isidif
             return loglike(
                 v,
                 rho,
                 timesMid,
                 taus, 
                 rho_input_func_interp,
+                v1,
                 isidif)
         return wrapped_loglike
 
@@ -240,8 +260,8 @@ class Raichle1983Solver(TissueSolver):
         if selected_data["resume"]:
             sampler = dynesty.DynamicNestedSampler.restore(selected_data["checkpoint_file"])
         else:
-            loglike = Raichle1983Solver._loglike(selected_data)
-            prior_transform = Raichle1983Solver._prior_transform(selected_data)
+            loglike = Huang1980Solver._loglike(selected_data)
+            prior_transform = Huang1980Solver._prior_transform(selected_data)
             sampler = dynesty.DynamicNestedSampler(
                 loglikelihood=loglike,
                 prior_transform=prior_transform,
@@ -283,6 +303,7 @@ class Raichle1983Solver(TissueSolver):
                 "timesMid": self.data.timesMid,
                 "taus": self.data.taus,
                 "rho_input_func_interp": self.data.rho_input_func_interp,
+                "v1": self.data.v1[pidx],
                 "isidif": self.data.isidif,
                 "sigma": self.data.sigma,
                 "ndim": self.ndim,
@@ -297,13 +318,13 @@ class Raichle1983Solver(TissueSolver):
             args.append(selected_data)
         
         # Sequential execution for testing
-        # _results = [Raichle1983Solver.__run_nested(*arg) for arg in args]
+        # _results = [Huang1980Solver.__run_nested(*arg) for arg in args]
         # self._set_cached_dynesty_results(_results)
         # return _results    
 
         # Use multiprocessing Pool to parallelize execution is incompatible with instance methods
         with Pool() as p:
-            _results = p.starmap(Raichle1983Solver._run_nested, [(arg,) for arg in args])
+            _results = p.starmap(Huang1980Solver._run_nested, [(arg,) for arg in args])
             self._set_cached_dynesty_results(_results)
         return _results
         
@@ -313,12 +334,15 @@ class Raichle1983Solver(TissueSolver):
             print_progress: bool = False,
             resume: bool = False,
             parc_index: int | None = None
-    ) -> dyutils.Results:      
+    ) -> dyutils.Results:        
+        if parc_index is None:
+            raise ValueError("parc_index must be provided")        
         args = {
             "rho": self.data.rho[parc_index],
             "timesMid": self.data.timesMid,
             "taus": self.data.taus,
             "rho_input_func_interp": self.data.rho_input_func_interp,
+            "v1": self.data.v1[parc_index],
             "isidif": self.data.isidif,
             "sigma": self.data.sigma,
             "ndim": self.ndim,
@@ -331,7 +355,7 @@ class Raichle1983Solver(TissueSolver):
             "print_progress": print_progress
         }
 
-        _results = Raichle1983Solver._run_nested(args)
+        _results = Huang1980Solver._run_nested(args)
         self._set_cached_dynesty_results(_results)
         return _results
     
@@ -340,16 +364,19 @@ class Raichle1983Solver(TissueSolver):
             v: list | tuple | NDArray,
             parc_index: int | None = None
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """ parc_index supports the API"""
+        """ parc_index selects ks and v1"""
 
         v = np.array(v, dtype=float)
         if not isinstance(v, np.ndarray) or v.ndim != 1 or len(v) != self.ndim:
             raise ValueError(f"v must be 1-dimensional array of length {self.ndim}")
+        if parc_index is None:
+            raise ValueError("parc_index must be provided")
         return signalmodel(
             v, 
             self.data.timesMid,
             self.data.taus,
             self.data.rho_input_func_interp,
+            self.data.v1[parc_index],
             self.data.isidif
         )
     
@@ -358,11 +385,13 @@ class Raichle1983Solver(TissueSolver):
             v: list | tuple | NDArray,
             parc_index: int | None = None
     ) -> float:
-        """ parc_index supports the API"""
-        
+        """ parc_index selects v1"""
+
         v = np.array(v, dtype=float)
         if not isinstance(v, np.ndarray) or v.ndim != 1 or len(v) != self.ndim:
             raise ValueError(f"v must be 1-dimensional array of length {self.ndim}")
+        if parc_index is None:
+            raise ValueError("parc_index must be provided")
         return loglike(
             v,
             self.data.rho,

@@ -424,6 +424,7 @@ class Mintun1984Solver(TissueSolver):
             parc_index: int | None = None
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """ parc_index selects ks and v1"""
+
         v = np.array(v, dtype=float)
         if not isinstance(v, np.ndarray) or v.ndim != 1 or len(v) != self.ndim:
             raise ValueError(f"v must be 1-dimensional array of length {self.ndim}")
@@ -445,6 +446,7 @@ class Mintun1984Solver(TissueSolver):
             parc_index: int | None = None
     ) -> float:
         """ parc_index selects ks and v1"""
+        
         v = np.array(v, dtype=float)
         if not isinstance(v, np.ndarray) or v.ndim != 1 or len(v) != self.ndim:
             raise ValueError(f"v must be 1-dimensional array of length {self.ndim}")

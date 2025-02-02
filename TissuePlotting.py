@@ -21,8 +21,10 @@
 # SOFTWARE.
 
 
+import os
 import numpy as np
 from numpy.typing import NDArray
+from dynesty import utils as dyutils
 
 # plotting
 from matplotlib import cm, pyplot as plt
@@ -51,10 +53,26 @@ class TissuePlotting(DynestyPlotting):
 
     def parcs_plot(
             self,
+            results: dyutils.Results | list[dyutils.Results] | str | None = None,
+            parc_index: list[int] | tuple[int, ...] | NDArray | None = None,
             activity_units: str = "kBq/mL"
     ) -> None:
         """ plots from multiple selected parc. indices
             PET measurement, rho_pred from signal model, and also input function prediction"""
+        
+        if results:
+            if isinstance(results, str):
+                if not os.path.exists(results):
+                    raise FileNotFoundError(f"Results file not found: {results}")
+                results = self.context.io.pickle_load(results)
+            if (not isinstance(results, list) or 
+                not all(isinstance(r, dyutils.Results) for r in results)):
+                raise ValueError("results must be a list of dynesty Results objects")
+            self.context.solver._set_cached_dynesty_results(results)
+
+        if not parc_index:
+            parc_index = range(len(self.context.solver.truths))
+
         truths = self.context.solver.truths        
         A_max = self.context.data.max_tissue_measurement
 
@@ -64,9 +82,7 @@ class TissuePlotting(DynestyPlotting):
         timesMid_if = if_meas["timesMid"]
 
         # PET measurement
-        tiss_meas = self.context.data.rho_tissue_measurement
-        
-        parc_index = range(len(truths))
+        tiss_meas = self.context.data.rho_tissue_measurement        
         timesMid_tiss = tiss_meas["timesMid"]
 
         # scalings

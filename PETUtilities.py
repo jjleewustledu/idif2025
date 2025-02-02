@@ -155,6 +155,7 @@ class PETUtilities:
     @staticmethod
     def interpdata(data: dict, ref: dict, kind: str="linear") -> dict:
         """ Interpolates data dictionary to 1-second resolution specified by ref dictionary."""
+
         data1 = deepcopy(data)
         assert "img" in data1, "data must have 'img' entry"
         assert "times" in data1, "data must have 'times' entry"
@@ -174,7 +175,8 @@ class PETUtilities:
     def interpimg(timesMid1: NDArray, timesMid: NDArray, img: NDArray, kind: str="linear") -> NDArray:
         """ Interpolates img, corresponding to timesMid, to timesMidNew, squeezing everything. 
             timesMidNew and timesMid may be 1D, [1, N_time], or [N_time, 1]. 
-            img may be 1D, [1, N_time], [N_time, 1], or [N_pos, N_time]. """        
+            img may be 1D, [1, N_time], [N_time, 1], or [N_pos, N_time]. """    
+            
         if img.squeeze().ndim > 1 or not kind == "linear":
             f = interp1d(timesMid.squeeze(), img.squeeze(), kind=kind, axis=1)
             return f(timesMid1.squeeze())

@@ -25,6 +25,7 @@ from copy import deepcopy
 
 from numpy.typing import NDArray
 
+from IOImplementations import TissueIO
 from TissueData import TissueData
 
 
@@ -59,11 +60,26 @@ class Raichle1983Data(TissueData):
         return self.v1_measurement["img"].copy()
 
     @property
+    def v1_fqfn(self) -> str:
+        return self.data_dict["v1_fqfn"]
+
+    @property
     def v1_measurement(self) -> dict:
         """ adjusts for recovery coefficient """
         if hasattr(self._data_dict, "v1_measurement"):
             return deepcopy(self._data_dict["v1_measurement"])
 
-        self._data_dict["v1_measurement"] = self.nii_load(self._data_dict["v1_fqfn"])
-        self._data_dict["v1_measurement"]["img"] = self._data_dict["v1_measurement"]["img"] / self.recovery_coefficient
+        self._data_dict["v1_measurement"] = self.nii_load(self.v1_fqfn)
+        if self.v1_type == "Boxcar":
+            img = self._data_dict["v1_measurement"]["img"]
+            self._data_dict["v1_measurement"]["img"] = img / self.recovery_coefficient
         return deepcopy(self._data_dict["v1_measurement"])
+
+    @property
+    def v1_type(self) -> str:
+        _, bname = TissueIO.fileparts(self.v1_fqfn)
+        if "MipIdif" in bname or "Boxcar" in bname:
+            return "Boxcar"
+        if "TwiliteKit" in bname or "RadiaArtery" in bname:
+            return "RadialArtery"
+        raise ValueError(f"v1_fqfn {self.v1_fqfn} not recognized as input function")

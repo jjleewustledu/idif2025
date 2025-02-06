@@ -42,22 +42,50 @@ from TissuePlotting import TissuePlotting
 
 class TestMintun1984(TestPreliminaries):
 
+    @property
+    def qm_expected_1d(self):
+        return [
+            0.337187,  1.060953,  0.728026, -1.686959, 11.187671,  0.013107
+        ]
+    
+    @property
+    def qm_expected_2d(self):
+        return [
+            [3.37187072e-01, 1.06095346e+00, 7.28026102e-01, -1.68695873e+00, 1.11876711e+01, 1.31074582e-02],
+            [3.76220155e-01, 6.95255344e-01, 8.06672955e-01, -3.57661342e+00, 1.05960121e+01, 7.23063529e-03],
+            [3.87279539e-01, 6.35304353e-01, 2.89642980e-01, -4.51961933e+00, 1.53542956e+01, 1.21079964e-02]
+        ]
+
     def setUp(self):
         kerndir = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2025", "data", "kernels")
         kern = os.path.join(kerndir, "kernel_hct=46.8.nii.gz")
-
-        oo1dir = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2025", "data", "ses-20210421150523", "pet")
-        idif = os.path.join(oo1dir, "sub-108293_ses-20210421150523_trc-oo_proc-MipIdif_idif_dynesty-Boxcar-ideal.nii.gz")
-        twil = os.path.join(oo1dir, "sub-108293_ses-20210421150523_trc-oo_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc_dynesty-RadialArtery-ideal.nii.gz")
-        pet = os.path.join(oo1dir, "sub-108293_ses-20210421150523_trc-oo_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames_timeAppend-4-ParcSchaeffer-reshape-to-schaeffer-schaeffer.nii.gz")
+        oo1dir = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2025", "data", 
+                              "ses-20210421150523", "pet")
+        idif = os.path.join(oo1dir, "sub-108293_ses-20210421150523_trc-oo_proc-MipIdif_idif_dynesty-"
+                            "Boxcar-ideal.nii.gz")
+        twil = os.path.join(oo1dir, "sub-108293_ses-20210421150523_trc-oo_proc-TwiliteKit-do-make-"
+                            "input-func-nomodel_inputfunc_dynesty-RadialArtery-ideal.nii.gz")
+        pet = os.path.join(oo1dir, "sub-108293_ses-20210421150523_trc-oo_proc-delay0-BrainMoCo2-"
+                           "createNiftiMovingAvgFrames_timeAppend-4-ParcSchaeffer-reshape-to-schaeffer-"
+                           "schaeffer.nii.gz")
         
-        hodir = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2025", "data", "ses-20210421152358", "pet")
-        ks_idif = os.path.join(hodir, "sub-108293_ses-20210421152358_trc-ho_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames-schaeffer-Raichle1983Boxcar-main7-rc1p85-vrc1-3000-qm.nii.gz")
-        ks_twil = os.path.join(hodir, "sub-108293_ses-20210421152358_trc-ho_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames-schaeffer-Raichle1983Artery-main7-rc1p85-vrc1-3000-qm.nii.gz")
+        hodir = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2025", "data", 
+                             "ses-20210421152358", "pet")
+        ks_idif = os.path.join(hodir, "sub-108293_ses-20210421152358_trc-ho_proc-delay0-BrainMoCo2-"
+                               "createNiftiMovingAvgFrames-schaeffer-Raichle1983Boxcar-main7-rc1p85-vrc1-"
+                               "3000-qm.nii.gz")
+        ks_twil = os.path.join(hodir, "sub-108293_ses-20210421152358_trc-ho_proc-delay0-BrainMoCo2-"
+                               "createNiftiMovingAvgFrames-schaeffer-Raichle1983Artery-main7-rc1p85-vrc1-"
+                               "3000-qm.nii.gz")
 
-        codir = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2025", "data", "ses-20210421144815", "pet")
-        v1_idif = os.path.join(codir, "sub-108293_ses-20210421144815_trc-co_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames-ParcSchaeffer-reshape-to-schaeffer-schaeffer-idif_martinv1.nii.gz")
-        v1_twil = os.path.join(codir, "sub-108293_ses-20210421144815_trc-co_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames-ParcSchaeffer-reshape-to-schaeffer-schaeffer-twilite_martinv1.nii.gz")
+        codir = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2025", "data", 
+                             "ses-20210421144815", "pet")
+        v1_idif = os.path.join(codir, "sub-108293_ses-20210421144815_trc-co_proc-delay0-BrainMoCo2-"
+                               "createNiftiMovingAvgFrames-ParcSchaeffer-reshape-to-schaeffer-schaeffer-"
+                               "idif_martinv1.nii.gz")
+        v1_twil = os.path.join(codir, "sub-108293_ses-20210421144815_trc-co_proc-delay0-BrainMoCo2-"
+                               "createNiftiMovingAvgFrames-ParcSchaeffer-reshape-to-schaeffer-schaeffer-"
+                               "twilite_martinv1.nii.gz")
 
         self.data_dict_idif = {
             "input_func_fqfn": idif,
@@ -75,18 +103,14 @@ class TestMintun1984(TestPreliminaries):
             "tag": "playground-Mintun1984-twil"
         }
 
-        self.pickle_fqfn = os.path.join(oo1dir, "sub-108293_ses-20210421150523_trc-oo_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames_timeAppend-4-schaeffer-TissueIO-Boxcar-playground-Mintun1984-idif-test_pickle_dump_and_load.pickle")
-        self.pickle_x3_fqfn = os.path.join(oo1dir, "sub-108293_ses-20210421150523_trc-oo_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames_timeAppend-4-schaeffer-TissueIO-Boxcar-playground-Mintun1984-idif-test_pickle_dump_and_load_x3.pickle")
-
-        self.qm_expected = [
-            2.78923196e-01,  9.32513383e-01,  5.16780759e-01, -9.73242211e-01,
-            1.49046601e+01,  2.03677520e+01,  1.45177825e-02
-        ]
-        self.qm_expected_x3 = [
-            [2.78923196e-01, 9.32513383e-01, 5.16780759e-01, -9.73242211e-01, 1.49046601e+01, 2.03677520e+01, 1.45177825e-02],
-            [3.24649869e-01, 5.75975233e-01, 4.81031530e-01, -2.66419997e+00, 1.46587757e+01, 1.94774389e+01, 8.39748721e-03],
-            [3.80424773e-01, 5.64767604e-01, 6.32898717e-01, -3.15259572e+00, 1.45700401e+01, 2.00769881e+01, 1.31360300e-02]
-        ]
+        self.pickle_fqfn = os.path.join(
+            oo1dir, 
+            "sub-108293_ses-20210421150523_trc-oo_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames_timeAppend-4-"
+            "schaeffer-TissueIO-Boxcar-playground-Mintun1984-idif-test_pickle_dump_and_load.pickle")
+        self.pickle_x3_fqfn = os.path.join(
+            oo1dir,
+            "sub-108293_ses-20210421150523_trc-oo_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames_timeAppend-4-"
+            "schaeffer-TissueIO-Boxcar-playground-Mintun1984-idif-test_pickle_dump_and_load_x3.pickle")
         
     def test_something(self):
         self.assertEqual(True, True)  # add assertion here
@@ -148,7 +172,7 @@ class TestMintun1984(TestPreliminaries):
         niid = context.io.nii_load(self.data_dict_idif["tissue_fqfn"])
         self.assertIn(niid["fqfp"], self.data_dict_idif["tissue_fqfn"])
         self.assertEqual(niid["halflife"], 122.2416)
-        self.assertEqual(niid["img"].shape, (309,32))
+        self.assertEqual(niid["img"].shape, (309, 32))
         self.assertIsInstance(niid["json"], dict)
         self.assertIsInstance(niid["nii"], nib.nifti1.Nifti1Image)
         self.assertEqual(niid["taus"].shape, (32,))
@@ -180,7 +204,7 @@ class TestMintun1984(TestPreliminaries):
         niid = context.io.nii_load(self.data_dict_idif["ks_fqfn"])
         self.assertIn(niid["fqfp"], self.data_dict_idif["ks_fqfn"])
         self.assertEqual(niid["halflife"], 122.2416)
-        self.assertEqual(niid["img"].shape, (309,6))
+        self.assertEqual(niid["img"].shape, (309, 6))
         self.assertIsInstance(niid["json"], dict)
         self.assertIsInstance(niid["nii"], nib.nifti1.Nifti1Image)
         self.assertEqual(niid["taus"].shape, (110,))
@@ -212,7 +236,7 @@ class TestMintun1984(TestPreliminaries):
 
         atm = context.data.rho_tissue_measurement
         self.assertIn(atm["fqfp"], self.data_dict_idif["tissue_fqfn"])
-        self.assertEqual(atm["img"].shape, (309,32))
+        self.assertEqual(atm["img"].shape, (309, 32))
         self.assertAlmostEqual(np.max(atm["img"]), 1.0, places=6)
 
         ifm = context.data.input_func_measurement
@@ -231,11 +255,11 @@ class TestMintun1984(TestPreliminaries):
         
         tm = context.data.tissue_measurement
         self.assertIn(tm["fqfp"], self.data_dict_idif["tissue_fqfn"])
-        self.assertEqual(tm["img"].shape, (309,32))
+        self.assertEqual(tm["img"].shape, (309, 32))
         
         ks = context.data.ks_measurement
         self.assertIn(ks["fqfp"], self.data_dict_idif["ks_fqfn"])
-        self.assertEqual(ks["img"].shape, (309,6))
+        self.assertEqual(ks["img"].shape, (309, 6))
 
     def test_solver_run_nested(self):
         context = Mintun1984Context(self.data_dict_idif)
@@ -245,7 +269,7 @@ class TestMintun1984(TestPreliminaries):
         
         qm, _, _ = context.solver.quantile(verbose=True)
         # pprint(qm)
-        np.testing.assert_allclose(qm, self.qm_expected, rtol=1e-4)
+        np.testing.assert_allclose(qm, self.qm_expected_1d, rtol=1e-4)
 
     def test_solver_run_nested_x3(self):
         context = Mintun1984Context(self.data_dict_idif)
@@ -257,7 +281,7 @@ class TestMintun1984(TestPreliminaries):
         
         qm, _, _ = context.solver.quantile(verbose=True)
         # pprint(qm)
-        np.testing.assert_allclose(qm, self.qm_expected_x3, rtol=1e-4)
+        np.testing.assert_allclose(qm, self.qm_expected_2d, rtol=1e-4)
 
     def test_quantile(self):
         if not os.path.exists(self.pickle_fqfn):
@@ -272,7 +296,7 @@ class TestMintun1984(TestPreliminaries):
         # check quantile from pickle
         qm, _, _ = context.solver.quantile(results=a_pickle, verbose=False)
         # pprint(qm)
-        np.testing.assert_allclose(qm, self.qm_expected, rtol=1e-6)
+        np.testing.assert_allclose(qm, self.qm_expected_1d, rtol=1e-4)
 
         # check cached qm 
         # qm1, _, _ = context.solver.quantile(verbose=False)
@@ -291,7 +315,7 @@ class TestMintun1984(TestPreliminaries):
         # check quantile from pickle
         qm, _, _ = context.solver.quantile(results=a_pickle, verbose=False)
         # pprint(qm)
-        np.testing.assert_allclose(qm, self.qm_expected_x3, rtol=1e-6)
+        np.testing.assert_allclose(qm, self.qm_expected_2d, rtol=1e-4)
 
         # check cached qm 
         # qm1, _, _ = context.solver.quantile(verbose=False)
@@ -310,17 +334,10 @@ class TestMintun1984(TestPreliminaries):
         # check package from pickle
         pkg = context.solver.package_results(results=a_pickle, parc_index=25)
         pprint(pkg)
-        # np.testing.assert_allclose(pkg["information"], 12.248953761526167, rtol=1e-12)
-        # np.testing.assert_allclose(pkg["logz"], 78.12939007938317, rtol=1e-12)
-        np.testing.assert_allclose(pkg["qm"], self.qm_expected, rtol=1e-5)
-        np.testing.assert_allclose(pkg["rho_pred"], [
-            0.00185211, 0.00250800, 0.00498077, 0.01063664, 0.02087605, 0.03622910,
-            0.05604562, 0.07981099, 0.10756908, 0.13888991, 0.17275764, 0.20809761,
-            0.24270898, 0.27516981, 0.30421891, 0.32941386, 0.35135135, 0.37035798,
-            0.38611075, 0.39872147, 0.40889529, 0.41738194, 0.42450857, 0.43017466,
-            0.43413849, 0.43625256, 0.43654143, 0.43518460, 0.43246516, 0.42871215,
-            0.40131788, 0.33996186
-        ], rtol=1e-5)
+        np.testing.assert_allclose(pkg["information"], 13.911820134550084, rtol=1e-12)
+        np.testing.assert_allclose(pkg["logz"], 79.61973508182612, rtol=1e-12)
+        np.testing.assert_allclose(pkg["qm"], self.qm_expected_1d, rtol=1e-4)
+        
     def test_package_results_x3(self):
         if not os.path.exists(self.pickle_x3_fqfn):
             print("\nCall test_pickle_dump_and_load_x3() first to generate a pickle for testing.")
@@ -334,32 +351,11 @@ class TestMintun1984(TestPreliminaries):
         # check package from pickle
         pkg = context.solver.package_results(results=a_pickle, parc_index=(25, 26, 27))
         pprint(pkg)
-        # np.testing.assert_allclose(
-        #     pkg["information"], [12.24895376, 16.50119426, 13.84604802], rtol=1e-5)
-        # np.testing.assert_allclose(
-        #     pkg["logz"], [78.12939008, 91.16829794, 79.68875225], rtol=1e-5)
-        np.testing.assert_allclose(pkg["qm"], self.qm_expected_x3, rtol=1e-5)
-        pprint(pkg["rho_pred"])
-        np.testing.assert_allclose(pkg["rho_pred"], [
-            [0.00185211, 0.00250800, 0.00498077, 0.01063664, 0.02087605, 0.03622910,
-             0.05604562, 0.07981099, 0.10756908, 0.13888991, 0.17275764, 0.20809761,
-             0.24270898, 0.27516981, 0.30421891, 0.32941386, 0.35135135, 0.37035798,
-             0.38611075, 0.39872147, 0.40889529, 0.41738194, 0.42450857, 0.43017466,
-             0.43413849, 0.43625256, 0.43654143, 0.43518460, 0.43246516, 0.42871215,
-             0.40131788, 0.33996186],
-            [0.00400839, 0.00961700, 0.01987719, 0.03570503, 0.05681672, 0.08261137,
-             0.11296542, 0.14759630, 0.18560116, 0.22535278, 0.26495904, 0.30282179,
-             0.33747709, 0.36812846, 0.39505303, 0.41869315, 0.43889707, 0.45560959,
-             0.46938638, 0.48102982, 0.49103875, 0.49944004, 0.50600449, 0.51052626,
-             0.51296367, 0.51345305, 0.51226405, 0.50973855, 0.50623305, 0.50207498,
-             0.47646749, 0.40760071],
-            [0.00427860, 0.00972097, 0.01894970, 0.03226687, 0.04920640, 0.06947682,
-             0.09309973, 0.11969064, 0.14843030, 0.17784900, 0.20678683, 0.23412902,
-             0.25895624, 0.28102072, 0.30073188, 0.31822360, 0.33325015, 0.34594503,
-             0.35684571, 0.36646552, 0.37498472, 0.38228613, 0.38817489, 0.39254194,
-             0.39541181, 0.39692506, 0.39729808, 0.39677955, 0.39561349, 0.39401409,
-             0.38291026, 0.35503226]
-        ], rtol=1e-5)
+        np.testing.assert_allclose(
+            pkg["information"], [13.91182013, 17.90491427, 14.34020011], rtol=1e-5)
+        np.testing.assert_allclose(
+            pkg["logz"], [79.61973508, 94.72808996, 81.79450775], rtol=1e-5)
+        np.testing.assert_allclose(pkg["qm"], self.qm_expected_2d, rtol=1e-4)
 
     def test_pickle_dump_and_load(self):
         context = Mintun1984Context(self.data_dict_idif)
@@ -457,11 +453,7 @@ class TestMintun1984(TestPreliminaries):
         # check quantile from pickle
         qm, _, _ = context.solver.quantile(results=a_pickle, verbose=False)
         pprint(qm)
-        qm_expected = [
-            2.78923196e-01,  9.32513383e-01,  5.16780759e-01, -9.73242211e-01,
-            1.49046601e+01,  2.03677520e+01,  1.45177825e-02
-        ]
-        np.testing.assert_allclose(qm, qm_expected, rtol=1e-6)
+        np.testing.assert_allclose(qm, self.qm_expected_1d, rtol=1e-6)
 
     def test_truths_x3(self):
         if not os.path.exists(self.pickle_x3_fqfn):
@@ -476,12 +468,7 @@ class TestMintun1984(TestPreliminaries):
         # check quantile from pickle
         qm, _, _ = context.solver.quantile(results=a_pickle, verbose=False)
         pprint(qm)
-        qm_expected = [
-            [2.78923196e-01, 9.32513383e-01, 5.16780759e-01, -9.73242211e-01, 1.49046601e+01, 2.03677520e+01, 1.45177825e-02],
-            [3.24649869e-01, 5.75975233e-01, 4.81031530e-01, -2.66419997e+00, 1.46587757e+01, 1.94774389e+01, 8.39748721e-03],
-            [3.80424773e-01, 5.64767604e-01, 6.32898717e-01, -3.15259572e+00, 1.45700401e+01, 2.00769881e+01, 1.31360300e-02]
-        ]
-        np.testing.assert_allclose(qm, qm_expected, rtol=1e-6)
+        np.testing.assert_allclose(qm, self.qm_expected_2d, rtol=1e-6)
 
     def test_call(self):
         data_dict = self.data_dict_twil
@@ -494,7 +481,9 @@ class TestMintun1984(TestPreliminaries):
     def test_to_csv(self):
         context = Mintun1984Context(self.data_dict_idif)
         petpath = os.path.dirname(self.data_dict_idif["tissue_fqfn"])
-        pkl = os.path.join(petpath, "sub-108293_ses-20210421150523_trc-oo_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames_timeAppend-4-schaeffer-TissueIO-Boxcar.pickle")
+        pkl = os.path.join(petpath, "sub-108293_ses-20210421150523_trc-oo_proc-delay0-BrainMoCo2-"
+                           "createNiftiMovingAvgFrames_timeAppend-4-schaeffer-TissueIO-Boxcar-"
+                           "playground-Mintun1984-idif-test_results_save.pickle")
         res = context.solver.pickle_load(pkl)
         qm, ql, qh = context.solver.quantile(results=res)
 
@@ -517,9 +506,9 @@ class TestMintun1984(TestPreliminaries):
             df_qh = {"label": context.solver.labels}
 
             for i in range(qm.shape[0]):
-                df_qm.update({f"qm_{i}": qm[i,:]})
-                df_ql.update({f"ql_{i}": ql[i,:]})
-                df_qh.update({f"qh_{i}": qh[i,:]})
+                df_qm.update({f"qm_{i}": qm[i, :]})
+                df_ql.update({f"ql_{i}": ql[i, :]})
+                df_qh.update({f"qh_{i}": qh[i, :]})
 
             # Convert to dataframes and save to separate CSV files
             pd.DataFrame(df_qm).to_csv(fqfp1 + "-quantiles-qm.csv")

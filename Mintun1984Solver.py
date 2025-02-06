@@ -57,6 +57,7 @@ def loglike(
     v1: float,
     isidif: bool
 ) -> float:
+    assert rho.ndim == 1, "rho must be 1-dimensional"
     rho_pred, _, _, _ = signalmodel(v, timesMid, taus, rho_input_func_interp, ks, v1, isidif)
     sigma = v[-1]
     residsq = (rho_pred - rho) ** 2 / sigma ** 2

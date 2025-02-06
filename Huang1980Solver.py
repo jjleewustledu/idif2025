@@ -46,7 +46,7 @@ def prior_transform(
     return v
 
 
-# @jit(nopython=True)
+@jit(nopython=True)
 def loglike(
     v: np.ndarray,
     rho: np.ndarray,
@@ -56,6 +56,7 @@ def loglike(
     v1: float,
     isidif: bool
 ) -> float:
+    assert rho.ndim == 1, "rho must be 1-dimensional"
     rho_pred, _, _, _ = signalmodel(v, timesMid, taus, rho_input_func_interp, v1, isidif)
     sigma = v[-1]
     residsq = (rho_pred - rho) ** 2 / sigma ** 2
@@ -74,7 +75,7 @@ def signalmodel(
     v1: float,
     isidif: bool
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """ Huang1980Model assumes all input params to be decay-corrected """
+    """ Huang1980Solver assumes all input params to be decay-corrected """
 
     k1 = v[0] * v[1]  # k1/k2 * k2
     k2 = v[1]
@@ -183,7 +184,7 @@ def slide(rho: np.ndarray, t: np.ndarray, dt: float, halflife: float = 0) -> np.
 class Huang1980Solver(TissueSolver):
     """Solver implementing the Huang 1980 tissue model for PET data analysis.
 
-    This class implements the tissue model described in Raichle et al. 1983 [1]_ for analyzing
+    This class implements the tissue model described in Huang et al. 1980 [1] for analyzing
     PET data using dynamic nested sampling. The model accounts for blood flow (f),
     blood-tissue partition coefficient (λ), permeability-surface area product (ps),
     time offset (t0), and arterial dispersion (τa).
@@ -206,6 +207,7 @@ class Huang1980Solver(TissueSolver):
                Noninvasive determination of local cerebral metabolic rate of glucose in man.
                Am J Physiol. 1980;238(1):E69-82. doi:10.1152/ajpendo.1980.238.1.E69
     """
+
     def __init__(self, context):
         super().__init__(context)
 
@@ -363,7 +365,7 @@ class Huang1980Solver(TissueSolver):
             v: list | tuple | NDArray,
             parc_index: int | None = None
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """ parc_index selects ks and v1"""
+        """ parc_index selects v1"""
 
         v = np.array(v, dtype=float)
         if not isinstance(v, np.ndarray) or v.ndim != 1 or len(v) != self.ndim:

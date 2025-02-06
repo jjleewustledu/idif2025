@@ -95,8 +95,8 @@ class Mintun1984Data(TissueData):
     @property
     def v1_type(self) -> str:
         _, bname = TissueIO.fileparts(self.v1_fqfn)
-        if "MipIdif" in bname or "Boxcar" in bname:
+        if "idif" in bname or "MipIdif" in bname or "Boxcar" in bname:
             return "Boxcar"
-        if "TwiliteKit" in bname or "RadiaArtery" in bname:
+        if "twilite" in bname or "TwiliteKit" in bname or "RadiaArtery" in bname:
             return "RadialArtery"
         raise ValueError(f"v1_fqfn {self.v1_fqfn} not recognized as input function")

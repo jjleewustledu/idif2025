@@ -76,7 +76,11 @@ class Mintun1984Context(TissueContext):
         self._data = Mintun1984Data(self, data_dict)
         self._solver = Mintun1984Solver(self)
         # self._plotting = TissuePlotting(self)
-        self.tag += "-Mintun1984"        
+        if "Mintun1984" not in self.tag:
+            if self.tag:
+                self.tag += "-Mintun1984"
+            else:
+                self.tag = "Mintun1984"
                
     @property
     def data(self):

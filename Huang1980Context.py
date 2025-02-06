@@ -76,7 +76,11 @@ class Huang1980Context(TissueContext):
         self._data = Huang1980Data(self, data_dict)
         self._solver = Huang1980Solver(self)
         # self._plotting = TissuePlotting(self)
-        self.tag += "-Huang1980"
+        if "Huang1980" not in self.tag:
+            if self.tag:
+                self.tag += "-Huang1980"
+            else:
+                self.tag = "Huang1980"
 
     @property
     def data(self):
@@ -85,14 +89,6 @@ class Huang1980Context(TissueContext):
     @property
     def input_func_type(self):
         return self.data.input_func_type
-
-    # @property
-    # def io(self):
-    #     return self._io
-
-    # @property
-    # def plotting(self):
-    #     return self._plotting
 
     @property
     def solver(self):
@@ -114,8 +110,7 @@ if __name__ == "__main__":
         "input_func_fqfn": sys.argv[1],
         "tissue_fqfn": sys.argv[2],
         "v1_fqfn": sys.argv[3],
-        "ks_fqfn": sys.argv[4],
-        "nlive": int(sys.argv[5])
+        "nlive": int(sys.argv[4])
     }
     h = Huang1980Context(data_dict)
     h()

@@ -28,7 +28,6 @@ import numpy as np
 from numpy.typing import NDArray
 import pandas as pd
 from DynestySolver import DynestySolver
-from PETUtilities import PETUtilities
 
 
 class TissueSolver(DynestySolver):
@@ -72,14 +71,14 @@ class TissueSolver(DynestySolver):
             results = self._get_cached_dynesty_results()
 
         if (isinstance(parc_index, (list, tuple, np.ndarray)) or
-            (isinstance(results, list) and all(isinstance(r, dyutils.Results) for r in results))):
+                (isinstance(results, list) and all(isinstance(r, dyutils.Results) for r in results))):
             return self._package_results_pool(results=results, parc_index=parc_index)
         
         resd = results.asdict()
         logz = resd["logz"][-1]
         information = resd["information"][-1]
         qm, ql, qh = self.quantile(results=results)
-        rho_pred, timesMid, rho_ideal, timesIdeal= self.signalmodel(v=qm, parc_index=parc_index)
+        rho_pred, timesMid, rho_ideal, timesIdeal = self.signalmodel(v=qm, parc_index=parc_index)
         resid = rho_pred - self.data.rho
         return {
             "logz": logz,
@@ -172,7 +171,6 @@ class TissueSolver(DynestySolver):
         ql = np.zeros((M, N))
         qm = np.zeros((M, N)) 
         qh = np.zeros((M, N))
-        max_label_len = max(len(label) for label in self.labels)
 
         # Process each results object
         for i, res in enumerate(results):
@@ -181,7 +179,7 @@ class TissueSolver(DynestySolver):
             
             # Calculate quantiles for each parameter
             for j, x in enumerate(samples):
-                ql[i,j], qm[i,j], qh[i,j] = dyutils.quantile(x, [0.025, 0.5, 0.975], weights=weights)
+                ql[i, j], qm[i, j], qh[i, j] = dyutils.quantile(x, [0.025, 0.5, 0.975], weights=weights)
 
         # cache results
         self._set_cached_quantile(qm, ql, qh)
@@ -299,9 +297,9 @@ class TissueSolver(DynestySolver):
             df_qh = {"label": self.labels}
 
             for i in range(qm.shape[0]):
-                df_qm.update({f"qm_{i}": qm[i,:]})
-                df_ql.update({f"ql_{i}": ql[i,:]})
-                df_qh.update({f"qh_{i}": qh[i,:]})
+                df_qm.update({f"qm_{i}": qm[i, :]})
+                df_ql.update({f"ql_{i}": ql[i, :]})
+                df_qh.update({f"qh_{i}": qh[i, :]})
 
             # Convert to dataframes and save to separate CSV files
             pd.DataFrame(df_qm).to_csv(fqfp1 + "-quantiles-qm.csv")
@@ -321,7 +319,7 @@ class TissueSolver(DynestySolver):
         self._clear_cache()
 
         if (isinstance(parc_index, (int, np.integer)) or 
-            (isinstance(parc_index, np.ndarray) and parc_index.size == 1)):
+                (isinstance(parc_index, np.ndarray) and parc_index.size == 1)):
             return self._run_nested_single(checkpoint_file, print_progress, resume, parc_index)
         else:
             return self._run_nested_pool(checkpoint_file, print_progress, resume, parc_index)

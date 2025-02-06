@@ -21,13 +21,10 @@
 # SOFTWARE.
 
 
-from copy import deepcopy
-
-import numpy as np
 from numpy.typing import NDArray
 
 from InputFuncData import InputFuncData
-from PETUtilities import PETUtilities
+
 
 class RadialArteryData(InputFuncData):
     """Class for handling radial artery input function data from PET imaging.
@@ -63,4 +60,3 @@ class RadialArteryData(InputFuncData):
     @property
     def kernel_fqfn(self) -> str:
         return self.data_dict["kernel_fqfn"]
-    

@@ -61,8 +61,8 @@ class TissueSolver(DynestySolver):
 
     def package_results(
             self, 
-            results: dyutils.Results |list[dyutils.Results] | None = None,
-            parc_index: int |list[int] | tuple[int, ...] | NDArray | None = None
+            results: dyutils.Results | list[dyutils.Results] | None = None,
+            parc_index: int | list[int] | tuple[int, ...] | NDArray | None = None
     ) -> dict:
         """ provides a super dictionary also containing dynesty_results in entry "res" """
         

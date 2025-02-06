@@ -21,14 +21,11 @@
 # SOFTWARE.
 
 
-from abc import abstractmethod
 from copy import deepcopy
 from dynesty import utils as dyutils
 import numpy as np
-from numpy.typing import NDArray
 import pandas as pd
 from DynestySolver import DynestySolver
-from PETUtilities import PETUtilities
 
 
 class InputFuncSolver(DynestySolver):
@@ -61,7 +58,7 @@ class InputFuncSolver(DynestySolver):
 
     def package_results(
             self, 
-            results: dyutils.Results |list[dyutils.Results] | None = None
+            results: dyutils.Results | list[dyutils.Results] | None = None
     ) -> dict:
         """ provides a super dictionary also containing dynesty_results in entry "res" """
         
@@ -74,7 +71,7 @@ class InputFuncSolver(DynestySolver):
         logz = resd["logz"][-1]
         information = resd["information"][-1]
         qm, ql, qh = self.quantile(results=results)
-        rho_pred, rho_ideal, timesIdeal= self.signalmodel(v=qm)
+        rho_pred, rho_ideal, timesIdeal = self.signalmodel(v=qm)
         resid = rho_pred - self.data.rho
         return {
             "logz": logz,

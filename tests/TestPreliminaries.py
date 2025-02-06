@@ -23,37 +23,39 @@
 from __future__ import absolute_import
 import unittest
 import os
-from pprint import pprint
 
 
 class TestPreliminaries(unittest.TestCase):
-    
+
     def fqfn_ParcSchaeffer(self, tracer="oo1", singularity=False):
         if tracer == "co":
             fn = ("sub-108293_ses-20210421144815_trc-co_proc-delay0-BrainMoCo2-"
-                 "createNiftiMovingAvgFrames_timeAppend-4-ParcSchaeffer-reshape-"
-                 "to-schaeffer-schaeffer.nii.gz")
+                  "createNiftiMovingAvgFrames_timeAppend-4-ParcSchaeffer-reshape-"
+                  "to-schaeffer-schaeffer.nii.gz")
         elif tracer == "oo1":
             fn = ("sub-108293_ses-20210421150523_trc-oo_proc-delay0-BrainMoCo2-"
-                 "createNiftiMovingAvgFrames_timeAppend-4-ParcSchaeffer-reshape-"
-                 "to-schaeffer-schaeffer.nii.gz")
+                  "createNiftiMovingAvgFrames_timeAppend-4-ParcSchaeffer-reshape-"
+                  "to-schaeffer-schaeffer.nii.gz")
         elif tracer == "ho":
             fn = ("sub-108293_ses-20210421152358_trc-ho_proc-delay0-BrainMoCo2-"
-                 "createNiftiMovingAvgFrames_timeAppend-4-ParcSchaeffer-reshape-"
-                 "to-schaeffer-schaeffer.nii.gz")
+                  "createNiftiMovingAvgFrames_timeAppend-4-ParcSchaeffer-reshape-"
+                  "to-schaeffer-schaeffer.nii.gz")
         elif tracer == "oo2":
-            fn = "sub-108293_ses-20210421154248_trc-oo_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames-ParcSchaeffer-reshape-to-schaeffer-schaeffer.nii.gz"
+            fn = ("sub-108293_ses-20210421154248_trc-oo_proc-delay0-BrainMoCo2-"
+                  "createNiftiMovingAvgFrames-ParcSchaeffer-reshape-to-schaeffer-schaeffer.nii.gz")
         elif tracer == "fdg":
-            fn = "sub-108293_ses-20210421155709_trc-fdg_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames_timeAppend-4-ParcSchaeffer-reshape-to-schaeffer-schaeffer.nii.gz"
+            fn = ("sub-108293_ses-20210421155709_trc-fdg_proc-delay0-BrainMoCo2-"
+                  "createNiftiMovingAvgFrames_timeAppend-4-ParcSchaeffer-reshape-to-schaeffer-"
+                  "schaeffer.nii.gz")
         return os.path.join(self.petdir(tracer, singularity), fn)
-    
+
     def kernel_fqfn(self, hct=44.5):
         fqfn = os.path.join(
-            os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2024", "data", "kernels", f"kernel_hct={hct}.nii.gz")
+            os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2025", "data", "kernels", f"kernel_hct={hct}.nii.gz")
         if not os.path.exists(fqfn):
             raise FileNotFoundError(f"Kernel file not found: {fqfn}")
         return fqfn
-    
+
     def petdir(self, tracer="oo1", singularity=False):
 
         if tracer == "co":
@@ -72,7 +74,7 @@ class TestPreliminaries(unittest.TestCase):
                 os.getenv("SINGULARITY_HOME"), "CCIR_01211", "derivatives", "sub-108293", ses, "pet")
         else:
             return os.path.join(
-                os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2024", "data", ses, "pet")
+                os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2025", "data", ses, "pet")
 
     def print_separator(self, text):
         print("\n" + "=" * 30 + " " + text + " " + "=" * 30)

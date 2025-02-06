@@ -21,7 +21,6 @@
 # SOFTWARE.
 
 
-import os
 import sys
 import logging
 import matplotlib
@@ -99,7 +98,6 @@ class BoxcarContext(DynestyContext):
     @tag.setter
     def tag(self, tag):
         self._data.tag = tag
-
 
 
 if __name__ == "__main__":

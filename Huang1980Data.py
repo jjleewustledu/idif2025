@@ -21,14 +21,12 @@
 # SOFTWARE.
 
 
+import os
 from copy import deepcopy
-
-import numpy as np
 from numpy.typing import NDArray
 
 from TissueData import TissueData
-from IOImplementations import TissueIO
-from PETUtilities import PETUtilities
+
 
 class Huang1980Data(TissueData):
     """Data class for handling Huang 1980 PET data.
@@ -52,19 +50,21 @@ class Huang1980Data(TissueData):
     def __init__(self, context, data_dict: dict = {}):
         super().__init__(context, data_dict)
         assert "v1_fqfn" in self.data_dict, "data_dict missing required key 'v1_fqfn'"
-    
+
     @property
     def v1(self) -> NDArray:
         return self.v1_measurement["img"].copy()
 
     @property
-    def v1_measurement(self) -> dict:
+    def v1_measurement(self) -> dict | None:
         """ adjusts for recovery coefficient if RadialArtery used """
-        
+
         if hasattr(self._data_dict, "v1_measurement"):
             return deepcopy(self._data_dict["v1_measurement"])
 
+        if not os.path.exists(self._data_dict["v1_fqfn"]):
+            raise RuntimeError("v1 data not found. Use TwoTCMContext to infer v1 in models.")
+
         self._data_dict["v1_measurement"] = self.nii_load(self._data_dict["v1_fqfn"])
-        if self.input_func_type == "RadialArtery":
-            self._data_dict["v1_measurement"]["img"] = self._data_dict["v1_measurement"]["img"] / self.recovery_coefficient
+        self._data_dict["v1_measurement"]["img"] = self._data_dict["v1_measurement"]["img"] / self.recovery_coefficient
         return deepcopy(self._data_dict["v1_measurement"])

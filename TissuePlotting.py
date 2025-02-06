@@ -65,8 +65,8 @@ class TissuePlotting(DynestyPlotting):
                 if not os.path.exists(results):
                     raise FileNotFoundError(f"Results file not found: {results}")
                 results = self.context.io.pickle_load(results)
-            if (not isinstance(results, list) or 
-                not all(isinstance(r, dyutils.Results) for r in results)):
+            if (not isinstance(results, list) or
+                    not all(isinstance(r, dyutils.Results) for r in results)):
                 raise ValueError("results must be a list of dynesty Results objects")
             self.context.solver._set_cached_dynesty_results(results)
 
@@ -105,7 +105,7 @@ class TissuePlotting(DynestyPlotting):
             yscaling * if_scaling * A_if,
             color="dodgerblue",
             linewidth=3,
-            alpha=0.7,
+            alpha=0.75,
             label=f"input function x {if_scaling:.3}")  
 
         for i, pidx in enumerate(parc_index):
@@ -115,7 +115,7 @@ class TissuePlotting(DynestyPlotting):
                 color=greys(i),
                 marker="+", 
                 ls="none",
-                alpha=0.6,
+                alpha=0.75,
                 markersize=10,
                 label=f"PET measured, parcel 0:{ncolors-1}")
             
@@ -126,7 +126,7 @@ class TissuePlotting(DynestyPlotting):
                 yscaling * A_max * rho_pred,
                 color=reds(i),
                 linewidth=2,
-                alpha=0.6,
+                alpha=0.75,
                 label=f"PET predicted, parcel 0:{ncolors-1}")
         
         plt.xlim((-0.1 * xwidth, 1.1 * xwidth))

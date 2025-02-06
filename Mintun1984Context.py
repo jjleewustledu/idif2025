@@ -21,17 +21,13 @@
 # SOFTWARE.
 
 
-import os
 import sys
 import logging
 import matplotlib
 
-from DynestyContext import DynestyContext
-from IOImplementations import TissueIO
 from Mintun1984Data import Mintun1984Data
 from Mintun1984Solver import Mintun1984Solver
 from TissueContext import TissueContext
-from TissuePlotting import TissuePlotting
 
 
 class Mintun1984Context(TissueContext):

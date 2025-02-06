@@ -43,8 +43,8 @@ from DynestyPlotting import DynestyPlotting
 class TestRadialArtery(TestPreliminaries):
 
     def setUp(self):
-        petdir = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2024", "data", "ses-20210421150523", "pet")
-        kerndir = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2024", "data", "kernels")
+        petdir = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2025", "data", "ses-20210421150523", "pet")
+        kerndir = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2025", "data", "kernels")
         self.input_func_fqfn = os.path.join(petdir, "sub-108293_ses-20210421150523_trc-oo_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc.nii.gz")
         self.kernel_fqfn = os.path.join(kerndir, "kernel_hct=46.8.nii.gz")
         self.truths = [
@@ -91,7 +91,7 @@ class TestRadialArtery(TestPreliminaries):
         # context.data.print_concise(niid, "input_func NIfTI dict")
         """
         ======================= input_func NIfTI dict =======================
-        {'fqfp': '/Users/jjlee/PycharmProjects/dynesty/idif2024/data/ses-20210421150523/pet/sub-108293_ses-20210421150523_trc-oo_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc',
+        {'fqfp': '/Users/jjlee/PycharmProjects/dynesty/idif2025/data/ses-20210421150523/pet/sub-108293_ses-20210421150523_trc-oo_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc',
         'halflife': 122.2416,
         'img': '<array shape=(185,)>',
         'json': "<dict keys=['Modality', 'ImagingFrequency', 'Manufacturer', "
@@ -131,9 +131,9 @@ class TestRadialArtery(TestPreliminaries):
         """
         ========================= context.data_dict =========================
         {'halflife': 122.2416,
-        'input_func_fqfn': '/Users/jjlee/PycharmProjects/dynesty/idif2024/data/ses-20210421150523/pet/sub-108293_ses-20210421150523_trc-oo_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc.nii.gz',
+        'input_func_fqfn': '/Users/jjlee/PycharmProjects/dynesty/idif2025/data/ses-20210421150523/pet/sub-108293_ses-20210421150523_trc-oo_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc.nii.gz',
         'kernel': '<array shape=(121,)>',
-        'kernel_fqfn': '/Users/jjlee/PycharmProjects/dynesty/idif2024/data/kernels/kernel_hct=46.8.nii.gz',
+        'kernel_fqfn': '/Users/jjlee/PycharmProjects/dynesty/idif2025/data/kernels/kernel_hct=46.8.nii.gz',
         'nlive': 300,
         'rho': '<array shape=(185,)>',
         'rstate': Generator(PCG64) at 0x12F431E00,
@@ -169,7 +169,7 @@ class TestRadialArtery(TestPreliminaries):
         # context.solver.results_plot()
 
     def test_solver_2(self):
-        petdir2 = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2024", "data", "ses-20210421154248", "pet")
+        petdir2 = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2025", "data", "ses-20210421154248", "pet")
         input_func_fqfn2 = os.path.join(petdir2, "sub-108293_ses-20210421154248_trc-oo_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc.nii.gz")
         data_dict2 = {
             "input_func_fqfn": input_func_fqfn2,
@@ -249,7 +249,7 @@ class TestRadialArtery(TestPreliminaries):
         # self.assertTrue(os.path.getsize(ra.data.results_fqfp) > 0)
 
     def test_nii_hstack(self):
-        fdgdir = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2024", "data", "ses-20210421155709", "pet")
+        fdgdir = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2025", "data", "ses-20210421155709", "pet")
 
         twil_embed = os.path.join(fdgdir, "sub-108293_ses-20210421155709_trc-fdg_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc-embed.nii.gz")  # no deconv., decaying
         twil_deconv = os.path.join(fdgdir, "sub-108293_ses-20210421155709_trc-fdg_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc-RadialArteryIO-ideal.nii.gz")  # deconv., decaying, ~470 sec

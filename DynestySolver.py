@@ -26,19 +26,13 @@
 from __future__ import absolute_import
 from __future__ import print_function
 from abc import ABC, abstractmethod
-from copy import deepcopy
-from multiprocessing import Pool
-import pickle
-from typing import Any
 
 # basic numeric setup
 import numpy as np
 
 # dynesty
-from dynesty import dynesty
 from dynesty import utils as dyutils
 from numpy.typing import NDArray
-import pandas as pd
 
 
 class DynestySolver(ABC):
@@ -147,8 +141,8 @@ class DynestySolver(ABC):
     @abstractmethod
     def package_results(
             self, 
-            results: dyutils.Results |list[dyutils.Results] | None = None,
-            parc_index: int |list[int] | tuple[int, ...] | NDArray | None = None
+            results: dyutils.Results | list[dyutils.Results] | None = None,
+            parc_index: int | list[int] | tuple[int, ...] | NDArray | None = None
     ) -> dict:
         pass
 
@@ -173,7 +167,7 @@ class DynestySolver(ABC):
 
         # Call self._quantile_pool() if results is a list of dyutils.Results
         if (isinstance(results, list) and 
-            all(isinstance(r, dyutils.Results) for r in results)):
+                all(isinstance(r, dyutils.Results) for r in results)):
             return self._quantile_pool(results)
 
         # build new results
@@ -215,7 +209,7 @@ class DynestySolver(ABC):
             print_progress: bool = False,
             resume: bool | list[bool] = False,
             parc_index: int | list[int] | tuple[int, ...] | NDArray | None = None
-) -> dyutils.Results | list[dyutils.Results]:
+    ) -> dyutils.Results | list[dyutils.Results]:
         pass
     
     @abstractmethod

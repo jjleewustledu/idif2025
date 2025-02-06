@@ -21,13 +21,11 @@
 # SOFTWARE.
 
 
-from copy import deepcopy
 import dynesty
 from dynesty import utils as dyutils
 import numpy as np
-from numba import jit, float64
+from numba import jit
 from numpy.typing import NDArray
-import pandas as pd
 
 from InputFuncSolver import InputFuncSolver
 
@@ -43,11 +41,12 @@ def prior_transform(u: np.ndarray, halflife: float, sigma: float) -> np.ndarray:
     v[5] = u[5] * 3 - 3  # \delta p_2 ~ p_2 - p
     v[6] = u[6] * 3 - 3  # \delta p_3 ~ p_3 - p_2
     v[7] = u[7] * 5 * halflife  # 1/\gamma for s.s.
-    v[8] = u[8] * 0.9 # f_2
+    v[8] = u[8] * 0.9  # f_2
     v[9] = u[9] * 0.9  # f_3
     v[10] = u[10] * 4 + 0.5  # A is amplitude adjustment
     v[11] = u[11] * sigma  # sigma ~ fraction of M0
     return v
+
 
 @jit(nopython=True)
 def loglike(
@@ -64,6 +63,7 @@ def loglike(
     if not np.isfinite(loglike) or np.isnan(loglike):
         loglike = -1e300
     return loglike
+
 
 @jit(nopython=True)
 def signalmodel(
@@ -91,6 +91,7 @@ def signalmodel(
     ideal = A_qs * rho_
     return signal, ideal, timesIdeal
 
+
 @jit(nopython=True)
 def solution_3bolus_series(
     t: np.ndarray, 
@@ -108,6 +109,7 @@ def solution_3bolus_series(
         f_3_ * solution_1bolus(t, t_0, a, b + g, max(0.5, p + dp_2 + dp_3))
     )
     return rho
+
 
 @jit(nopython=True)
 def solution_1bolus(t: np.ndarray, t_0: float, a: float, b: float, p: float) -> np.ndarray:
@@ -134,6 +136,7 @@ def solution_1bolus(t: np.ndarray, t_0: float, a: float, b: float, p: float) -> 
     if max_val > 0:
         rho /= max_val
     return np.nan_to_num(rho, 0)
+
 
 @jit(nopython=True)
 def apply_boxcar(rho: np.ndarray, timesMid: np.ndarray, taus: np.ndarray) -> np.ndarray:

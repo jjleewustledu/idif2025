@@ -23,12 +23,10 @@
 
 from copy import deepcopy
 
-import numpy as np
 from numpy.typing import NDArray
 
 from TissueData import TissueData
-from IOImplementations import TissueIO
-from PETUtilities import PETUtilities
+
 
 class Raichle1983Data(TissueData):
     """Data class for handling Raichle 1983 PET data.
@@ -53,16 +51,19 @@ class Raichle1983Data(TissueData):
         super().__init__(context, data_dict)
     
     @property
+    def corner_title_fmt(self):
+        return ".3f"
+    
+    @property
     def v1(self) -> NDArray:
         return self.v1_measurement["img"].copy()
 
     @property
     def v1_measurement(self) -> dict:
-        """ adjusts for recovery coefficient if RadialArtery used """
+        """ adjusts for recovery coefficient """
         if hasattr(self._data_dict, "v1_measurement"):
             return deepcopy(self._data_dict["v1_measurement"])
 
         self._data_dict["v1_measurement"] = self.nii_load(self._data_dict["v1_fqfn"])
-        if self.input_func_type == "RadialArtery":
-            self._data_dict["v1_measurement"]["img"] = self._data_dict["v1_measurement"]["img"] / self.recovery_coefficient
+        self._data_dict["v1_measurement"]["img"] = self._data_dict["v1_measurement"]["img"] / self.recovery_coefficient
         return deepcopy(self._data_dict["v1_measurement"])

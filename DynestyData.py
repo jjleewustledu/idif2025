@@ -64,7 +64,11 @@ class DynestyData:
         return {'data_dict': self._data_dict}
     
     def __setstate__(self, state):
-        self._data_dict = state['data_dict']
+        self._data_dict = state['data_dict']    
+    
+    @property
+    def corner_title_fmt(self):
+        return ".2f"
     
     @property
     def data_dict(self) -> dict:
@@ -129,7 +133,7 @@ class DynestyData:
                 print(f"{key}: {value}")
         self.print_separator("Data", closing=True)
 
-    def print_separator(self, text: str, closing: bool=False) -> None:
+    def print_separator(self, text: str, closing: bool = False) -> None:
         if not closing:
             if len(text) > 62:
                 print("\n\n" + "=" * 3 + " " + text + " " + "=" * 3)

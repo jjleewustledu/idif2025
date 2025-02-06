@@ -40,7 +40,7 @@ from DynestyPlotting import DynestyPlotting
 class TestBoxcar(TestPreliminaries):
 
     def setUp(self):
-        petdir = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2024", "data", "ses-20210421150523", "pet")
+        petdir = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2025", "data", "ses-20210421150523", "pet")
         self.input_func_fqfn = os.path.join(petdir, "sub-108293_ses-20210421150523_trc-oo_proc-MipIdif_idif.nii.gz")
         self.truths = [
             10.2470, 29.5557, 14.4955,
@@ -83,7 +83,7 @@ class TestBoxcar(TestPreliminaries):
         # context.data.print_concise(niid, "input_func NIfTI dict")
         """
         ======================= input_func NIfTI dict =======================
-        {'fqfp': '/Users/jjlee/PycharmProjects/dynesty/idif2024/data/ses-20210421150523/pet/sub-108293_ses-20210421150523_trc-oo_proc-MipIdif_idif',
+        {'fqfp': '/Users/jjlee/PycharmProjects/dynesty/idif2025/data/ses-20210421150523/pet/sub-108293_ses-20210421150523_trc-oo_proc-MipIdif_idif',
         'halflife': 122.2416,
         'img': '<array shape=(32,)>',
         'json': "<dict keys=['Modality', 'ImagingFrequency', 'Manufacturer', "
@@ -119,7 +119,7 @@ class TestBoxcar(TestPreliminaries):
         """
         ========================= context.data_dict =========================
         {'halflife': 122.2416,
-        'input_func_fqfn': '/Users/jjlee/PycharmProjects/dynesty/idif2024/data/ses-20210421150523/pet/sub-108293_ses-20210421150523_trc-oo_proc-MipIdif_idif.nii.gz',
+        'input_func_fqfn': '/Users/jjlee/PycharmProjects/dynesty/idif2025/data/ses-20210421150523/pet/sub-108293_ses-20210421150523_trc-oo_proc-MipIdif_idif.nii.gz',
         'nlive': 300,
         'rho': '<array shape=(32,)>',
         'rstate': Generator(PCG64) at 0x14882FA00,
@@ -155,7 +155,7 @@ class TestBoxcar(TestPreliminaries):
         # context.solver.results_plot()
 
     def test_solver_2(self):
-        petdir2 = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2024", "data", "ses-20210421154248", "pet")
+        petdir2 = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2025", "data", "ses-20210421154248", "pet")
         input_func_fqfn2 = os.path.join(petdir2, "sub-108293_ses-20210421154248_trc-oo_proc-MipIdif_idif.nii.gz")
         data_dict2 = {
             "input_func_fqfn": input_func_fqfn2,
@@ -186,7 +186,7 @@ class TestBoxcar(TestPreliminaries):
         # self.assertTrue(os.path.getsize(ra.data.results_fqfp) > 0)
 
     def test_nii_hstack(self):
-        fdgdir = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2024", "data", "ses-20210421155709", "pet")
+        fdgdir = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2025", "data", "ses-20210421155709", "pet")
 
         idif_embed = os.path.join(fdgdir, "sub-108293_ses-20210421155709_trc-fdg_proc-MipIdif_idif.nii.gz")
         idif_deconv = os.path.join(fdgdir, "sub-108293_ses-20210421155709_trc-fdg_proc-MipIdif_idif-BoxcarIO-ideal.nii.gz")  # deconv., decay corrected

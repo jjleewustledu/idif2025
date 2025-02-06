@@ -22,13 +22,8 @@
 
 from __future__ import absolute_import
 from abc import ABC, abstractmethod
-import os
-import json
 from typing import Any
 import numpy as np
-import nibabel as nib
-import pandas as pd
-from copy import deepcopy
 
 
 class IOInterface(ABC):

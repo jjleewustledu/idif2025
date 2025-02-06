@@ -25,8 +25,9 @@ import numpy as np
 from numpy.typing import NDArray
 import traceback
 
+from dynesty import plotting as dyplot
+
 # plotting
-import matplotlib
 from matplotlib import cm
 from matplotlib import pyplot as plt
 from matplotlib import rcParams
@@ -47,8 +48,6 @@ rcParams.update({"ytick.minor.size": "3.5"})
 rcParams.update({"ytick.minor.width": "1.0"})
 rcParams.update({"font.size": 24})
 
-from dynesty import dynesty, utils as dyutils, plotting as dyplot
-
 
 class DynestyPlotting:
     """Plotting utilities for dynesty sampling results.
@@ -68,6 +67,10 @@ class DynestyPlotting:
     """
     def __init__(self, context):
         self.context = context
+    
+    @property
+    def corner_title_fmt(self):
+        return self.context.data.corner_title_fmt
     
     @property
     def fqfp(self):
@@ -157,7 +160,7 @@ class DynestyPlotting:
             dyplot.cornerplot(
                 results,
                 truths=qm,
-                title_fmt=".1f",
+                title_fmt=self.corner_title_fmt,
                 show_titles=True,
                 title_kwargs={"y": 1.1},
                 labels=self.labels,

@@ -21,14 +21,12 @@
 # SOFTWARE.
 
 
-from copy import deepcopy
 from multiprocessing import Pool
 import dynesty
 from dynesty import utils as dyutils
 import numpy as np
-from numba import jit, float64
+from numba import jit
 from numpy.typing import NDArray
-import pandas as pd
 
 from TissueSolver import TissueSolver
 
@@ -38,14 +36,14 @@ def prior_transform(
     u: np.ndarray,
     sigma: float
 ) -> np.ndarray:
-        v = u
-        v[0] = u[0] * 0.016 + 0.0011  # f (1/s)
-        v[1] = u[1] * 1.95 + 0.05  # \lambda (cm^3/mL)
-        v[2] = u[2] * 0.0272 + 0.0011  # ps (mL cm^{-3}s^{-1})
-        v[3] = u[3] * 40 - 10  # t_0 (s)
-        v[4] = u[4] * 30  # \tau_a (s)
-        v[5] = u[5] * sigma  # sigma ~ fraction of A0
-        return v
+    v = u
+    v[0] = u[0] * 0.016 + 0.0011  # f (1/s)
+    v[1] = u[1] * 1.95 + 0.05  # \lambda (cm^3/mL)
+    v[2] = u[2] * 0.0272 + 0.0011  # ps (mL cm^{-3}s^{-1})
+    v[3] = u[3] * 40 - 10  # t_0 (s)
+    v[4] = u[4] * sigma  # sigma ~ fraction of A0
+    return v
+
 
 @jit(nopython=True)
 def loglike(
@@ -64,6 +62,7 @@ def loglike(
         loglike = -1e300
     return loglike
 
+
 @jit(nopython=True)
 def signalmodel(
     v: np.ndarray,
@@ -72,69 +71,69 @@ def signalmodel(
     rho_input_func_interp: np.ndarray,
     isidif: bool
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """ Raichle1983Model is only valid for [15O] """
-        HL = 122.2416  # [15O]
-        ALPHA = np.log(2) / HL
+    """ Raichle1983Model is only valid for [15O] """
+    HL = 122.2416  # [15O]
+    ALPHA = np.log(2) / HL
 
-        f = v[0]
-        lamb = v[1]
-        ps = v[2]
-        t_0 = v[3]
-        tau_a = v[4]
+    f = v[0]
+    lamb = v[1]
+    ps = v[2]
+    t_0 = v[3]
 
-        n_times = rho_input_func_interp.shape[0]
-        timesIdeal = np.arange(0, n_times)
+    n_times = rho_input_func_interp.shape[0]
+    timesIdeal = np.arange(0, n_times)
 
-        # Find indices where input function exceeds 5% of max
-        indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))        
-        # Handle case where no values exceed threshold
-        if len(indices[0]) == 0:
-            idx_a = 1  # Default to 1 if no values exceed threshold
-        else:
-            idx_a = max(indices[0][0], 1)  # Take first index but ensure >= 1
+    # Find indices where input function exceeds 5% of max
+    indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))        
+    # Handle case where no values exceed threshold
+    if len(indices[0]) == 0:
+        idx_a = 1  # Default to 1 if no values exceed threshold
+    else:
+        idx_a = max(indices[0][0], 1)  # Take first index but ensure >= 1
 
-        # slide input function to fit
+    # slide input function to fit
                     
-        if not isidif:
-            # slide input function to left, 
-            # since its measurements is delayed by radial artery cannulation
-            rho_input_func_interp = slide(
-                rho_input_func_interp, 
-                timesIdeal, 
-                -timesIdeal[idx_a], 
-                0) 
+    if not isidif:
+        # slide input function to left, 
+        # since its measurements is delayed by radial artery cannulation
         rho_input_func_interp = slide(
             rho_input_func_interp, 
             timesIdeal, 
-            t_0, 
-            HL)
+            -timesIdeal[idx_a], 
+            0) 
+    rho_input_func_interp = slide(
+        rho_input_func_interp, 
+        timesIdeal, 
+        t_0, 
+        HL)
 
-        # propagate input function
+    # propagate input function
 
-        m = 1 - np.exp(-ps / f)
-        propagator = np.exp(-m * f * timesIdeal / lamb - ALPHA * timesIdeal)
+    m = 1 - np.exp(-ps / f)
+    propagator = np.exp(-m * f * timesIdeal / lamb - ALPHA * timesIdeal)
 
-        # numpy ------------------------------------------------------------
-        # conv_h2o = np.convolve(propagator, artery_h2o, mode="full")
-        # conv_o2 = np.convolve(propagator, artery_o2, mode="full")        
-        # numba jit --------------------------------------------------------
-        n_propagator = len(propagator)
-        n_artery = len(rho_input_func_interp) 
-        n_conv = n_propagator + n_artery - 1        
-        conv_h2o = np.zeros(n_conv)     
-        for i in range(n_conv):
-            for j in range(max(0, i - n_propagator + 1), min(i + 1, n_artery)):
-                conv_h2o[i] += propagator[i - j] * rho_input_func_interp[j]
-        rho1 = m * f * conv_h2o
+    # numpy ------------------------------------------------------------
+    # conv_h2o = np.convolve(propagator, artery_h2o, mode="full")
+    # conv_o2 = np.convolve(propagator, artery_o2, mode="full")        
+    # numba jit --------------------------------------------------------
+    n_propagator = len(propagator)
+    n_artery = len(rho_input_func_interp) 
+    n_conv = n_propagator + n_artery - 1        
+    conv_h2o = np.zeros(n_conv)     
+    for i in range(n_conv):
+        for j in range(max(0, i - n_propagator + 1), min(i + 1, n_artery)):
+            conv_h2o[i] += propagator[i - j] * rho_input_func_interp[j]
+    rho1 = m * f * conv_h2o
 
-        # package compartments
+    # package compartments
 
-        rho_ideal = rho1[:n_times]  # rho_ideal is interpolated to the input function times
-        if not isidif:
-            rho_pred = np.interp(timesMid, timesIdeal, rho_ideal)
-        else:
-            rho_pred = apply_boxcar(rho_ideal, timesMid, taus)
-        return rho_pred, timesMid, rho_ideal, timesIdeal
+    rho_ideal = rho1[:n_times]  # rho_ideal is interpolated to the input function times
+    if not isidif:
+        rho_pred = np.interp(timesMid, timesIdeal, rho_ideal)
+    else:
+        rho_pred = apply_boxcar(rho_ideal, timesMid, taus)
+    return rho_pred, timesMid, rho_ideal, timesIdeal
+
 
 @jit(nopython=True)
 def apply_boxcar(rho: np.ndarray, timesMid: np.ndarray, taus: np.ndarray) -> np.ndarray:
@@ -152,8 +151,9 @@ def apply_boxcar(rho: np.ndarray, timesMid: np.ndarray, taus: np.ndarray) -> np.
     rho_sampled = (cumsum[timesF_int] - cumsum[times0_int]) / taus
     return np.nan_to_num(rho_sampled, 0)
 
+
 @jit(nopython=True)
-def slide(rho: np.ndarray, t: np.ndarray, dt: float, halflife: float=None) -> np.ndarray:
+def slide(rho: np.ndarray, t: np.ndarray, dt: float, halflife: float = None) -> np.ndarray:
     """ slides rho by dt seconds, optionally decays it by halflife. """
 
     if abs(dt) < 0.1:
@@ -196,7 +196,7 @@ class Raichle1983Solver(TissueSolver):
 
     @property
     def labels(self):
-        return [r"$f$", r"$\lambda$", r"ps", r"$t_0$", r"$\tau_a$", r"$\sigma$"]
+        return [r"$f$", r"$\lambda$", r"ps", r"$t_0$", r"$\sigma$"]
 
     @staticmethod
     def _loglike(selected_data: dict):

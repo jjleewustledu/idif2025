@@ -29,6 +29,7 @@ from DynestyData import DynestyData
 from IOImplementations import BaseIO
 from PETUtilities import PETUtilities
 
+
 class InputFuncData(DynestyData):
     """Class for handling input function data from PET imaging.
 
@@ -54,14 +55,14 @@ class InputFuncData(DynestyData):
         >>> input_data = InputFuncData(context, data)
         >>> halflife = input_data.halflife
     """
-    
+
     """ input function data assumed to be decay-corrected, consistent with tomography """
-    
+
     def __init__(self, context, data_dict: dict = {}):
         super().__init__(context, data_dict)
 
         assert "input_func_fqfn" in self.data_dict, "data_dict missing required key 'input_func_fqfn'"
-      
+
         niid = self.nii_load(self.data_dict["input_func_fqfn"])
         self._data_dict["halflife"] = niid["halflife"]
         self._data_dict["rho"] = niid["img"] / np.max(niid["img"])
@@ -96,19 +97,19 @@ class InputFuncData(DynestyData):
     @property
     def halflife(self) -> float:
         return self.data_dict["halflife"]
-    
+
     @property
     def nlive(self) -> int:
         return self.data_dict["nlive"]
-    
+
     @property
     def pfrac(self) -> float:
         return self.data_dict["pfrac"]
-    
+
     @property
     def rstate(self) -> np.random.Generator:
         return self.data_dict["rstate"]
-    
+
     @property
     def sample(self) -> str:
         return self.data_dict["sample"]
@@ -124,7 +125,7 @@ class InputFuncData(DynestyData):
     @property
     def tag(self) -> str:
         return self.data_dict["tag"]
-    
+
     @tag.setter
     def tag(self, tag: str):
         self._data_dict["tag"] = tag
@@ -137,7 +138,7 @@ class InputFuncData(DynestyData):
     def timesIdeal(self) -> NDArray:
         if hasattr(self, "__timesIdeal"):
             return deepcopy(self.__timesIdeal)
-        
+
         self.__timesIdeal = PETUtilities.data2timesInterp(self.data_dict)
         return deepcopy(self.__timesIdeal)
 
@@ -146,11 +147,31 @@ class InputFuncData(DynestyData):
         return self.data_dict["timesMid"].copy()
 
     @staticmethod
+    def decay_correct(
+        fqfn: str,
+        output_format: str = "fqfn"
+    ) -> str:
+        """ Decay corrects an input function.  Returns dict or fqfn. """
+
+        niid = BaseIO().nii_load(fqfn)
+        niid = PETUtilities.decay_correct(niid)
+
+        if output_format == "fqfn":
+            fqfn = niid["fqfp"] + "-decaycorr.nii.gz"
+            BaseIO().nii_save(niid, fqfn)
+            return fqfn
+        elif output_format == "niid":
+            niid["fqfp"] = niid["fqfp"] + "-decaycorr"
+            return niid
+        else:
+            raise ValueError(f"Invalid output format: {output_format}")
+
+    @staticmethod
     def nii_hstack(
-        fqfn1: str, 
-        fqfn2: str, 
-        t_crossover: float | None = None, 
-        output_format: str="fqfn"
+        fqfn1: str,
+        fqfn2: str,
+        t_crossover: float | None = None,
+        output_format: str = "fqfn"
     ) -> str:
         """ Horizontally stacks two nii input functions and saves the result. """
 
@@ -175,7 +196,7 @@ class InputFuncData(DynestyData):
             niid["json"]["timesMid"] = niid["timesMid"].tolist()
             niid["json"]["taus"] = niid["taus"].tolist()
             niid["json"]["times"] = niid["times"].tolist()
-        
+
         # Check for duplicates using vectorized operations
         times = niid["times"]
         timesMid = niid["timesMid"]
@@ -189,6 +210,7 @@ class InputFuncData(DynestyData):
             BaseIO().nii_save(niid, fqfn)
             return fqfn
         elif output_format == "niid":
+            niid["fqfp"] = niid["fqfp"] + f"-nii-hstack-t{t_crossover}"
             return niid
         else:
             raise ValueError(f"Invalid output format: {output_format}")

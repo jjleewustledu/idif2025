@@ -96,8 +96,8 @@ fi
 
 # global variables
 pattern_pet="trc-oo_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames_timeAppend-4-ParcSchaeffer-reshape-to-schaeffer-schaeffer.nii.gz"
-submit_main="${HOME}/PycharmProjects/dynesty/idif2024/submit-mintun1984.sh"
-tissue_context="${HOME}/PycharmProjects/dynesty/idif2024/Mintun1984Context.py"
+submit_main="${HOME}/PycharmProjects/dynesty/idif2025/submit-mintun1984.sh"
+tissue_context="${HOME}/PycharmProjects/dynesty/idif2025/Mintun1984Context.py"
 derivatives="${SINGULARITY_HOME}/CCIR_01211/derivatives"
 subs=("sub-108293" "sub-108237" "sub-108254" "sub-108250" "sub-108284" "sub-108306")
 

@@ -21,17 +21,13 @@
 # SOFTWARE.
 
 
-import os
 import sys
 import logging
 import matplotlib
 
-from DynestyContext import DynestyContext
-from IOImplementations import TissueIO
 from Huang1980Data import Huang1980Data
 from Huang1980Solver import Huang1980Solver
 from TissueContext import TissueContext
-from TissuePlotting import TissuePlotting
 
 
 class Huang1980Context(TissueContext):
@@ -63,14 +59,14 @@ class Huang1980Context(TissueContext):
         Brain oxygen utilization measured with O-15 radiotracers and positron emission tomography.
         J Nucl Med. 1980 Feb;25(2):177-87. PMID: 6610032.
 
-        Requires all incoming PET and input function data to be decay corrected. 
+        Requires all incoming PET and input function data to be decay corrected.
     """
-    
+
     def __call__(self) -> None:
         logging.basicConfig(
             filename=self.data.results_fqfp + ".log",
             filemode="w",
-            format="%(name)s - %(levelname)s - %(message)s")        
+            format="%(name)s - %(levelname)s - %(message)s")
         self.solver.run_nested(print_progress=False)
         self.solver.results_save()
 
@@ -80,24 +76,24 @@ class Huang1980Context(TissueContext):
         self._data = Huang1980Data(self, data_dict)
         self._solver = Huang1980Solver(self)
         # self._plotting = TissuePlotting(self)
-        self.tag += "-Huang1980"        
-               
+        self.tag += "-Huang1980"
+
     @property
     def data(self):
         return self._data
-    
+
     @property
     def input_func_type(self):
         return self.data.input_func_type
-    
+
     # @property
     # def io(self):
     #     return self._io
-    
+
     # @property
     # def plotting(self):
     #     return self._plotting
-        
+
     @property
     def solver(self):
         return self._solver
@@ -105,11 +101,11 @@ class Huang1980Context(TissueContext):
     @property
     def tag(self):
         return self.data.tag
-    
+
     @tag.setter
     def tag(self, tag):
         self._data.tag = tag
- 
+
 
 if __name__ == "__main__":
     matplotlib.use('Agg')  # disable interactive plotting

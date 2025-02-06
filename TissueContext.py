@@ -22,8 +22,6 @@
 
 from DynestyContext import DynestyContext
 from IOImplementations import TissueIO
-from TissueData import TissueData
-from TissueSolver import TissueSolver
 from TissuePlotting import TissuePlotting
 
 
@@ -53,30 +51,31 @@ class TissueContext(DynestyContext):
     Notes:
         This is an abstract base class that should be inherited by specific tissue model
         implementations like Mintun1984Context or Raichle1983Context.
-        
-        Requires all incoming PET and input function data to be decay corrected. 
+
+        Requires all incoming PET and input function data to be decay corrected.
     """
+
     def __init__(self, data_dict: dict):
         super().__init__()
         self._io = TissueIO(self)
         self._plotting = TissuePlotting(self)
-               
+
     # @property
     # def data(self):
     #     return self._data
-    
+
     @property
     def input_func_type(self):
         return self.data.input_func_type
-    
+
     @property
     def io(self):
         return self._io
-    
+
     @property
     def plotting(self):
         return self._plotting
-        
+
     # @property
     # def solver(self):
     #     return self._solver
@@ -84,7 +83,7 @@ class TissueContext(DynestyContext):
     # @property
     # def tag(self):
     #     return self.data.tag
-    
+
     # @tag.setter
     # def tag(self, tag):
     #     self._data.tag = tag

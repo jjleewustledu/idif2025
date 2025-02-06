@@ -21,14 +21,12 @@
 # SOFTWARE.
 
 
-from copy import deepcopy
 from multiprocessing import Pool
 import dynesty
 from dynesty import utils as dyutils
 import numpy as np
-from numba import jit, float64
+from numba import jit
 from numpy.typing import NDArray
-import pandas as pd
 
 from TissueSolver import TissueSolver
 
@@ -38,15 +36,15 @@ def prior_transform(
     u: np.ndarray,
     sigma: float
 ) -> np.ndarray:
-        v = u
-        v[0] = u[0] * 0.9 + 0.1  # OEF
-        v[1] = u[1] * 1.5 + 0.5  # frac. water of metab. at 90 s
-        v[2] = u[2] * 0.95 + 0.05  # {v_{post} + 0.5 v_{cap}} / v_1
-        v[3] = u[3] * 40 - 10  # t_0 (s)
-        v[4] = u[4] * 30  # \tau_a (s)
-        v[5] = u[5] * 30  # \tau_d (s)
-        v[6] = u[6] * sigma  # sigma ~ fraction of A0
-        return v
+    v = u
+    v[0] = u[0] * 0.9 + 0.1  # OEF
+    v[1] = u[1] * 1.5 + 0.5  # frac. water of metab. at 90 s
+    v[2] = u[2] * 0.95 + 0.05  # {v_{post} + 0.5 v_{cap}} / v_1
+    v[3] = u[3] * 40 - 10  # t_0 (s)
+    v[4] = u[4] * 29 + 1  # \tau_d (s)
+    v[5] = u[5] * sigma  # sigma ~ fraction of A0
+    return v
+
 
 @jit(nopython=True)
 def loglike(
@@ -67,6 +65,7 @@ def loglike(
         loglike = -1e300
     return loglike
 
+
 @jit(nopython=True)
 def signalmodel(
     v: np.ndarray,
@@ -77,131 +76,131 @@ def signalmodel(
     v1: float,
     isidif: bool
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """ Mintun1984Model is only valid for [15O] """
-        HL = 122.2416  # [15O]
-        ALPHA = np.log(2) / HL
-        DENSITY_PLASMA = 1.03
-        DENSITY_BLOOD = 1.06
+    """ Mintun1984Model is only valid for [15O] """
+    HL = 122.2416  # [15O]
+    ALPHA = np.log(2) / HL
+    DENSITY_PLASMA = 1.03
+    DENSITY_BLOOD = 1.06
 
-        oef = v[0]  # extraction fraction
-        f_h2o = v[1] * DENSITY_PLASMA / DENSITY_BLOOD  # fraction of water of metabolism at 90 s 
-        v_post_cap = v[2]  # volume of post-capillary and capillaryspace
-        t_0 = v[3]  # delay of input function
-        tau_a = v[4]  # delay of input function
-        tau_dispersion = v[5]  # dispersion of input function
-        f = ks[0]  # flow, s^{-1}
-        lamb = ks[1]  # partition coefficient
-        PS = ks[2]  # permeability surface area product, s^{-1} 
+    oef = v[0]  # extraction fraction
+    f_h2o = v[1] * DENSITY_PLASMA / DENSITY_BLOOD  # fraction of water of metabolism at 90 s
+    v_post_cap = v[2]  # volume of post-capillary and capillaryspace
+    t_0 = v[3]  # delay of input function
+    tau_dispersion = v[4]  # dispersion of input function
+    f = ks[0]  # flow, s^{-1}
+    lamb = ks[1]  # partition coefficient
+    PS = ks[2]  # permeability surface area product, s^{-1}
 
-        n_times = rho_input_func_interp.shape[0]
-        timesIdeal = np.arange(0, n_times)
+    n_times = rho_input_func_interp.shape[0]
+    timesIdeal = np.arange(0, n_times)
 
-        # Find indices where input function exceeds 5% of max
-        indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))        
-        # Handle case where no values exceed threshold
-        if len(indices[0]) == 0:
-            idx_a = 1  # Default to 1 if no values exceed threshold
-        else:
-            idx_a = max(indices[0][0], 1)  # Take first index but ensure >= 1
+    # Find indices where input function exceeds 5% of max
+    indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))
+    # Handle case where no values exceed threshold
+    if len(indices[0]) == 0:
+        idx_a = 1  # Default to 1 if no values exceed threshold
+    else:
+        idx_a = max(indices[0][0], 1)  # Take first index but ensure >= 1
 
-        # disperse input function, compatible with numba
+    # disperse input function, compatible with numba
 
-        dispersion = np.exp(-timesIdeal / tau_dispersion)
-        z_dispersion = np.sum(dispersion)  # partition function of dispersion
-        
-        # numpy ------------------------------------------------------------
-        # conv_result = np.convolve(rho_input_func_interp, dispersion, mode="full")  
-        # numba jit --------------------------------------------------------
-        n_input = len(rho_input_func_interp)  # numba jit
-        n_disp = len(dispersion)
-        n_conv = n_input + n_disp - 1
-        conv_result = np.zeros(n_conv)
-        for i in range(n_conv):
-            for j in range(max(0, i - n_disp + 1), min(i + 1, n_input)):
-                conv_result[i] += rho_input_func_interp[j] * dispersion[i - j]
-        rho_input_func_interp = conv_result[:n_times] / z_dispersion
+    dispersion = np.exp(-timesIdeal**2 / (2 * tau_dispersion**2))
+    z_dispersion = np.sum(dispersion)  # partition function of dispersion
 
-        # slide input function to fit
+    # numpy ------------------------------------------------------------
+    # conv_result = np.convolve(rho_input_func_interp, dispersion, mode="full")
+    # numba jit --------------------------------------------------------
+    n_input = len(rho_input_func_interp)  # numba jit
+    n_disp = len(dispersion)
+    n_conv = n_input + n_disp - 1
+    conv_result = np.zeros(n_conv)
+    for i in range(n_conv):
+        for j in range(max(0, i - n_disp + 1), min(i + 1, n_input)):
+            conv_result[i] += rho_input_func_interp[j] * dispersion[i - j]
+    rho_input_func_interp = conv_result[:n_times] / z_dispersion
 
-        if not isidif:
-            # slide input function to left, 
-            # since its measurements is delayed by radial artery cannulation
-            rho_input_func_interp = slide(
-                rho_input_func_interp, 
-                timesIdeal, 
-                -timesIdeal[idx_a], 
-                0) 
+    # slide input function to fit
+
+    if not isidif:
+        # slide input function to left,
+        # since its measurements is delayed by radial artery cannulation
         rho_input_func_interp = slide(
-            rho_input_func_interp, 
-            timesIdeal, 
-            t_0, 
-            HL)
+            rho_input_func_interp,
+            timesIdeal,
+            -timesIdeal[idx_a],
+            0)
+    rho_input_func_interp = slide(
+        rho_input_func_interp,
+        timesIdeal,
+        t_0,
+        HL)
 
-        # estimate shape of water of metabolism
+    # estimate shape of water of metabolism
 
-        # Find indices where input function exceeds 5% of max
-        # indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))        
-        # Handle case where no values exceed threshold
-        # if len(indices[0]) == 0:
-        #     idx0 = 1  # Default to 1 if no values exceed threshold
-        # else:
-        #     idx0 = max(indices[0][0], 1)  # Take first index but ensure >= 1
-        idx0 = 1
-        idxU = min([idx0 + 90, n_times - 1])  # time of eval of magnitude of water of metab; cf. Mintun1984
-        shape = np.zeros(n_times)
-        n_times_1 = n_times - idx0 + 1
-        if idxU == idx0:
-            y = 1
-        else:
-            y = (n_times - idx0) / (idxU - idx0)
-        shape[-n_times_1:] = np.linspace(0, y, n_times_1)  # shape(idxU) == 1
-        timesDuc = np.zeros(n_times)
-        timesDuc[idx0:] = np.linspace(0, n_times_1 - 2, n_times_1 - 1)
-        shape_duc = shape * np.power(2, -(timesDuc - idxU + 1) / HL)  # decay-uncorrected
+    # Find indices where input function exceeds 5% of max
+    # indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))
+    # Handle case where no values exceed threshold
+    # if len(indices[0]) == 0:
+    #     idx0 = 1  # Default to 1 if no values exceed threshold
+    # else:
+    #     idx0 = max(indices[0][0], 1)  # Take first index but ensure >= 1
+    idx0 = 1
+    idxU = min([idx0 + 90, n_times - 1])  # time of eval of magnitude of water of metab; cf. Mintun1984
+    shape = np.zeros(n_times)
+    n_times_1 = n_times - idx0 + 1
+    if idxU == idx0:
+        y = 1
+    else:
+        y = (n_times - idx0) / (idxU - idx0)
+    shape[-n_times_1:] = np.linspace(0, y, n_times_1)  # shape(idxU) == 1
+    timesDuc = np.zeros(n_times)
+    timesDuc[idx0:] = np.linspace(0, n_times_1 - 2, n_times_1 - 1)
+    shape_duc = shape * np.power(2, -(timesDuc - idxU + 1) / HL)  # decay-uncorrected
 
-        # set scale of artery_h2o
-        # activity of water of metab \approx activity of oxygen after 90 sec
+    # set scale of artery_h2o
+    # activity of water of metab \approx activity of oxygen after 90 sec
 
-        artery_h2o = f_h2o * rho_input_func_interp[idxU] * shape_duc
+    artery_h2o = f_h2o * rho_input_func_interp[idxU] * shape_duc
 
-        # compartment 2, using m, f, lamb, compatible with numba
+    # compartment 2, using m, f, lamb, compatible with numba
 
-        artery_o2 = rho_input_func_interp - artery_h2o
-        artery_o2[artery_o2 < 0] = 0
+    artery_o2 = rho_input_func_interp - artery_h2o
+    artery_o2[artery_o2 < 0] = 0
 
-        m = 1 - np.exp(-PS / f)
-        propagator = np.exp(-m * f * timesIdeal / lamb - ALPHA * timesIdeal)
+    m = 1 - np.exp(-PS / f)
+    propagator = np.exp(-m * f * timesIdeal / lamb - ALPHA * timesIdeal)
 
-        # numpy ------------------------------------------------------------
-        # conv_h2o = np.convolve(propagator, artery_h2o, mode="full")
-        # conv_o2 = np.convolve(propagator, artery_o2, mode="full")        
-        # numba jit --------------------------------------------------------
-        n_propagator = len(propagator)
-        n_artery = len(artery_h2o) 
-        n_conv = n_propagator + n_artery - 1        
-        conv_h2o = np.zeros(n_conv)
-        conv_o2 = np.zeros(n_conv)        
-        for i in range(n_conv):
-            for j in range(max(0, i - n_propagator + 1), min(i + 1, n_artery)):
-                conv_h2o[i] += propagator[i - j] * artery_h2o[j]
-                conv_o2[i] += propagator[i - j] * artery_o2[j] 
-        rho2 = m * f * (conv_h2o + oef * conv_o2)
+    # numpy ------------------------------------------------------------
+    # conv_h2o = np.convolve(propagator, artery_h2o, mode="full")
+    # conv_o2 = np.convolve(propagator, artery_o2, mode="full")
+    # numba jit --------------------------------------------------------
+    n_propagator = len(propagator)
+    n_artery = len(artery_h2o)
+    n_conv = n_propagator + n_artery - 1
+    conv_h2o = np.zeros(n_conv)
+    conv_o2 = np.zeros(n_conv)
+    for i in range(n_conv):
+        for j in range(max(0, i - n_propagator + 1), min(i + 1, n_artery)):
+            conv_h2o[i] += propagator[i - j] * artery_h2o[j]
+            conv_o2[i] += propagator[i - j] * artery_o2[j]
+    rho2 = m * f * (conv_h2o + oef * conv_o2)
 
-        # compartment 1
-        # v_post = 0.83*v1
-        # v_cap = 0.01*v1
-        # R = 0.85  # ratio of small-vessel to large-vessel Hct needed when v1 := CBV * R
+    # compartment 1
+    # v_post = 0.83*v1
+    # v_cap = 0.01*v1
+    # R = 0.85  # ratio of small-vessel to large-vessel Hct needed when v1 := CBV * R
 
-        rho1 = v1 * (1 - oef * v_post_cap) * artery_o2
+    rho1 = v1 * (1 - oef * v_post_cap) * artery_o2
 
-        # package compartments
+    # package compartments
 
-        rho_ideal = rho1[:n_times] + rho2[:n_times]  # rho_ideal is interpolated to the input function times
-        if not isidif:
-            rho_pred = np.interp(timesMid, timesIdeal, rho_ideal)
-        else:
-            rho_pred = apply_boxcar(rho_ideal, timesMid, taus)
-        return rho_pred, timesMid, rho_ideal, timesIdeal
+    rho_ideal = rho1[:n_times] + rho2[:n_times]  # rho_ideal is interpolated to the input function times
+    if not isidif:
+        rho_pred = np.interp(timesMid, timesIdeal, rho_ideal)
+    else:
+        rho_pred = apply_boxcar(rho_ideal, timesMid, taus)
+    return rho_pred, timesMid, rho_ideal, timesIdeal
+
 
 @jit(nopython=True)
 def apply_boxcar(rho: np.ndarray, timesMid: np.ndarray, taus: np.ndarray) -> np.ndarray:
@@ -211,22 +210,23 @@ def apply_boxcar(rho: np.ndarray, timesMid: np.ndarray, taus: np.ndarray) -> np.
     # Original implementation with loop ---------------------------------------
     # rho_sampled = np.full(times0_int.shape, np.nan)
     # for idx, (t0, tF) in enumerate(zip(times0_int, timesF_int)):
-    #     rho_sampled[idx] = np.mean(rho[t0:tF])        
+    #     rho_sampled[idx] = np.mean(rho[t0:tF])
     # return np.nan_to_num(rho_sampled, 0)
     # Optimized implementation using cumsum ------------------------------------
-    # padding rho with 0 at beginning 
+    # padding rho with 0 at beginning
     cumsum = np.cumsum(np.concatenate((np.zeros(1), rho)))
     rho_sampled = (cumsum[timesF_int] - cumsum[times0_int]) / taus
     return np.nan_to_num(rho_sampled, 0)
 
+
 @jit(nopython=True)
-def slide(rho: np.ndarray, t: np.ndarray, dt: float, halflife: float=None) -> np.ndarray:
+def slide(rho: np.ndarray, t: np.ndarray, dt: float, halflife: float = 0) -> np.ndarray:
     """ slides rho by dt seconds, optionally decays it by halflife. """
 
     if abs(dt) < 0.1:
         return rho
     rho = np.interp(t - dt, t, rho)  # copy of rho array
-    if halflife:
+    if halflife > 0:
         return rho * np.power(2, -dt / halflife)
     else:
         return rho
@@ -264,7 +264,7 @@ class Mintun1984Solver(TissueSolver):
     @property
     def labels(self):
         return [
-            r"OEF", r"$f_{H_2O}$", r"$v_p + 0.5 v_c$", r"$t_0$", r"$\tau_a$", r"$\tau_d$", r"$\sigma$"
+            r"OEF", r"$f_{H_2O}$", r"$v_p + \frac{1}{2} v_c$", r"$t_0$", r"$\tau_d$", r"$\sigma$"
         ]
 
     @staticmethod
@@ -282,12 +282,12 @@ class Mintun1984Solver(TissueSolver):
         if rho.ndim != 1:
             raise ValueError("rho must be 1-dimensional")
         if rho_input_func_interp.ndim != 1:
-            raise ValueError("rho_input_func_interp must be 1-dimensional") 
+            raise ValueError("rho_input_func_interp must be 1-dimensional")
         if ks.ndim != 1:
-            raise ValueError("ks must be 1-dimensional") 
+            raise ValueError("ks must be 1-dimensional")
         if not np.isscalar(v1):
             raise ValueError("v1 must be scalar")
-        
+
         # Create wrapper that matches dynesty's expected signature
         def wrapped_loglike(v):
             nonlocal rho, timesMid, taus, rho_input_func_interp, ks, v1, isidif
@@ -295,7 +295,7 @@ class Mintun1984Solver(TissueSolver):
                 v,
                 rho,
                 timesMid,
-                taus, 
+                taus,
                 rho_input_func_interp,
                 ks,
                 v1,
@@ -311,7 +311,7 @@ class Mintun1984Solver(TissueSolver):
             nonlocal sigma
             return prior_transform(v, sigma)
         return wrapped_prior_transform
-    
+
     @staticmethod
     def _run_nested(selected_data: dict) -> dyutils.Results:
         if selected_data["resume"]:
@@ -328,13 +328,13 @@ class Mintun1984Solver(TissueSolver):
                 rstate=selected_data["rstate"]
             )
         sampler.run_nested(
-            checkpoint_file=selected_data["checkpoint_file"], 
-            print_progress=selected_data["print_progress"], 
+            checkpoint_file=selected_data["checkpoint_file"],
+            print_progress=selected_data["print_progress"],
             resume=selected_data["resume"],
             wt_kwargs={"pfrac": selected_data["pfrac"]}
         )
         return sampler.results
-        
+
     def _run_nested_pool(
             self,
             checkpoint_file: list[str] | None = None,
@@ -342,12 +342,12 @@ class Mintun1984Solver(TissueSolver):
             resume: bool = False,
             parc_index: list[int] | tuple[int, ...] | NDArray | None = None
     ) -> list[dyutils.Results]:
-    
+
         if not parc_index:
             parc_index = range(len(self.data.rho))
         elif isinstance(parc_index, np.ndarray):
             parc_index = parc_index.tolist()
-        
+
         if checkpoint_file and len(checkpoint_file) != len(parc_index):
             raise ValueError("checkpoint_file must be a list of strings matching length of parc_index")
 
@@ -374,18 +374,18 @@ class Mintun1984Solver(TissueSolver):
                 "print_progress": False
             }
             args.append(selected_data)
-        
+
         # Sequential execution for testing
         # _results = [Mintun1984Solver.__run_nested(*arg) for arg in args]
         # self._set_cached_dynesty_results(_results)
-        # return _results    
+        # return _results
 
         # Use multiprocessing Pool to parallelize execution is incompatible with instance methods
         with Pool() as p:
             _results = p.starmap(Mintun1984Solver._run_nested, [(arg,) for arg in args])
             self._set_cached_dynesty_results(_results)
         return _results
-        
+
     def _run_nested_single(
             self,
             checkpoint_file: str | None = None,
@@ -417,7 +417,7 @@ class Mintun1984Solver(TissueSolver):
         _results = Mintun1984Solver._run_nested(args)
         self._set_cached_dynesty_results(_results)
         return _results
-    
+
     def signalmodel(
             self,
             v: list | tuple | NDArray,
@@ -431,7 +431,7 @@ class Mintun1984Solver(TissueSolver):
         if parc_index is None:
             raise ValueError("parc_index must be provided")
         return signalmodel(
-            v, 
+            v,
             self.data.timesMid,
             self.data.taus,
             self.data.rho_input_func_interp,
@@ -439,14 +439,14 @@ class Mintun1984Solver(TissueSolver):
             self.data.v1[parc_index],
             self.data.isidif
         )
-    
+
     def loglike(
             self,
             v: list | tuple | NDArray,
             parc_index: int | None = None
     ) -> float:
         """ parc_index selects ks and v1"""
-        
+
         v = np.array(v, dtype=float)
         if not isinstance(v, np.ndarray) or v.ndim != 1 or len(v) != self.ndim:
             raise ValueError(f"v must be 1-dimensional array of length {self.ndim}")

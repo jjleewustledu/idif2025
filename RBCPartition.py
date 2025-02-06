@@ -31,12 +31,12 @@ from IOImplementations import BaseIO
 
 class RBCPartition:
     """ RBCPartition models fig. 8 of Phelps, Huang, Hoffman, et al.
-        Tomographic measurement of local cerebral glucose metabolic rate in humans with 
-        (F‐18)2‐fluoro‐2‐deoxy‐D‐glucose: Validation of method.  
-        Ann Neurol 6:371--388, 1979. 
+        Tomographic measurement of local cerebral glucose metabolic rate in humans with
+        (F‐18)2‐fluoro‐2‐deoxy‐D‐glucose: Validation of method.
+        Ann Neurol 6:371--388, 1979.
         See also https://github.com/jjleewustledu/mlraichle/blob/master/src/%2Bmlraichle/RBCPartition.m """
 
-    def __init__(self, hct: float, t_units: str="s"):
+    def __init__(self, hct: float, t_units: str = "s"):
 
         hct = float(hct)  # ensure float
         if hct > 1:
@@ -78,7 +78,7 @@ class RBCPartition:
         self.t_crossover = 35
         mask_early = self.tData <= self.t_crossover
         mask_late = self.tData > self.t_crossover
-        
+
         t_early = self.tData[mask_early]
         rbc_early = self.rbcData[mask_early]
         t_late = self.tData[mask_late]
@@ -90,10 +90,6 @@ class RBCPartition:
         # Get line value at t=20 for continuity constraint
         y_crossover = slope * self.t_crossover + intercept
 
-        # Fit quadratic to early data with constraint that it equals y_crossover at t=20
-        # y = ax^2 + bx + c where c is determined by continuity
-        A = np.vstack([t_early**2, t_early]).T
-        b = rbc_early
         # Solve for a,b in ax^2 + bx + c = y where c = y_crossover - 20b - 400a
         # Rearranging: ax^2 + bx + (y_crossover - 20b - 400a) = y
         # ax^2 + bx - 20b - 400a = y - y_crossover
@@ -112,24 +108,24 @@ class RBCPartition:
         self.rbcFitted = np.zeros_like(self.tData)
         early_indices = self.tData <= self.t_crossover
         late_indices = self.tData > self.t_crossover
-        
+
         # Apply quadratic fit for early times
-        self.rbcFitted[early_indices] = (a * self.tData[early_indices]**2 + 
+        self.rbcFitted[early_indices] = (a * self.tData[early_indices]**2 +
                                          b * self.tData[early_indices] + c)
-        
+
         # Apply linear fit for late times
-        self.rbcFitted[late_indices] = (slope * self.tData[late_indices] + 
-                                       intercept)
-        
+        self.rbcFitted[late_indices] = (slope * self.tData[late_indices] +
+                                        intercept)
+
     def nii_wb2plasma(
-        self, 
-        fqfn: str, 
-        do_trim: bool = True, 
-        time_last: float | None = None, 
+        self,
+        fqfn: str,
+        do_trim: bool = True,
+        time_last: float | None = None,
         check_validity: bool = True,
         output_format: str = "niid"
     ) -> dict | str:
-        
+
         io = BaseIO()
         niid = io.nii_load(fqfn, do_trim, time_last, check_validity)
         rho_wb = niid["img"]
@@ -138,7 +134,7 @@ class RBCPartition:
 
         if output_format == "niid":
             return niid
-        elif output_format == "fqfn":            
+        elif output_format == "fqfn":
             fqfn = niid["fqfp"] + "-wb2plasma.nii.gz"
             io.nii_save(niid, fqfn, check_validity)
             return fqfn
@@ -148,7 +144,7 @@ class RBCPartition:
     def plot(self):
         """ Plot the fitted data. """
 
-        plt.figure(figsize=(10,6))
+        plt.figure(figsize=(10, 6))
         plt.plot(self.tData, self.rbcData, 'c:', marker='o', mfc='none', alpha=1, label='Phelps 1979')
         plt.plot(self.tData, self.rbcFitted, 'b-', linewidth=3, alpha=0.5, label='Fitted')
         plt.xlabel('Time (min)')
@@ -162,7 +158,7 @@ class RBCPartition:
     def rbc_over_plasma_5param(self, t: NDArray) -> NDArray:
         """ t (NDArray) in seconds
             returns rbc / plasma """
-        
+
         t = self.t_in_minutes(t)
         lambda_t = np.interp(t, self.tData, self.rbcFitted)
         if lambda_t.ndim > 1:
@@ -185,8 +181,8 @@ class RBCPartition:
             raise ValueError("t_units must be one of 's', 'm', 'h'")
 
     def wb2plasma(self, rho_wb: NDArray, t: NDArray) -> NDArray:
-        """ t (NDArray): may be start of frame or mid-frame.  
+        """ t (NDArray): may be start of frame or mid-frame.
             units (str):  provide API consistency. """
 
         lambda_t = self.rbc_over_plasma_5param(t)
-        return rho_wb / (1 + self.hct * (lambda_t - 1))      
+        return rho_wb / (1 + self.hct * (lambda_t - 1))

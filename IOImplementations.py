@@ -29,8 +29,6 @@ import numpy as np
 import nibabel as nib
 import pandas as pd
 import sys
-import inspect
-from pathlib import Path
 from copy import deepcopy
 
 from PETUtilities import PETUtilities
@@ -79,7 +77,7 @@ class BaseIO(IOInterface):
 
     @staticmethod
     def data2timesMid(data: dict) -> np.ndarray:
-       return PETUtilities.data2timesMid(data)
+        return PETUtilities.data2timesMid(data)
 
     @staticmethod
     def data2timesMidInterp(data: dict) -> np.ndarray:
@@ -301,7 +299,8 @@ class BaseIO(IOInterface):
             assert len(img) == len(taus), f"img length {len(img)} does not match taus length {len(taus)}"
             assert len(img) == len(times), f"img length {len(img)} does not match times length {len(times)}"
         elif img.ndim == 2:
-            assert img.shape[1] == len(timesMid), f"img shape {img.shape} does not match timesMid length {len(timesMid)}"
+            assert img.shape[1] == len(timesMid), \
+                f"img shape {img.shape} does not match timesMid length {len(timesMid)}"
             assert img.shape[1] == len(taus), f"img shape {img.shape} does not match taus length {len(taus)}"
             assert img.shape[1] == len(times), f"img shape {img.shape} does not match times length {len(times)}"
         else:

@@ -22,10 +22,8 @@
 
 from __future__ import absolute_import
 from copy import deepcopy
-import unittest 
 import os
 import sys
-from pprint import pprint
 
 import numpy as np
 from PETUtilities import PETUtilities
@@ -81,7 +79,7 @@ class TestIO(TestPreliminaries):
 
         # Check that temporal dimensions match
         n_times = len(data['times'])
-        n_taus = len(data['taus']) 
+        n_taus = len(data['taus'])
         n_timesMid = len(data['timesMid'])
         self.assertEqual(n_times, n_taus)
         self.assertEqual(n_times, n_timesMid)
@@ -105,14 +103,14 @@ class TestIO(TestPreliminaries):
 
         # Load the saved data
         data1 = self.io.nii_load(fqfn=fqfn1)
-        
+
         # Compare key components of data dictionaries
         for key in ['times', 'taus', 'timesMid']:
             self.assertTrue(np.array_equal(data[key], data1[key]))
-            
+
         # Compare JSON contents recursively
         self.assertDictEqual(data['json'], data1['json'])
-        
+
         # Compare numerical arrays and metadata
         self.assertTrue(np.array_equal(data['img'], data1['img']))
         self.assertEqual(data['nii'].shape, data1['nii'].shape)
@@ -161,7 +159,7 @@ class TestIO(TestPreliminaries):
         with self.assertRaises(AssertionError):
             self.io.validate_nii_dict(niid_bad)
 
-        # Test taus validation 
+        # Test taus validation
         niid_bad = deepcopy(niid)
         idx = np.random.randint(0, len(niid_bad["taus"]))
         niid_bad["taus"][idx] *= 2

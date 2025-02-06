@@ -114,7 +114,7 @@ def fqfn2kernel(artery_fqfn: str):
         kernel_file = fqfn2kernel(artery_file)
         print(kernel_file)  # /path/to/CCIR_01211/sourcedata/kernel_hct=46.8.nii.gz
     """
-    sourcedata = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2024", "data", "kernels")
+    sourcedata = os.path.join(os.getenv("HOME"), "PycharmProjects", "dynesty", "idif2025", "data", "kernels")
     if "sub-108293" in artery_fqfn:
         return os.path.join(sourcedata, "kernel_hct=46.8.nii.gz")
     if "sub-108237" in artery_fqfn:

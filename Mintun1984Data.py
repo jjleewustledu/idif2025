@@ -22,13 +22,10 @@
 
 
 from copy import deepcopy
-
-import numpy as np
 from numpy.typing import NDArray
 
 from TissueData import TissueData
-from IOImplementations import TissueIO
-from PETUtilities import PETUtilities
+
 
 class Mintun1984Data(TissueData):
     """Data class for handling Mintun 1984 PET data.
@@ -58,21 +55,21 @@ class Mintun1984Data(TissueData):
         super().__init__(context, data_dict)
         assert "v1_fqfn" in self.data_dict, "data_dict missing required key 'v1_fqfn'"
         assert "ks_fqfn" in self.data_dict, "data_dict missing required key 'ks_fqfn'"
-    
-    @property   
+
+    @property
     def ks(self) -> NDArray:
         return self.ks_measurement["img"].copy()
 
     @property
     def ks_measurement(self) -> dict:
         """ adjusts for recovery coefficient if RadialArtery used """
-        
+
         if hasattr(self._data_dict, "ks_measurement"):
             return deepcopy(self._data_dict["ks_measurement"])
 
         self._data_dict["ks_measurement"] = self.nii_load(self._data_dict["ks_fqfn"])
         return deepcopy(self._data_dict["ks_measurement"])
-    
+
     @property
     def v1(self) -> NDArray:
         return self.v1_measurement["img"].copy()
@@ -85,6 +82,5 @@ class Mintun1984Data(TissueData):
             return deepcopy(self._data_dict["v1_measurement"])
 
         self._data_dict["v1_measurement"] = self.nii_load(self._data_dict["v1_fqfn"])
-        if self.input_func_type == "RadialArtery":
-            self._data_dict["v1_measurement"]["img"] = self._data_dict["v1_measurement"]["img"] / self.recovery_coefficient
+        self._data_dict["v1_measurement"]["img"] = self._data_dict["v1_measurement"]["img"] / self.recovery_coefficient
         return deepcopy(self._data_dict["v1_measurement"])

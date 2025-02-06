@@ -21,14 +21,12 @@
 # SOFTWARE.
 
 
-from copy import deepcopy
 from multiprocessing import Pool
 import dynesty
 from dynesty import utils as dyutils
 import numpy as np
-from numba import jit, float64
+from numba import jit
 from numpy.typing import NDArray
-import pandas as pd
 
 from TissueSolver import TissueSolver
 
@@ -38,17 +36,17 @@ def prior_transform(
     u: np.ndarray,
     sigma: float
 ) -> np.ndarray:
-        v = u
-        v[0] = u[0] * 2  # k_1 (1/s)
-        v[1] = u[1] * 0.5 + 0.00001  # k_2 (1/s)
-        v[2] = u[2] * 0.05 + 0.00001  # k_3 (1/s)
-        v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
-        v[4] = u[4] * 20  # t_0 (s)
-        v[5] = u[5] * 120 - 60  # \tau_a (s)
-        v[6] = u[6] * sigma  # sigma ~ fraction of A0
-        return v
+    v = u
+    v[0] = u[0] * 1e3 + 1  # k_1/k_2
+    v[1] = u[1] * 0.5 + 0.00001  # k_2 (1/s)
+    v[2] = u[2] * 1e3 + 1  # k_3/k_4
+    v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
+    v[4] = u[4] * 20  # t_0 (s)
+    v[5] = u[5] * sigma  # sigma ~ fraction of A0
+    return v
 
-@jit(nopython=True)
+
+# @jit(nopython=True)
 def loglike(
     v: np.ndarray,
     rho: np.ndarray,
@@ -66,6 +64,7 @@ def loglike(
         loglike = -1e300
     return loglike
 
+
 @jit(nopython=True)
 def signalmodel(
     v: np.ndarray,
@@ -75,81 +74,80 @@ def signalmodel(
     v1: float,
     isidif: bool
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """ Huang1980Model assumes all input params to be decay-corrected """
+    """ Huang1980Model assumes all input params to be decay-corrected """
 
-        k1 = v[0]
-        k2 = v[1]
-        k3 = v[2]
-        k4 = v[3]
-        t_0 = v[4]
-        tau_a = v[5]
+    k1 = v[0] * v[1]  # k1/k2 * k2
+    k2 = v[1]
+    k3 = v[2] * v[3]  # k3/k4 * k4
+    k4 = v[3]
+    t_0 = v[4]
 
-        n_times = rho_input_func_interp.shape[0]
-        timesIdeal = np.arange(0, n_times)
+    n_times = rho_input_func_interp.shape[0]
+    timesIdeal = np.arange(0, n_times)
 
-        # Find indices where input function exceeds 5% of max
-        indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))        
-        # Handle case where no values exceed threshold
-        if len(indices[0]) == 0:
-            idx_a = 1  # Default to 1 if no values exceed threshold
-        else:
-            idx_a = max(indices[0][0], 1)  # Take first index but ensure >= 1
+    # Find indices where input function exceeds 5% of max
+    indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))
+    # Handle case where no values exceed threshold
+    if len(indices[0]) == 0:
+        idx_a = 1  # Default to 1 if no values exceed threshold
+    else:
+        idx_a = max(indices[0][0], 1)  # Take first index but ensure >= 1
 
-        # slide input function to fit
-                    
-        if not isidif:
-            # slide input function to left, 
-            # since its measurements is delayed by radial artery cannulation
-            rho_input_func_interp = slide(
-                rho_input_func_interp, 
-                timesIdeal, 
-                -timesIdeal[idx_a], 
-                0) 
+    # slide input function to fit
+
+    if not isidif:
+        # slide input function to left,
+        # since its measurements is delayed by radial artery cannulation
         rho_input_func_interp = slide(
-            rho_input_func_interp, 
-            timesIdeal, 
-            t_0)
+            rho_input_func_interp,
+            timesIdeal,
+            -timesIdeal[idx_a])
+    rho_input_func_interp = slide(
+        rho_input_func_interp,
+        timesIdeal,
+        t_0)
 
-        # propagate input function
+    # propagate input function
 
-        k234 = k2 + k3 + k4
-        bminusa = np.sqrt(np.power(k234, 2) - 4 * k2 * k4)
-        alpha = 0.5 * (k234 - bminusa)
-        beta = 0.5 * (k234 + bminusa)
-        propagator_a = np.exp(-alpha * timesIdeal)
-        propagator_b = np.exp(-beta * timesIdeal)
+    k234 = k2 + k3 + k4
+    bminusa = np.sqrt(np.power(k234, 2) - 4 * k2 * k4)
+    alpha = 0.5 * (k234 - bminusa)
+    beta = 0.5 * (k234 + bminusa)
+    propagator_a = np.exp(-alpha * timesIdeal)
+    propagator_b = np.exp(-beta * timesIdeal)
 
-        # numpy ------------------------------------------------------------
-        # conv_h2o = np.convolve(propagator, artery_h2o, mode="full")
-        # conv_o2 = np.convolve(propagator, artery_o2, mode="full")        
-        # numba jit --------------------------------------------------------
-        n_propagator = len(propagator_a)
-        n_artery = len(rho_input_func_interp) 
-        n_conv = n_propagator + n_artery - 1        
-        conv_a = np.zeros(n_conv)     
-        for i in range(n_conv):
-            for j in range(max(0, i - n_propagator + 1), min(i + 1, n_artery)):
-                conv_a[i] += propagator_a[i - j] * rho_input_func_interp[j]
-        conv_b = np.zeros(n_conv)     
-        for i in range(n_conv):
-            for j in range(max(0, i - n_propagator + 1), min(i + 1, n_artery)):
-                conv_b[i] += propagator_b[i - j] * rho_input_func_interp[j]
-        conva = conva[:n_times]  # interpolated to the input function times
-        convb = convb[:n_times]  # interpolated to the input function times
+    # numpy ------------------------------------------------------------
+    # conv_h2o = np.convolve(propagator, artery_h2o, mode="full")
+    # conv_o2 = np.convolve(propagator, artery_o2, mode="full")
+    # numba jit --------------------------------------------------------
+    n_propagator = len(propagator_a)
+    n_artery = len(rho_input_func_interp)
+    n_conv = n_propagator + n_artery - 1
+    conv_a = np.zeros(n_conv)
+    for i in range(n_conv):
+        for j in range(max(0, i - n_propagator + 1), min(i + 1, n_artery)):
+            conv_a[i] += propagator_a[i - j] * rho_input_func_interp[j]
+    conv_b = np.zeros(n_conv)
+    for i in range(n_conv):
+        for j in range(max(0, i - n_propagator + 1), min(i + 1, n_artery)):
+            conv_b[i] += propagator_b[i - j] * rho_input_func_interp[j]
+    conv_a = conv_a[:n_times]  # interpolated to the input function times
+    conv_b = conv_b[:n_times]  # interpolated to the input function times
 
-        # package compartments
-        
-        conv2 = (k4 - alpha) * conva + (beta - k4) * convb
-        conv3 = conva - convb
-        q2 = (k1 / bminusa) * conv2
-        q3 = (k3 * k1 / bminusa) * conv3    
+    # package compartments
 
-        rho_ideal = v1 * (rho_input_func_interp + q2 + q3)
-        if not isidif:
-            rho_pred = np.interp(timesMid, timesIdeal, rho_ideal)
-        else:
-            rho_pred = apply_boxcar(rho_ideal, timesMid, taus)
-        return rho_pred, timesMid, rho_ideal, timesIdeal
+    conv_2 = (k4 - alpha) * conv_a + (beta - k4) * conv_b
+    conv_3 = conv_a - conv_b
+    q2 = (k1 / bminusa) * conv_2
+    q3 = (k3 * k1 / bminusa) * conv_3
+
+    rho_ideal = v1 * (rho_input_func_interp + q2 + q3)
+    if not isidif:
+        rho_pred = np.interp(timesMid, timesIdeal, rho_ideal)
+    else:
+        rho_pred = apply_boxcar(rho_ideal, timesMid, taus)
+    return rho_pred, timesMid, rho_ideal, timesIdeal
+
 
 @jit(nopython=True)
 def apply_boxcar(rho: np.ndarray, timesMid: np.ndarray, taus: np.ndarray) -> np.ndarray:
@@ -159,23 +157,24 @@ def apply_boxcar(rho: np.ndarray, timesMid: np.ndarray, taus: np.ndarray) -> np.
     # Original implementation with loop ---------------------------------------
     # rho_sampled = np.full(times0_int.shape, np.nan)
     # for idx, (t0, tF) in enumerate(zip(times0_int, timesF_int)):
-    #     rho_sampled[idx] = np.mean(rho[t0:tF])        
+    #     rho_sampled[idx] = np.mean(rho[t0:tF])
     # return np.nan_to_num(rho_sampled, 0)
 
     # Optimized implementation using cumsum ------------------------------------
-    # padding rho with 0 at beginning 
+    # padding rho with 0 at beginning
     cumsum = np.cumsum(np.concatenate((np.zeros(1), rho)))
     rho_sampled = (cumsum[timesF_int] - cumsum[times0_int]) / taus
     return np.nan_to_num(rho_sampled, 0)
 
+
 @jit(nopython=True)
-def slide(rho: np.ndarray, t: np.ndarray, dt: float, halflife: float=None) -> np.ndarray:
+def slide(rho: np.ndarray, t: np.ndarray, dt: float, halflife: float = 0) -> np.ndarray:
     """ slides rho by dt seconds, optionally decays it by halflife. """
 
     if abs(dt) < 0.1:
         return rho
     rho = np.interp(t - dt, t, rho)  # copy of rho array
-    if halflife:
+    if halflife > 0:
         return rho * np.power(2, -dt / halflife)
     else:
         return rho
@@ -203,8 +202,8 @@ class Huang1980Solver(TissueSolver):
         >>> qm, ql, qh = solver.quantile(results)
 
     References:
-        .. [1] Huang SC, Phelps ME, Hoffman EJ, Sideris K, Selin CJ, Kuhl DE. 
-               Noninvasive determination of local cerebral metabolic rate of glucose in man. 
+        .. [1] Huang SC, Phelps ME, Hoffman EJ, Sideris K, Selin CJ, Kuhl DE.
+               Noninvasive determination of local cerebral metabolic rate of glucose in man.
                Am J Physiol. 1980;238(1):E69-82. doi:10.1152/ajpendo.1980.238.1.E69
     """
     def __init__(self, context):
@@ -212,7 +211,7 @@ class Huang1980Solver(TissueSolver):
 
     @property
     def labels(self):
-        return [r"$k_1$", r"$k_2$", r"$k_3$", r"$k_4$", r"$t_0$", r"$\tau_a$", r"$\sigma$"]
+        return [r"$k_1/k_2$", r"$k_2$", r"$k_3/k_4$", r"$k_4$", r"$t_0$", r"$\sigma$"]
 
     @staticmethod
     def _loglike(selected_data: dict):
@@ -228,10 +227,10 @@ class Huang1980Solver(TissueSolver):
         if rho.ndim != 1:
             raise ValueError("rho must be 1-dimensional")
         if rho_input_func_interp.ndim != 1:
-            raise ValueError("rho_input_func_interp must be 1-dimensional") 
+            raise ValueError("rho_input_func_interp must be 1-dimensional")
         if not np.isscalar(v1):
             raise ValueError("v1 must be scalar")
-        
+
         # Create wrapper that matches dynesty's expected signature
         def wrapped_loglike(v):
             nonlocal rho, timesMid, taus, rho_input_func_interp, v1, isidif
@@ -239,7 +238,7 @@ class Huang1980Solver(TissueSolver):
                 v,
                 rho,
                 timesMid,
-                taus, 
+                taus,
                 rho_input_func_interp,
                 v1,
                 isidif)
@@ -254,7 +253,7 @@ class Huang1980Solver(TissueSolver):
             nonlocal sigma
             return prior_transform(v, sigma)
         return wrapped_prior_transform
-    
+
     @staticmethod
     def _run_nested(selected_data: dict) -> dyutils.Results:
         if selected_data["resume"]:
@@ -271,13 +270,13 @@ class Huang1980Solver(TissueSolver):
                 rstate=selected_data["rstate"]
             )
         sampler.run_nested(
-            checkpoint_file=selected_data["checkpoint_file"], 
-            print_progress=selected_data["print_progress"], 
+            checkpoint_file=selected_data["checkpoint_file"],
+            print_progress=selected_data["print_progress"],
             resume=selected_data["resume"],
             wt_kwargs={"pfrac": selected_data["pfrac"]}
         )
         return sampler.results
-        
+
     def _run_nested_pool(
             self,
             checkpoint_file: list[str] | None = None,
@@ -285,12 +284,12 @@ class Huang1980Solver(TissueSolver):
             resume: bool = False,
             parc_index: list[int] | tuple[int, ...] | NDArray | None = None
     ) -> list[dyutils.Results]:
-    
+
         if not parc_index:
             parc_index = range(len(self.data.rho))
         elif isinstance(parc_index, np.ndarray):
             parc_index = parc_index.tolist()
-        
+
         if checkpoint_file and len(checkpoint_file) != len(parc_index):
             raise ValueError("checkpoint_file must be a list of strings matching length of parc_index")
 
@@ -316,27 +315,27 @@ class Huang1980Solver(TissueSolver):
                 "print_progress": False
             }
             args.append(selected_data)
-        
+
         # Sequential execution for testing
         # _results = [Huang1980Solver.__run_nested(*arg) for arg in args]
         # self._set_cached_dynesty_results(_results)
-        # return _results    
+        # return _results
 
         # Use multiprocessing Pool to parallelize execution is incompatible with instance methods
         with Pool() as p:
             _results = p.starmap(Huang1980Solver._run_nested, [(arg,) for arg in args])
             self._set_cached_dynesty_results(_results)
         return _results
-        
+
     def _run_nested_single(
             self,
             checkpoint_file: str | None = None,
             print_progress: bool = False,
             resume: bool = False,
             parc_index: int | None = None
-    ) -> dyutils.Results:        
+    ) -> dyutils.Results:
         if parc_index is None:
-            raise ValueError("parc_index must be provided")        
+            raise ValueError("parc_index must be provided")
         args = {
             "rho": self.data.rho[parc_index],
             "timesMid": self.data.timesMid,
@@ -358,7 +357,7 @@ class Huang1980Solver(TissueSolver):
         _results = Huang1980Solver._run_nested(args)
         self._set_cached_dynesty_results(_results)
         return _results
-    
+
     def signalmodel(
             self,
             v: list | tuple | NDArray,
@@ -372,14 +371,14 @@ class Huang1980Solver(TissueSolver):
         if parc_index is None:
             raise ValueError("parc_index must be provided")
         return signalmodel(
-            v, 
+            v,
             self.data.timesMid,
             self.data.taus,
             self.data.rho_input_func_interp,
             self.data.v1[parc_index],
             self.data.isidif
         )
-    
+
     def loglike(
             self,
             v: list | tuple | NDArray,

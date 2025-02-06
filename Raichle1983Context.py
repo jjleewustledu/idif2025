@@ -21,17 +21,13 @@
 # SOFTWARE.
 
 
-import os
 import sys
 import logging
 import matplotlib
 
-from DynestyContext import DynestyContext
-from IOImplementations import TissueIO
 from Raichle1983Data import Raichle1983Data
 from Raichle1983Solver import Raichle1983Solver
 from TissueContext import TissueContext
-from TissuePlotting import TissuePlotting
 
 
 class Raichle1983Context(TissueContext):

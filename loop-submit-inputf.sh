@@ -70,10 +70,10 @@ submit_jobs() {
 
 # submit_radial_artery.sh
 proc="proc-TwiliteKit-do-make-input-func-nomodel_inputfunc.nii.gz"
-submit_main="${HOME}/PycharmProjects/dynesty/idif2024/submit-radial-artery.sh"
+submit_main="${HOME}/PycharmProjects/dynesty/idif2025/submit-radial-artery.sh"
 submit_jobs "$proc" "$submit_main"
 
 # submit_boxcar.sh
 proc="proc-MipIdif_idif.nii.gz"
-submit_main="${HOME}/PycharmProjects/dynesty/idif2024/submit-boxcar.sh"
+submit_main="${HOME}/PycharmProjects/dynesty/idif2025/submit-boxcar.sh"
 submit_jobs "$proc" "$submit_main"

@@ -30,6 +30,7 @@ from DynestyData import DynestyData
 from IOImplementations import TissueIO
 from PETUtilities import PETUtilities
 
+
 class TissueData(DynestyData):
     """Class for handling tissue time-activity curve data from PET imaging.
 
@@ -81,7 +82,13 @@ class TissueData(DynestyData):
         if "tag" not in self._data_dict:
             self._data_dict["tag"] = ""
         if "recovery_coefficient" not in self._data_dict:
-            self._data_dict["recovery_coefficient"] = 1.8509
+            if self.input_func_type == "Boxcar":
+                self._data_dict["recovery_coefficient"] = 1.8509
+            elif self.input_func_type == "RadialArtery":
+                self._data_dict["recovery_coefficient"] = 1.0
+            else:
+                raise ValueError(f"input_func_type {self.input_func_type} not recognized")
+        assert self._data_dict["recovery_coefficient"] >= 1, "recovery_coefficient must be >= 1"
         if "delta_time" not in self._data_dict:
             self._data_dict["delta_time"] = 1
         if "nparcels" not in self._data_dict:
@@ -129,7 +136,7 @@ class TissueData(DynestyData):
         if "MipIdif" in bname or "Boxcar" in bname:
             return "Boxcar"
         if "TwiliteKit" in bname or "RadiaArtery" in bname:
-            return "RadialArtery"        
+            return "RadialArtery"
         raise ValueError(f"input_func_fqfn {self.input_func_fqfn} not recognized as input function")
 
     @property
@@ -177,10 +184,8 @@ class TissueData(DynestyData):
         rho_input_func_meas = self.input_func_measurement
         rho_input_func_meas["img"] = rho_input_func_meas["img"] / self.max_tissue_measurement
         
-        # apply recovery coefficient to Boxcar
-        if self.input_func_type == "Boxcar":
-            rho_input_func_meas["img"] = \
-                rho_input_func_meas["img"] * self.recovery_coefficient
+        # apply recovery coefficient
+        rho_input_func_meas["img"] = rho_input_func_meas["img"] * self.recovery_coefficient
 
         self._data_dict["rho_input_func_measurement"] = rho_input_func_meas
         return deepcopy(self._data_dict["rho_input_func_measurement"])

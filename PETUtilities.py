@@ -41,7 +41,7 @@ class PETUtilities:
 
     Methods:
         data2times: Extract or calculate times array from data dictionary
-        data2taus: Extract or calculate taus (time durations) array from data dictionary 
+        data2taus: Extract or calculate taus (time durations) array from data dictionary
         data2timesMid: Extract or calculate timesMid (midpoint times) array from data dictionary
         data2timesMidLast: Get the last timesMid value from data dictionary
         data2timesInterp: Get interpolated times array at 1-second resolution
@@ -53,7 +53,7 @@ class PETUtilities:
         The dictionaries are expected to have some combination of "times", "timesMid", and "taus" arrays.
     """
     @staticmethod
-    def data2times(data: dict, use_trivial: bool=True) -> NDArray:
+    def data2times(data: dict, use_trivial: bool = True) -> NDArray:
         """Retrieve times array from data dictionary."""
         if "times" in data and use_trivial:
             return np.asarray(data["times"])
@@ -62,45 +62,46 @@ class PETUtilities:
         return timesMid - taus / 2
 
     @staticmethod
-    def data2taus(data: dict, use_trivial: bool=True) -> NDArray:
+    def data2taus(data: dict, use_trivial: bool = True) -> NDArray:
         """Retrieve taus array from data dictionary."""
         if "taus" in data and use_trivial:
-            return np.asarray(data["taus"]) 
+            return np.asarray(data["taus"])
         timesMid = np.asarray(data["timesMid"])
         times = np.asarray(data["times"])
         return 2 * (timesMid - times)
 
     @staticmethod
-    def data2timesMid(data: dict, use_trivial: bool=True) -> NDArray:
+    def data2timesMid(data: dict, use_trivial: bool = True) -> NDArray:
         """Retrieve timesMid array from data dictionary."""
         if "timesMid" in data and use_trivial:
             return np.asarray(data["timesMid"])
         times = np.asarray(data["times"])
         taus = np.asarray(data["taus"])
         return times + taus / 2
-    
+
     @staticmethod
     def data2timesMidLast(data: dict) -> float:
         """Retrieve last timeMid from data dictionary."""
         return np.asarray(data["timesMid"])[-1]
-    
+
     @staticmethod
     def data2timesInterp(data: dict) -> NDArray:
         """Retrieve times array from data dictionary and interpolate to 1-second resolution from 0 sec."""
         tinterp0 = np.asarray(data["times"])[0]  # sec
-        tinterpF = np.asarray(data["times"])[-1] + np.asarray(data["taus"])[-1] - 1  # sec  
+        tinterpF = np.asarray(data["times"])[-1] + np.asarray(data["taus"])[-1] - 1  # sec
         N_tinterp = int(tinterpF - tinterp0 + 1)  # N of 1-sec samples
         return np.linspace(tinterp0, tinterpF, N_tinterp)  # e.g., [0.1, 1.1, 2.1, ..., N_tinterp+0.1]
-    
+
     @staticmethod
     def data2timesMidInterp(data: dict) -> NDArray:
-        """Retrieve timesMid array from data dictionary and interpolate to 1-second resolution from times[0]+ 0.5 sec."""
+        """Retrieve timesMid array from data dictionary and interpolate to
+           1-second resolution from times[0]+ 0.5 sec."""
         return PETUtilities.data2timesInterp(data) + 0.5  # sec
 
     @staticmethod
     def decay_correct(tac: dict) -> dict:
         return PETUtilities._decay_correction_helper(tac, sign=1)
-    
+
     @staticmethod
     def _decay_correction_helper(tac: dict, sign: int) -> dict:
         """ https://niftypet.readthedocs.io/en/latest/tutorials/corrqnt/ and
@@ -110,7 +111,7 @@ class PETUtilities:
         taus = _tac["taus"]
         times = _tac["times"]
         _lambda = np.log(2) / _tac["halflife"]
-    
+
         # for infinitessimal time frames:
         # _tac["img"] = img * np.power(2, sign * _tac["timesMid"] / _tac["halflife"])
 
@@ -119,33 +120,33 @@ class PETUtilities:
         _tac["img"] = np.asarray(img * np.power(C_decay, sign))
         return _tac
 
-    @staticmethod 
+    @staticmethod
     def decay_uncorrect(tac: dict) -> dict:
         return PETUtilities._decay_correction_helper(tac, sign=-1)
 
     @staticmethod
     def fileparts(fqfn: str) -> tuple:
         """
-        Extracts full path and basename without any extensions from a filepath.        
+        Extracts full path and basename without any extensions from a filepath.
         Args:
-            fqfn: String containing fully qualified filename            
+            fqfn: String containing fully qualified filename
         Returns:
             tuple containing:
             - parent_path: Full directory path
-            - basename: Filename without any extensions            
+            - basename: Filename without any extensions
         Example:
             "/path/to/file.nii.gz" -> ("/path/to", "file")
         """
         path = Path(fqfn)
         parent_path = str(path.parent)
         basename = path.stem  # Removes last extension
-        
+
         # Handle multiple extensions (e.g., .nii.gz)
         while "." in basename:
             basename = Path(basename).stem
-            
-        return parent_path, basename 
-    
+
+        return parent_path, basename
+
     @staticmethod
     def fqfileprefix(fqfn: str) -> str:
         """Extract fully qualified fileprefix from fully qualified filename."""
@@ -153,7 +154,7 @@ class PETUtilities:
         return os.path.join(pth, fp)
 
     @staticmethod
-    def interpdata(data: dict, ref: dict, kind: str="linear") -> dict:
+    def interpdata(data: dict, ref: dict, kind: str = "linear") -> dict:
         """ Interpolates data dictionary to 1-second resolution specified by ref dictionary."""
 
         data1 = deepcopy(data)
@@ -170,13 +171,13 @@ class PETUtilities:
         data1["timesMid"] = timesMid1
         data1["taus"] = 2 * (timesMid1 - times1)
         return data1
-    
+
     @staticmethod
-    def interpimg(timesMid1: NDArray, timesMid: NDArray, img: NDArray, kind: str="linear") -> NDArray:
-        """ Interpolates img, corresponding to timesMid, to timesMidNew, squeezing everything. 
-            timesMidNew and timesMid may be 1D, [1, N_time], or [N_time, 1]. 
-            img may be 1D, [1, N_time], [N_time, 1], or [N_pos, N_time]. """    
-            
+    def interpimg(timesMid1: NDArray, timesMid: NDArray, img: NDArray, kind: str = "linear") -> NDArray:
+        """ Interpolates img, corresponding to timesMid, to timesMidNew, squeezing everything.
+            timesMidNew and timesMid may be 1D, [1, N_time], or [N_time, 1].
+            img may be 1D, [1, N_time], [N_time, 1], or [N_pos, N_time]. """
+
         if img.squeeze().ndim > 1 or not kind == "linear":
             f = interp1d(timesMid.squeeze(), img.squeeze(), kind=kind, axis=1)
             return f(timesMid1.squeeze())
@@ -204,9 +205,9 @@ class PETUtilities:
         if iso == "89Zr":
             return 0.22
         if iso == "124I":
-            return 0.26        
-        raise ValueError(f"branching ratio not identifiable from fileprefix {fileprefix}")   
-        
+            return 0.26
+        raise ValueError(f"branching ratio not identifiable from fileprefix {fileprefix}")
+
     @staticmethod
     def parse_halflife(fileprefix: str) -> float:
         """ http://www.turkupetcentre.net/petanalysis/decay.html """
@@ -241,13 +242,13 @@ class PETUtilities:
 
     @staticmethod
     def parse_isotope(filename: str) -> str:
-        basename = Path(filename).stem 
+        basename = Path(filename).stem
         trc_11c = ["trc-cglc", "trc-cs1p1", "trc-mdl", "trc-nmsp", "trc-pib", "trc-raclopride"]
         trc_15o = ["trc-co", "trc-oc", "trc-oo", "trc-ho"]
         trc_18f = [
-            "trc-asem", "trc-av45", "trc-av1451", "trc-azan", "trc-fdg", 
-            "trc-florbetaben", "trc-florbetapir", "trc-flortaucipir", "trc-flutemetamol", 
-            "trc-gtp1", "trc-jnj-64326067", "trc-mk6240", "trc-pi2620", "trc-ro948", 
+            "trc-asem", "trc-av45", "trc-av1451", "trc-azan", "trc-fdg",
+            "trc-florbetaben", "trc-florbetapir", "trc-flortaucipir", "trc-flutemetamol",
+            "trc-gtp1", "trc-jnj-64326067", "trc-mk6240", "trc-pi2620", "trc-ro948",
             "trc-tz3108", "trc-vat"]
 
         if any(x in basename for x in trc_11c):
@@ -256,7 +257,7 @@ class PETUtilities:
             return "15O"
         if any(x in basename for x in trc_18f):
             return "18F"
-        
+
         # likely reasonable to guess 18F
         warnings.warn(f"isotope not identifiable from fileprefix {filename}; guessing 18F", RuntimeWarning)
         return "18F"
@@ -264,23 +265,23 @@ class PETUtilities:
     @staticmethod
     def parse_tracer(filename: str) -> str:
         """Extract tracer name from (f.q.) filename between 'trc-' and '_'."""
-        basename = Path(filename).stem 
+        basename = Path(filename).stem
         match = re.search(r'trc-([^_]+)', basename)
         if match:
             return match.group(1)
         else:
-            raise ValueError(f"tracer not identifiable from filename {filename}")    
+            raise ValueError(f"tracer not identifiable from filename {filename}")
 
     @staticmethod
     def slice_parc(img: NDArray, xindex: int) -> NDArray:
         """ slices img that is N_parc x N_time by the xindex for the parcel of interest,
             returns a 1D array of length N_time. """
-        
+
         assert img.ndim <= 2, "img must be 1D or 2D"
         return img[xindex].copy()
-    
+
     @staticmethod
-    def slide(rho: NDArray, t: NDArray, dt: float, halflife: float=None) -> NDArray:
+    def slide(rho: NDArray, t: NDArray, dt: float, halflife: float = None) -> NDArray:
         """ slides rho by dt seconds, optionally decays it by halflife. """
 
         if abs(dt) < 0.1:
@@ -289,4 +290,3 @@ class PETUtilities:
         if halflife:
             rho = rho * np.power(2, -dt / halflife)
         return rho.copy()
-        

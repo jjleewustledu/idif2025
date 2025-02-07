@@ -99,4 +99,4 @@ class Mintun1984Data(TissueData):
             return "Boxcar"
         if "twilite" in bname or "TwiliteKit" in bname or "RadiaArtery" in bname:
             return "RadialArtery"
-        raise ValueError(f"v1_fqfn {self.v1_fqfn} not recognized as input function")
+        raise ValueError(f"v1_fqfn {self.v1_fqfn} not recognizably associated with an input function")

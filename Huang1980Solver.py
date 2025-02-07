@@ -143,6 +143,7 @@ def signalmodel(
     q3 = (k3 * k1 / bminusa) * conv_3
 
     rho_ideal = v1 * (rho_input_func_interp + q2 + q3)
+
     if not isidif:
         rho_pred = np.interp(timesMid, timesIdeal, rho_ideal)
     else:
@@ -185,9 +186,7 @@ class Huang1980Solver(TissueSolver):
     """Solver implementing the Huang 1980 tissue model for PET data analysis.
 
     This class implements the tissue model described in Huang et al. 1980 [1] for analyzing
-    PET data using dynamic nested sampling. The model accounts for blood flow (f),
-    blood-tissue partition coefficient (λ), permeability-surface area product (ps),
-    time offset (t0), and arterial dispersion (τa).
+    PET data using dynamic nested sampling. 
 
     Args:
         context: Context object containing PET data and configuration.
@@ -251,9 +250,9 @@ class Huang1980Solver(TissueSolver):
         # Create wrapper that matches dynesty's expected signature
         sigma = selected_data["sigma"]
 
-        def wrapped_prior_transform(v):
+        def wrapped_prior_transform(u):
             nonlocal sigma
-            return prior_transform(v, sigma)
+            return prior_transform(u, sigma)
         return wrapped_prior_transform
 
     @staticmethod
@@ -338,7 +337,7 @@ class Huang1980Solver(TissueSolver):
     ) -> dyutils.Results:
         if parc_index is None:
             raise ValueError("parc_index must be provided")
-        args = {
+        selected_data = {
             "rho": self.data.rho[parc_index],
             "timesMid": self.data.timesMid,
             "taus": self.data.taus,
@@ -356,7 +355,7 @@ class Huang1980Solver(TissueSolver):
             "print_progress": print_progress
         }
 
-        _results = Huang1980Solver._run_nested(args)
+        _results = Huang1980Solver._run_nested(selected_data)
         self._set_cached_dynesty_results(_results)
         return _results
 

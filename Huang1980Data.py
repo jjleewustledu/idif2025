@@ -48,6 +48,7 @@ class Huang1980Data(TissueData):
         When using RadialArtery input function type, v1 measurements are automatically
         adjusted using the recovery coefficient.
     """
+    
     def __init__(self, context, data_dict: dict = {}):
         super().__init__(context, data_dict)
         assert "v1_fqfn" in self.data_dict, "data_dict missing required key 'v1_fqfn'"

@@ -25,15 +25,15 @@ import sys
 import logging
 import matplotlib
 
-from Huang1980Data import Huang1980Data
-from Huang1980Solver import Huang1980Solver
+from TissueData import TissueData
+from SpectralSolver import SpectralSolver
 from TissueContext import TissueContext
 
 
-class Huang1980Context(TissueContext):
-    """Context class for the Huang 1980 tissue model implementation.
+class SpectralContext(TissueContext):
+    """Context class for the implementation of spectral analysis.
 
-    This class provides the context for analyzing PET data using the Huang 1980 tissue model.
+    This class provides the context for analyzing PET data using spectral analysis.
     It coordinates the data handling, solver, and I/O operations specific to this model.
 
     Args:
@@ -42,25 +42,27 @@ class Huang1980Context(TissueContext):
             - tissue_fqfn (str): Fully qualified filename for tissue data
 
     Attributes:
-        data (Huang1980Data): Data handler for the Huang 1980 model
-        solver (Huang1980Solver): Solver implementing the Huang 1980 model
+        data (TissueData): Data handler for the 2-tissue compartment model
+        solver (SpectralSolver): Solver implementing the 2-tissue compartment model
         tag (str): Identifier tag for the analysis
         input_func_type (str): Type of input function used
 
     Example:
         >>> data = {"input_func_fqfn": "input.csv", "tissue_fqfn": "tissue.csv"}
-        >>> context = Huang1980Context(data)
+        >>> context = SpectralContext(data)
         >>> context()  # Run the analysis
         >>> results = context.solver.results_load()
 
     Notes:
-        The Huang 1980 model is described in:
-        Huang MA, Raichle ME, Martin WR, Herscovitch P.
-        Brain oxygen utilization measured with O-15 radiotracers and positron emission tomography.
-        J Nucl Med. 1980 Feb;25(2):177-87. PMID: 6610032.
-
-        Requires all incoming PET and input function data to be decay corrected.
-    """
+        A. Bertoldo, P. Vicini, G. Sambuceti, A. A. Lammertsma, O. Parodi and C. Cobelli,
+        "Evaluation of compartmental and spectral analysis models of [/sup 18/F]FDG kinetics for heart and brain 
+        studies with PET"
+        IEEE Transactions on Biomedical Engineering, vol. 45, no. 12, pp. 1429-1448, Dec. 1998,
+        doi: 10.1109/10.730437.
+        keywords: {Spectral analysis;Kinetic theory;Heart;Brain modeling;Positron emission tomography;Sugar;
+        Biochemistry;Myocardium;Biomedical informatics;Hospitals}
+    
+        Requires all incoming PET and input function data to be decay corrected."""
 
     def __call__(self) -> None:
         logging.basicConfig(
@@ -72,13 +74,13 @@ class Huang1980Context(TissueContext):
 
     def __init__(self, data_dict: dict):
         super().__init__(data_dict)
-        self._data = Huang1980Data(self, data_dict)
-        self._solver = Huang1980Solver(self)
-        if "Huang1980" not in self.tag:
+        self._data = TissueData(self, data_dict)
+        self._solver = SpectralSolver(self)
+        if "Spectral" not in self.tag:
             if self.tag:
-                self.tag += "-Huang1980"
+                self.tag += "-Spectral"
             else:
-                self.tag = "Huang1980"
+                self.tag = "Spectral"
 
     @property
     def data(self):
@@ -107,8 +109,7 @@ if __name__ == "__main__":
     data_dict = {
         "input_func_fqfn": sys.argv[1],
         "tissue_fqfn": sys.argv[2],
-        "v1_fqfn": sys.argv[3],
-        "nlive": int(sys.argv[4])
+        "nlive": int(sys.argv[3])
     }
-    h = Huang1980Context(data_dict)
-    h()
+    sp = SpectralContext(data_dict)
+    sp()

@@ -38,12 +38,14 @@ def prior_transform(
     sigma: float
 ) -> np.ndarray:
     v = u
-    v[0] = u[0] * 1e3 + 1  # k_1/k_2
+    v[0] = u[0] * 2  # k_1 (1/s)
     v[1] = u[1] * 0.5 + 0.00001  # k_2 (1/s)
-    v[2] = u[2] * 1e3 + 1  # k_3/k_4
+    v[2] = u[2] * 0.05 + 0.00001  # k_3 (1/s)
     v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
-    v[4] = u[4] * 20  # t_0 (s)
-    v[5] = u[5] * sigma  # sigma ~ fraction of A0
+    v[4] = u[4] * 999.9 + 0.1  # V (mL/cm^{-3}) is total volume := V_N + V_S
+    # v[5] = u[5] * 120 - 60  # \tau_a (s)
+    v[5] = u[5] * 120  # t_0 (s)
+    v[6] = u[6] * sigma  # sigma ~ fraction of M0
     return v
 
 
@@ -57,7 +59,7 @@ def loglike(
     isidif: bool
 ) -> float:
     assert rho.ndim == 1, "rho must be 1-dimensional"
-    rho_pred, _, _, _ = signalmodel(v, timesMid, taus, rho_input_func_interp, isidif)
+    rho_pred, _, _, _ = signalmodel(v, rho, timesMid, taus, rho_input_func_interp, isidif)
     sigma = v[-1]
     residsq = (rho_pred - rho) ** 2 / sigma ** 2
     loglike = -0.5 * np.sum(residsq + np.log(2 * np.pi * sigma ** 2))
@@ -69,18 +71,22 @@ def loglike(
 @jit(nopython=True)
 def signalmodel(
     v: np.ndarray,
+    rho: np.ndarray,
     timesMid: np.ndarray,
     taus: np.ndarray,
     rho_input_func_interp: np.ndarray,
     isidif: bool
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """ TwoTCSolver assumes all input params to be decay-corrected """
+    """ Ichise2002Solver assumes all input params to be decay-corrected """
 
-    K1 = v[0] * v[1]  # k1/k2 * k2
-    k2 = v[1]
-    k3 = v[2] * v[3]  # k3/k4 * k4
-    k4 = v[3]
-    t_0 = v[4]
+    ks = v[:4]
+    K1 = ks[0]
+    V = v[4]  # total volume of distribution V^\star = V_P + V_N + V_S, per Ichise 2002 appendix
+    g1 = V * ks[1] * ks[3]
+    g2 = -1 * ks[1] * ks[3]
+    g3 = -(ks[1] + ks[2] + ks[3])
+    g4 = K1
+    t_0 = v[5]
 
     n_times = rho_input_func_interp.shape[0]
     timesIdeal = np.arange(0, n_times)
@@ -109,39 +115,36 @@ def signalmodel(
 
     # propagate input function
 
-    k234 = k2 + k3 + k4
-    bminusa = np.sqrt(np.power(k234, 2) - 4 * k2 * k4)
-    alpha = 0.5 * (k234 - bminusa)
-    beta = 0.5 * (k234 + bminusa)
-    propagator_a = np.exp(-alpha * timesIdeal)
-    propagator_b = np.exp(-beta * timesIdeal)
+    # rho_oversampled over-samples rho to match rho_t
+    # rho_t is the inferred source signal, sampled to match input_func_interp
 
-    # numpy ------------------------------------------------------------
-    # conv_h2o = np.convolve(propagator, artery_h2o, mode="full")
-    # conv_o2 = np.convolve(propagator, artery_o2, mode="full")
-    # numba jit --------------------------------------------------------
-    n_propagator = len(propagator_a)
-    n_artery = len(rho_input_func_interp)
-    n_conv = n_propagator + n_artery - 1
-    conv_a = np.zeros(n_conv)
-    for i in range(n_conv):
-        for j in range(max(0, i - n_propagator + 1), min(i + 1, n_artery)):
-            conv_a[i] += propagator_a[i - j] * rho_input_func_interp[j]
-    conv_b = np.zeros(n_conv)
-    for i in range(n_conv):
-        for j in range(max(0, i - n_propagator + 1), min(i + 1, n_artery)):
-            conv_b[i] += propagator_b[i - j] * rho_input_func_interp[j]
-    conv_a = conv_a[:n_times]  # interpolated to the input function times
-    conv_b = conv_b[:n_times]  # interpolated to the input function times
+    rho_oversampled = np.interp(timesIdeal, timesMid, rho)
+    rho_ideal = np.zeros(len(timesIdeal))
+    for tidx, time in enumerate(timesIdeal):
+        _tidx_interval = np.arange(0, tidx + 1)
+        _time_interval = timesIdeal[_tidx_interval]
 
-    # package compartments
+        _rho_interval = rho_oversampled[_tidx_interval]
+        _rho_p_interval = rho_input_func_interp[_tidx_interval]  # integration interval
+        
+        dt = _time_interval[1] - _time_interval[0]  # Uniform time step
 
-    conv_2 = (k4 - alpha) * conv_a + (beta - k4) * conv_b
-    conv_3 = conv_a - conv_b
-    q2 = (K1 / bminusa) * conv_2
-    q3 = (k3 * K1 / bminusa) * conv_3
+        int4 = dt * np.sum((_rho_p_interval[1:] + _rho_p_interval[:-1])) / 2
+        int3 = dt * np.sum((_rho_interval[1:] + _rho_interval[:-1])) / 2    
 
-    rho_ideal = rho_input_func_interp + q2 + q3
+        # Compute double integral \int_0^T ds \int_0^s dt _rho_interval(t) using uniform time sampling
+        # For each s, we sum up all values of _rho_interval from 0 to s
+        # Then multiply by appropriate weights for double integral
+
+        cumsum2 = np.cumsum(_rho_interval[:-1])  # np.cumsum is supported by numba
+        int2 = np.sum(cumsum2) * dt * dt / 2  # dt for each integral
+
+        cumsum1 = np.cumsum(_rho_p_interval[:-1])  # np.cumsum is supported by numba
+        int1 = np.sum(cumsum1) * dt * dt / 2  # dt for each integral
+
+        rho_ideal[tidx] = g1 * int1 + g2 * int2 + g3 * int3 + g4 * int4
+
+    rho_ideal[rho_ideal < 0] = 0
 
     if not isidif:
         rho_pred = np.interp(timesMid, timesIdeal, rho_ideal)
@@ -181,10 +184,10 @@ def slide(rho: np.ndarray, t: np.ndarray, dt: float, halflife: float = 0) -> np.
         return rho
 
 
-class TwoTCSolver(TissueSolver):
-    """Solver implementing the 2-tissue compartment model for PET data analysis.
+class Ichise2002Solver(TissueSolver):
+    """Solver implementing Ichise's 2002 model for PET data analysis.
 
-    This class implements the tissue model described in Huang et al. 1980 [1] for analyzing
+    This class implements the tissue model described in Ichise et al. 2002 [1] for analyzing
     PET data using dynamic nested sampling. 
 
     Args:
@@ -196,14 +199,15 @@ class TwoTCSolver(TissueSolver):
 
     Example:
         >>> context = TissueContext(data_dict)
-        >>> solver = TwoTCSolver(context)
+        >>> solver = Huang1980Solver(context)
         >>> results = solver.run_nested()
         >>> qm, ql, qh = solver.quantile(results)
 
-    References:
-        [1] Huang SC, Phelps ME, Hoffman EJ, Sideris K, Selin CJ, Kuhl DE.
-            Noninvasive determination of local cerebral metabolic rate of glucose in man.
-            Am J Physiol. 1980;238(1):E69-82. doi:10.1152/ajpendo.1980.238.1.E69
+    References:        
+        [1] Ichise M, Toyama H, Innis RB, Carson RE. 
+            "Strategies to Improve Neuroreceptor Parameter Estimation by Linear Regression Analysis."
+            Journal of Cerebral Blood Flow & Metabolism. 2002;22(10):1271-1281. 
+            doi:10.1097/01.WCB.0000038000.34930.4E
     """
 
     def __init__(self, context):
@@ -211,7 +215,7 @@ class TwoTCSolver(TissueSolver):
 
     @property
     def labels(self):
-        return [r"$K_1/k_2$", r"$k_2$", r"$k_3/k_4$", r"$k_4$", r"$t_0$", r"$\sigma$"]
+        return [r"$K_1$", r"$k_2$", r"$k_3$", r"$k_4$", r"$V$", r"$t_0$", r"$\sigma$"]
     
     @staticmethod
     def _loglike(selected_data: dict):
@@ -255,8 +259,8 @@ class TwoTCSolver(TissueSolver):
         if selected_data["resume"]:
             sampler = dynesty.DynamicNestedSampler.restore(selected_data["checkpoint_file"])
         else:
-            loglike = TwoTCSolver._loglike(selected_data)
-            prior_transform = TwoTCSolver._prior_transform(selected_data)
+            loglike = Ichise2002Solver._loglike(selected_data)
+            prior_transform = Ichise2002Solver._prior_transform(selected_data)
             sampler = dynesty.DynamicNestedSampler(
                 loglikelihood=loglike,
                 prior_transform=prior_transform,
@@ -318,7 +322,7 @@ class TwoTCSolver(TissueSolver):
 
         # Use multiprocessing Pool to parallelize execution is incompatible with instance methods
         with Pool() as p:
-            _results = p.starmap(TwoTCSolver._run_nested, [(arg,) for arg in args])
+            _results = p.starmap(Ichise2002Solver._run_nested, [(arg,) for arg in args])
             self._set_cached_dynesty_results(_results)
         return _results
 
@@ -348,7 +352,7 @@ class TwoTCSolver(TissueSolver):
             "print_progress": print_progress
         }
 
-        _results = TwoTCSolver._run_nested(selected_data)
+        _results = Ichise2002Solver._run_nested(selected_data)
         self._set_cached_dynesty_results(_results)
         return _results
 
@@ -363,6 +367,7 @@ class TwoTCSolver(TissueSolver):
             raise ValueError(f"v must be 1-dimensional array of length {self.ndim}")
         return signalmodel(
             v,
+            self.data.rho,
             self.data.timesMid,
             self.data.taus,
             self.data.rho_input_func_interp,

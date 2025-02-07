@@ -231,9 +231,9 @@ class Raichle1983Solver(TissueSolver):
         # Create wrapper that matches dynesty's expected signature
         sigma = selected_data["sigma"]
 
-        def wrapped_prior_transform(v):
+        def wrapped_prior_transform(u):
             nonlocal sigma
-            return prior_transform(v, sigma)
+            return prior_transform(u, sigma)
         return wrapped_prior_transform
     
     @staticmethod
@@ -315,7 +315,7 @@ class Raichle1983Solver(TissueSolver):
             resume: bool = False,
             parc_index: int | None = None
     ) -> dyutils.Results:      
-        args = {
+        selected_data = {
             "rho": self.data.rho[parc_index],
             "timesMid": self.data.timesMid,
             "taus": self.data.taus,
@@ -332,7 +332,7 @@ class Raichle1983Solver(TissueSolver):
             "print_progress": print_progress
         }
 
-        _results = Raichle1983Solver._run_nested(args)
+        _results = Raichle1983Solver._run_nested(selected_data)
         self._set_cached_dynesty_results(_results)
         return _results
     

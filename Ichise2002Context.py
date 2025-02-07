@@ -25,15 +25,15 @@ import sys
 import logging
 import matplotlib
 
-from Huang1980Data import Huang1980Data
-from Huang1980Solver import Huang1980Solver
+from TissueData import TissueData
+from Ichise2002Solver import Ichise2002Solver
 from TissueContext import TissueContext
 
 
-class Huang1980Context(TissueContext):
-    """Context class for the Huang 1980 tissue model implementation.
+class Ichise2002Context(TissueContext):
+    """Context class for the implementation of Ichise's 2002 report.
 
-    This class provides the context for analyzing PET data using the Huang 1980 tissue model.
+    This class provides the context for analyzing PET data using Ichise's 2002 model.
     It coordinates the data handling, solver, and I/O operations specific to this model.
 
     Args:
@@ -42,25 +42,23 @@ class Huang1980Context(TissueContext):
             - tissue_fqfn (str): Fully qualified filename for tissue data
 
     Attributes:
-        data (Huang1980Data): Data handler for the Huang 1980 model
-        solver (Huang1980Solver): Solver implementing the Huang 1980 model
+        data (TissueData): Data handler for the 2-tissue compartment model
+        solver (Ichise2002Solver): Solver implementing the 2-tissue compartment model
         tag (str): Identifier tag for the analysis
         input_func_type (str): Type of input function used
 
     Example:
         >>> data = {"input_func_fqfn": "input.csv", "tissue_fqfn": "tissue.csv"}
-        >>> context = Huang1980Context(data)
+        >>> context = Ichise2002Context(data)
         >>> context()  # Run the analysis
         >>> results = context.solver.results_load()
 
     Notes:
-        The Huang 1980 model is described in:
-        Huang MA, Raichle ME, Martin WR, Herscovitch P.
-        Brain oxygen utilization measured with O-15 radiotracers and positron emission tomography.
-        J Nucl Med. 1980 Feb;25(2):177-87. PMID: 6610032.
+        Ichise M, Toyama H, Innis RB, Carson RE. 
+        "Strategies to Improve Neuroreceptor Parameter Estimation by Linear Regression Analysis."
+        Journal of Cerebral Blood Flow & Metabolism. 2002;22(10):1271-1281. doi:10.1097/01.WCB.0000038000.34930.4E
 
-        Requires all incoming PET and input function data to be decay corrected.
-    """
+        Requires all incoming PET and input function data to be decay corrected."""
 
     def __call__(self) -> None:
         logging.basicConfig(
@@ -72,13 +70,13 @@ class Huang1980Context(TissueContext):
 
     def __init__(self, data_dict: dict):
         super().__init__(data_dict)
-        self._data = Huang1980Data(self, data_dict)
-        self._solver = Huang1980Solver(self)
-        if "Huang1980" not in self.tag:
+        self._data = TissueData(self, data_dict)
+        self._solver = Ichise2002Solver(self)
+        if "Ichise2002" not in self.tag:
             if self.tag:
-                self.tag += "-Huang1980"
+                self.tag += "-Ichise2002"
             else:
-                self.tag = "Huang1980"
+                self.tag = "Ichise2002"
 
     @property
     def data(self):
@@ -107,8 +105,7 @@ if __name__ == "__main__":
     data_dict = {
         "input_func_fqfn": sys.argv[1],
         "tissue_fqfn": sys.argv[2],
-        "v1_fqfn": sys.argv[3],
-        "nlive": int(sys.argv[4])
+        "nlive": int(sys.argv[3])
     }
-    h = Huang1980Context(data_dict)
-    h()
+    ich = Ichise2002Context(data_dict)
+    ich()

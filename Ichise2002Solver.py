@@ -21,15 +21,10 @@
 # SOFTWARE.
 
 
-from multiprocessing import Pool
-import dynesty
-from dynesty import utils as dyutils
 import numpy as np
 from numba import jit
-from numpy.typing import NDArray
 
-
-from TissueSolver import TissueSolver
+from TwoTCSolver import TwoTCSolver
 
 
 @jit(nopython=True)
@@ -38,12 +33,11 @@ def prior_transform(
     sigma: float
 ) -> np.ndarray:
     v = u
-    v[0] = u[0] * 2  # k_1 (1/s)
+    v[0] = u[0] * 1e3 + 0.01  # K_1 / k_2
     v[1] = u[1] * 0.5 + 0.00001  # k_2 (1/s)
-    v[2] = u[2] * 0.05 + 0.00001  # k_3 (1/s)
-    v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
+    v[2] = u[2] * 1e3 + 1  # k_3 / k_4
+    v[3] = u[3] * 0.5 + 0.00001  # k_4 (1/s)
     v[4] = u[4] * 999.9 + 0.1  # V (mL/cm^{-3}) is total volume := V_N + V_S
-    # v[5] = u[5] * 120 - 60  # \tau_a (s)
     v[5] = u[5] * 120  # t_0 (s)
     v[6] = u[6] * sigma  # sigma ~ fraction of M0
     return v
@@ -56,10 +50,11 @@ def loglike(
     timesMid: np.ndarray,
     taus: np.ndarray,
     rho_input_func_interp: np.ndarray,
+    delta_time: int,
     isidif: bool
 ) -> float:
     assert rho.ndim == 1, "rho must be 1-dimensional"
-    rho_pred, _, _, _ = signalmodel(v, rho, timesMid, taus, rho_input_func_interp, isidif)
+    rho_pred, _, _, _ = signalmodel(v, rho, timesMid, taus, rho_input_func_interp, delta_time, isidif)
     sigma = v[-1]
     residsq = (rho_pred - rho) ** 2 / sigma ** 2
     loglike = -0.5 * np.sum(residsq + np.log(2 * np.pi * sigma ** 2))
@@ -75,57 +70,50 @@ def signalmodel(
     timesMid: np.ndarray,
     taus: np.ndarray,
     rho_input_func_interp: np.ndarray,
+    delta_time: int,
     isidif: bool
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """ Ichise2002Solver assumes all input params to be decay-corrected """
 
-    ks = v[:4]
-    K1 = ks[0]
-    V = v[4]  # total volume of distribution V^\star = V_P + V_N + V_S, per Ichise 2002 appendix
+    ks = np.zeros(4)
+    ks[0] = v[0] * v[1]  # K_1
+    ks[1] = v[1]  # k_2
+    ks[2] = v[2] * v[3]  # k_3
+    ks[3] = v[3]  # k_4
+    V = v[4] 
     g1 = V * ks[1] * ks[3]
     g2 = -1 * ks[1] * ks[3]
     g3 = -(ks[1] + ks[2] + ks[3])
-    g4 = K1
+    g4 = ks[0]
     t_0 = v[5]
 
     n_times = rho_input_func_interp.shape[0]
     timesIdeal = np.arange(0, n_times)
 
-    # Find indices where input function exceeds 5% of max
-    indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))
-    # Handle case where no values exceed threshold
-    if len(indices[0]) == 0:
-        idx_a = 1  # Default to 1 if no values exceed threshold
-    else:
-        idx_a = max(indices[0][0], 1)  # Take first index but ensure >= 1
-
-    # slide input function to fit
-
-    if not isidif:
-        # slide input function to left,
-        # since its measurements is delayed by radial artery cannulation
-        rho_input_func_interp = slide(
-            rho_input_func_interp,
-            timesIdeal,
-            -timesIdeal[idx_a])
-    rho_input_func_interp = slide(
+    rho_input_func_interp = slide_input_func(
         rho_input_func_interp,
         timesIdeal,
-        t_0)
+        t_0,
+        isidif
+    )
 
     # propagate input function
 
     # rho_oversampled over-samples rho to match rho_t
     # rho_t is the inferred source signal, sampled to match input_func_interp
-
-    rho_oversampled = np.interp(timesIdeal, timesMid, rho)
-    rho_ideal = np.zeros(len(timesIdeal))
-    for tidx, time in enumerate(timesIdeal):
-        _tidx_interval = np.arange(0, tidx + 1)
-        _time_interval = timesIdeal[_tidx_interval]
+    # Downsample timesIdeal for faster integration
+    timesIdeal_ds = timesIdeal[::delta_time]
+    
+    rho_oversampled = np.interp(timesIdeal_ds, timesMid, rho)
+    rho_input_func_interp_ds = np.interp(timesIdeal_ds, timesIdeal, rho_input_func_interp)
+    
+    rho_ideal_ds = np.zeros(len(timesIdeal_ds))
+    for tidx, time in enumerate(timesIdeal_ds):
+        _tidx_interval = np.arange(0, tidx + 1) 
+        _time_interval = timesIdeal_ds[_tidx_interval]
 
         _rho_interval = rho_oversampled[_tidx_interval]
-        _rho_p_interval = rho_input_func_interp[_tidx_interval]  # integration interval
+        _rho_p_interval = rho_input_func_interp_ds[_tidx_interval]  # integration interval
         
         dt = _time_interval[1] - _time_interval[0]  # Uniform time step
 
@@ -142,9 +130,12 @@ def signalmodel(
         cumsum1 = np.cumsum(_rho_p_interval[:-1])  # np.cumsum is supported by numba
         int1 = np.sum(cumsum1) * dt * dt / 2  # dt for each integral
 
-        rho_ideal[tidx] = g1 * int1 + g2 * int2 + g3 * int3 + g4 * int4
+        rho_ideal_ds[tidx] = g1 * int1 + g2 * int2 + g3 * int3 + g4 * int4
 
-    rho_ideal[rho_ideal < 0] = 0
+    rho_ideal_ds[rho_ideal_ds < 0] = 0
+    
+    # Upsample back to original time points
+    rho_ideal = np.interp(timesIdeal, timesIdeal_ds, rho_ideal_ds)
 
     if not isidif:
         rho_pred = np.interp(timesMid, timesIdeal, rho_ideal)
@@ -172,6 +163,37 @@ def apply_boxcar(rho: np.ndarray, timesMid: np.ndarray, taus: np.ndarray) -> np.
 
 
 @jit(nopython=True)
+def slide_input_func(
+    rho_input_func_interp: np.ndarray,
+    timesIdeal: np.ndarray,
+    t_0: float,
+    isidif: bool,
+) -> np.ndarray:
+    """ slide input function, aif or idif, to fit """
+
+    if not isidif:
+
+        # Find indices where input function exceeds 5% of max
+        indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))
+        # Handle case where no values exceed threshold
+        if len(indices[0]) == 0:
+            idx_a = 1  # Default to 1 if no values exceed threshold
+        else:
+            idx_a = max(indices[0][0], 1)  # Take first index but ensure >= 1
+
+        # slide input function to left,
+        # since its measurements is delayed by radial artery cannulation
+        rho_input_func_interp = slide(
+            rho_input_func_interp,
+            timesIdeal,
+            -timesIdeal[idx_a])
+    return slide(
+        rho_input_func_interp,
+        timesIdeal,
+        t_0)
+
+
+@jit(nopython=True)
 def slide(rho: np.ndarray, t: np.ndarray, dt: float, halflife: float = 0) -> np.ndarray:
     """ slides rho by dt seconds, optionally decays it by halflife. """
 
@@ -184,7 +206,7 @@ def slide(rho: np.ndarray, t: np.ndarray, dt: float, halflife: float = 0) -> np.
         return rho
 
 
-class Ichise2002Solver(TissueSolver):
+class Ichise2002Solver(TwoTCSolver):
     """Solver implementing Ichise's 2002 model for PET data analysis.
 
     This class implements the tissue model described in Ichise et al. 2002 [1] for analyzing
@@ -216,178 +238,3 @@ class Ichise2002Solver(TissueSolver):
     @property
     def labels(self):
         return [r"$K_1$", r"$k_2$", r"$k_3$", r"$k_4$", r"$V$", r"$t_0$", r"$\sigma$"]
-    
-    @staticmethod
-    def _loglike(selected_data: dict):
-        # Cache values using nonlocal for faster access
-        rho = selected_data["rho"]
-        timesMid = selected_data["timesMid"]
-        taus = selected_data["taus"]
-        rho_input_func_interp = selected_data["rho_input_func_interp"]
-        isidif = selected_data["isidif"]
-
-        # Check dimensions
-        if rho.ndim != 1:
-            raise ValueError("rho must be 1-dimensional")
-        if rho_input_func_interp.ndim != 1:
-            raise ValueError("rho_input_func_interp must be 1-dimensional")
-
-        # Create wrapper that matches dynesty's expected signature
-        def wrapped_loglike(v):
-            nonlocal rho, timesMid, taus, rho_input_func_interp, isidif
-            return loglike(
-                v,
-                rho,
-                timesMid,
-                taus,
-                rho_input_func_interp,
-                isidif)
-        return wrapped_loglike
-
-    @staticmethod
-    def _prior_transform(selected_data: dict):
-        # Create wrapper that matches dynesty's expected signature
-        sigma = selected_data["sigma"]
-
-        def wrapped_prior_transform(u):
-            nonlocal sigma
-            return prior_transform(u, sigma)
-        return wrapped_prior_transform
-
-    @staticmethod
-    def _run_nested(selected_data: dict) -> dyutils.Results:
-        if selected_data["resume"]:
-            sampler = dynesty.DynamicNestedSampler.restore(selected_data["checkpoint_file"])
-        else:
-            loglike = Ichise2002Solver._loglike(selected_data)
-            prior_transform = Ichise2002Solver._prior_transform(selected_data)
-            sampler = dynesty.DynamicNestedSampler(
-                loglikelihood=loglike,
-                prior_transform=prior_transform,
-                ndim=selected_data["ndim"],
-                sample=selected_data["sample"],
-                nlive=selected_data["nlive"],
-                rstate=selected_data["rstate"]
-            )
-        sampler.run_nested(
-            checkpoint_file=selected_data["checkpoint_file"],
-            print_progress=selected_data["print_progress"],
-            resume=selected_data["resume"],
-            wt_kwargs={"pfrac": selected_data["pfrac"]}
-        )
-        return sampler.results
-
-    def _run_nested_pool(
-            self,
-            checkpoint_file: list[str] | None = None,
-            print_progress: bool = False,
-            resume: bool = False,
-            parc_index: list[int] | tuple[int, ...] | NDArray | None = None
-    ) -> list[dyutils.Results]:
-
-        if not parc_index:
-            parc_index = range(len(self.data.rho))
-        elif isinstance(parc_index, np.ndarray):
-            parc_index = parc_index.tolist()
-
-        if checkpoint_file and len(checkpoint_file) != len(parc_index):
-            raise ValueError("checkpoint_file must be a list of strings matching length of parc_index")
-
-        # Create args list suitable for Pool.starmap()
-        args = []
-        for i, pidx in enumerate(parc_index):
-            cf = checkpoint_file[i] if isinstance(checkpoint_file, list) else None
-            selected_data = {
-                "rho": self.data.rho[pidx],
-                "timesMid": self.data.timesMid,
-                "taus": self.data.taus,
-                "rho_input_func_interp": self.data.rho_input_func_interp,
-                "isidif": self.data.isidif,
-                "sigma": self.data.sigma,
-                "ndim": self.ndim,
-                "sample": self.data.sample,
-                "nlive": self.data.nlive,
-                "rstate": self.data.rstate,
-                "checkpoint_file": cf,
-                "resume": resume,
-                "pfrac": self.data.pfrac,
-                "print_progress": False
-            }
-            args.append(selected_data)
-
-        # Sequential execution for testing
-        # _results = [Huang1980Solver.__run_nested(*arg) for arg in args]
-        # self._set_cached_dynesty_results(_results)
-        # return _results
-
-        # Use multiprocessing Pool to parallelize execution is incompatible with instance methods
-        with Pool() as p:
-            _results = p.starmap(Ichise2002Solver._run_nested, [(arg,) for arg in args])
-            self._set_cached_dynesty_results(_results)
-        return _results
-
-    def _run_nested_single(
-            self,
-            checkpoint_file: str | None = None,
-            print_progress: bool = False,
-            resume: bool = False,
-            parc_index: int | None = None
-    ) -> dyutils.Results:
-        if parc_index is None:
-            raise ValueError("parc_index must be provided")
-        selected_data = {
-            "rho": self.data.rho[parc_index],
-            "timesMid": self.data.timesMid,
-            "taus": self.data.taus,
-            "rho_input_func_interp": self.data.rho_input_func_interp,
-            "isidif": self.data.isidif,
-            "sigma": self.data.sigma,
-            "ndim": self.ndim,
-            "sample": self.data.sample,
-            "nlive": self.data.nlive,
-            "rstate": self.data.rstate,
-            "checkpoint_file": checkpoint_file,
-            "resume": resume,
-            "pfrac": self.data.pfrac,
-            "print_progress": print_progress
-        }
-
-        _results = Ichise2002Solver._run_nested(selected_data)
-        self._set_cached_dynesty_results(_results)
-        return _results
-
-    def signalmodel(
-            self,
-            v: list | tuple | NDArray,
-            parc_index: int | None = None  # Unused parameter for API consistency
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-
-        v = np.array(v, dtype=float)
-        if not isinstance(v, np.ndarray) or v.ndim != 1 or len(v) != self.ndim:
-            raise ValueError(f"v must be 1-dimensional array of length {self.ndim}")
-        return signalmodel(
-            v,
-            self.data.rho,
-            self.data.timesMid,
-            self.data.taus,
-            self.data.rho_input_func_interp,
-            self.data.isidif
-        )
-
-    def loglike(
-            self,
-            v: list | tuple | NDArray,
-            parc_index: int | None = None  # Unused parameter for API consistency
-    ) -> float:
-
-        v = np.array(v, dtype=float)
-        if not isinstance(v, np.ndarray) or v.ndim != 1 or len(v) != self.ndim:
-            raise ValueError(f"v must be 1-dimensional array of length {self.ndim}")
-        return loglike(
-            v,
-            self.data.rho,
-            self.data.timesMid,
-            self.data.taus,
-            self.data.rho_input_func_interp,
-            self.data.isidif
-        )

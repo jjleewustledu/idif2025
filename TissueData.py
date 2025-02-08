@@ -90,7 +90,7 @@ class TissueData(DynestyData):
                 raise ValueError(f"input_func_type {self.input_func_type} not recognized")
         assert self._data_dict["recovery_coefficient"] >= 1, "recovery_coefficient must be >= 1"
         if "delta_time" not in self._data_dict:
-            self._data_dict["delta_time"] = 1
+            self._data_dict["delta_time"] = 10
         if "nparcels" not in self._data_dict:
             self._data_dict["nparcels"] = 1
         if "pfrac" not in self._data_dict:

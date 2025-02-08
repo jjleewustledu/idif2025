@@ -61,11 +61,12 @@ def loglike(
     timesMid: np.ndarray,
     taus: np.ndarray,
     rho_input_func_interp: np.ndarray,
+    delta_time: int,
     M: int,
     isidif: bool
 ) -> float:
     assert rho.ndim == 1, "rho must be 1-dimensional"
-    rho_pred, _, _, _ = signalmodel(v, timesMid, taus, rho_input_func_interp, M, isidif)
+    rho_pred, _, _, _ = signalmodel(v, timesMid, taus, rho_input_func_interp, delta_time, M, isidif)
     sigma = v[-1]
     residsq = (rho_pred - rho) ** 2 / sigma ** 2
     loglike = -0.5 * np.sum(residsq + np.log(2 * np.pi * sigma ** 2))
@@ -80,6 +81,7 @@ def signalmodel(
     timesMid: np.ndarray,
     taus: np.ndarray,
     rho_input_func_interp: np.ndarray,
+    delta_time: int,
     M: int,
     isidif: bool
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -95,7 +97,6 @@ def signalmodel(
 
     n_times = rho_input_func_interp.shape[0]
     timesIdeal = np.arange(0, n_times)
-    timesIdeal1 = np.arange(0, n_times + 1)
 
     # Find indices where input function exceeds 5% of max
     indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))
@@ -118,35 +119,43 @@ def signalmodel(
         rho_input_func_interp,
         timesIdeal,
         t_0)
-    rho_input_func_interp1 = np.append(rho_input_func_interp, rho_input_func_interp[-1])
 
-    # propagate input function
+    # Down sample timesIdeal by delta_time
+    timesIdeal_ds = timesIdeal[::delta_time]
+    n_times_ds = len(timesIdeal_ds)
+    rho_input_func_interp_ds = rho_input_func_interp[::delta_time]
+    rho_input_func_interp1_ds = np.append(rho_input_func_interp_ds, rho_input_func_interp_ds[-1])
 
-    propagator = np.zeros((M, n_times))
+    # Calculate propagator on down sampled grid
+    propagator = np.zeros((M, n_times_ds))
     for m in np.arange(M):
-        propagator[m] = a[m] * np.exp(-b[m] * timesIdeal)
+        propagator[m] = a[m] * np.exp(-b[m] * timesIdeal_ds)
 
-    rho_ideal = 0
+    # Implement numerical convolution on down sampled grid
+    rho_ideal_ds = 0
     for m in np.arange(M):
         n_propagator = len(propagator[m])
-        n_artery = len(rho_input_func_interp) 
+        n_artery = len(rho_input_func_interp_ds)
         n_conv = n_propagator + n_artery - 1
         conv = np.zeros(n_conv)
         for i in range(n_conv):
             for j in range(max(0, i - n_propagator + 1), min(i + 1, n_artery)):
-                conv[i] += propagator[m][i - j] * rho_input_func_interp[j]
-        rho_ideal = rho_ideal + conv        
-    rho_ideal = rho_ideal[:n_times]
-    
-    # Implement cumulative trapezoidal integration manually for numba compatibility
+                conv[i] += propagator[m][i - j] * rho_input_func_interp_ds[j]
+        rho_ideal_ds = rho_ideal_ds + conv
+    rho_ideal_ds = rho_ideal_ds[:n_times_ds]
 
-    dt = timesIdeal1[1] - timesIdeal1[0]  # Uniform spacing
-    cumtrapz = np.zeros(len(timesIdeal))
+    # Cumulative trapezoidal integration on down sampled grid
+    dt = (timesIdeal_ds[1] - timesIdeal_ds[0]) if len(timesIdeal_ds) > 1 else 1  # Uniform spacing
+    cumtrapz_ds = np.zeros(len(timesIdeal_ds))
     cumsum = 0.0
-    for i in range(len(cumtrapz)):
-        cumsum += 0.5 * (rho_input_func_interp1[i] + rho_input_func_interp1[i+1]) * dt
-        cumtrapz[i] = cumsum
-    rho_ideal = rho_ideal + a_0 * cumtrapz
+    for i in range(len(cumtrapz_ds)):
+        cumsum += 0.5 * (rho_input_func_interp1_ds[i] + rho_input_func_interp1_ds[i+1]) * dt
+        cumtrapz_ds[i] = cumsum
+
+    rho_ideal_ds = rho_ideal_ds + a_0 * cumtrapz_ds
+
+    # Up sample back to original timesIdeal sampling
+    rho_ideal = np.interp(timesIdeal, timesIdeal_ds, rho_ideal_ds)
 
     if not isidif:
         rho_pred = np.interp(timesMid, timesIdeal, rho_ideal)
@@ -239,6 +248,7 @@ class SpectralSolver(TissueSolver):
         timesMid = selected_data["timesMid"]
         taus = selected_data["taus"]
         rho_input_func_interp = selected_data["rho_input_func_interp"]
+        delta_time = selected_data["delta_time"]
         M = selected_data["M"]
         isidif = selected_data["isidif"]
 
@@ -250,13 +260,14 @@ class SpectralSolver(TissueSolver):
 
         # Create wrapper that matches dynesty's expected signature
         def wrapped_loglike(v):
-            nonlocal rho, timesMid, taus, rho_input_func_interp, M, isidif
+            nonlocal rho, timesMid, taus, rho_input_func_interp, delta_time, M, isidif
             return loglike(
                 v,
                 rho,
                 timesMid,
                 taus,
                 rho_input_func_interp,
+                delta_time,
                 M,
                 isidif)
         return wrapped_loglike
@@ -320,6 +331,7 @@ class SpectralSolver(TissueSolver):
                 "timesMid": self.data.timesMid,
                 "taus": self.data.taus,
                 "rho_input_func_interp": self.data.rho_input_func_interp,
+                "delta_time": self.data.delta_time,
                 "isidif": self.data.isidif,
                 "sigma": self.data.sigma,
                 "M": self.data.M,
@@ -359,6 +371,7 @@ class SpectralSolver(TissueSolver):
             "timesMid": self.data.timesMid,
             "taus": self.data.taus,
             "rho_input_func_interp": self.data.rho_input_func_interp,
+            "delta_time": self.data.delta_time,
             "isidif": self.data.isidif,
             "sigma": self.data.sigma,
             "M": self.data.M,
@@ -390,6 +403,7 @@ class SpectralSolver(TissueSolver):
             self.data.timesMid,
             self.data.taus,
             self.data.rho_input_func_interp,
+            self.data.delta_time,
             self.data.M,
             self.data.isidif
         )
@@ -409,6 +423,7 @@ class SpectralSolver(TissueSolver):
             self.data.timesMid,
             self.data.taus,
             self.data.rho_input_func_interp,
+            self.data.delta_time,
             self.data.M,
             self.data.isidif
         )

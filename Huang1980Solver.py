@@ -77,7 +77,7 @@ def signalmodel(
     delta_time: int,
     isidif: bool
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """ Huang1980Solver assumes all input params to be decay-corrected 
+    """ Huang1980Solver assumes all input params to be decay-corrected;
         delta_time (int) is the downsample factor to speed up convolution
     """
 
@@ -90,27 +90,12 @@ def signalmodel(
     n_times = rho_input_func_interp.shape[0]
     timesIdeal = np.arange(0, n_times)
 
-    # Find indices where input function exceeds 5% of max
-    indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))
-    # Handle case where no values exceed threshold
-    if len(indices[0]) == 0:
-        idx_a = 1  # Default to 1 if no values exceed threshold
-    else:
-        idx_a = max(indices[0][0], 1)  # Take first index but ensure >= 1
-
-    # slide input function to fit
-
-    if not isidif:
-        # slide input function to left,
-        # since its measurements is delayed by radial artery cannulation
-        rho_input_func_interp = slide(
-            rho_input_func_interp,
-            timesIdeal,
-            -timesIdeal[idx_a])
-    rho_input_func_interp = slide(
+    rho_input_func_interp = slide_input_func(
         rho_input_func_interp,
         timesIdeal,
-        t_0)
+        t_0,
+        isidif
+    )
 
     # propagate input function
 
@@ -184,6 +169,37 @@ def apply_boxcar(rho: np.ndarray, timesMid: np.ndarray, taus: np.ndarray) -> np.
     cumsum = np.cumsum(np.concatenate((np.zeros(1), rho)))
     rho_sampled = (cumsum[timesF_int] - cumsum[times0_int]) / taus
     return np.nan_to_num(rho_sampled, 0)
+
+
+@jit(nopython=True)
+def slide_input_func(
+    rho_input_func_interp: np.ndarray,
+    timesIdeal: np.ndarray,
+    t_0: float,
+    isidif: bool,
+) -> np.ndarray:
+    """ slide input function, aif or idif, to fit """
+
+    if not isidif:
+
+        # Find indices where input function exceeds 5% of max
+        indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))
+        # Handle case where no values exceed threshold
+        if len(indices[0]) == 0:
+            idx_a = 1  # Default to 1 if no values exceed threshold
+        else:
+            idx_a = max(indices[0][0], 1)  # Take first index but ensure >= 1
+
+        # slide input function to left,
+        # since its measurements is delayed by radial artery cannulation
+        rho_input_func_interp = slide(
+            rho_input_func_interp,
+            timesIdeal,
+            -timesIdeal[idx_a])
+    return slide(
+        rho_input_func_interp,
+        timesIdeal,
+        t_0)
 
 
 @jit(nopython=True)

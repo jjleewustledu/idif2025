@@ -28,7 +28,6 @@ import numpy as np
 from numba import jit
 from numpy.typing import NDArray
 
-
 from TissueSolver import TissueSolver
 
 
@@ -41,9 +40,10 @@ def prior_transform(
     v[0] = u[0] * 1e3 + 1  # k_1/k_2
     v[1] = u[1] * 0.5 + 0.00001  # k_2 (1/s)
     v[2] = u[2] * 1e3 + 1  # k_3/k_4
-    v[3] = u[3] * 0.05 + 0.00001  # k_4 (1/s)
+    v[3] = u[3] * 0.5 + 0.00001  # k_4 (1/s)
     v[4] = u[4] * 20  # t_0 (s)
-    v[5] = u[5] * sigma  # sigma ~ fraction of A0
+    v[5] = u[5] * 0.995 + 0.005  # v_1
+    v[6] = u[6] * sigma  # sigma ~ fraction of A0
     return v
 
 
@@ -54,10 +54,11 @@ def loglike(
     timesMid: np.ndarray,
     taus: np.ndarray,
     rho_input_func_interp: np.ndarray,
+    delta_time: int,
     isidif: bool
 ) -> float:
     assert rho.ndim == 1, "rho must be 1-dimensional"
-    rho_pred, _, _, _ = signalmodel(v, timesMid, taus, rho_input_func_interp, isidif)
+    rho_pred, _, _, _ = signalmodel(v, timesMid, taus, rho_input_func_interp, delta_time, isidif)
     sigma = v[-1]
     residsq = (rho_pred - rho) ** 2 / sigma ** 2
     loglike = -0.5 * np.sum(residsq + np.log(2 * np.pi * sigma ** 2))
@@ -72,40 +73,29 @@ def signalmodel(
     timesMid: np.ndarray,
     taus: np.ndarray,
     rho_input_func_interp: np.ndarray,
+    delta_time: int,
     isidif: bool
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """ TwoTCSolver assumes all input params to be decay-corrected """
+    """ TwoTCSolver assumes all input params to be decay-corrected;     
+        delta_time (int) is the downsample factor to speed up convolution
+    """
 
-    K1 = v[0] * v[1]  # k1/k2 * k2
+    k1 = v[0] * v[1]  # k1/k2 * k2
     k2 = v[1]
     k3 = v[2] * v[3]  # k3/k4 * k4
     k4 = v[3]
     t_0 = v[4]
+    v1 = v[5]
 
     n_times = rho_input_func_interp.shape[0]
     timesIdeal = np.arange(0, n_times)
 
-    # Find indices where input function exceeds 5% of max
-    indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))
-    # Handle case where no values exceed threshold
-    if len(indices[0]) == 0:
-        idx_a = 1  # Default to 1 if no values exceed threshold
-    else:
-        idx_a = max(indices[0][0], 1)  # Take first index but ensure >= 1
-
-    # slide input function to fit
-
-    if not isidif:
-        # slide input function to left,
-        # since its measurements is delayed by radial artery cannulation
-        rho_input_func_interp = slide(
-            rho_input_func_interp,
-            timesIdeal,
-            -timesIdeal[idx_a])
-    rho_input_func_interp = slide(
+    rho_input_func_interp = slide_input_func(
         rho_input_func_interp,
         timesIdeal,
-        t_0)
+        t_0,
+        isidif
+    )
 
     # propagate input function
 
@@ -120,28 +110,41 @@ def signalmodel(
     # conv_h2o = np.convolve(propagator, artery_h2o, mode="full")
     # conv_o2 = np.convolve(propagator, artery_o2, mode="full")
     # numba jit --------------------------------------------------------
-    n_propagator = len(propagator_a)
-    n_artery = len(rho_input_func_interp)
-    n_conv = n_propagator + n_artery - 1
-    conv_a = np.zeros(n_conv)
-    for i in range(n_conv):
-        for j in range(max(0, i - n_propagator + 1), min(i + 1, n_artery)):
-            conv_a[i] += propagator_a[i - j] * rho_input_func_interp[j]
-    conv_b = np.zeros(n_conv)
-    for i in range(n_conv):
-        for j in range(max(0, i - n_propagator + 1), min(i + 1, n_artery)):
-            conv_b[i] += propagator_b[i - j] * rho_input_func_interp[j]
-    conv_a = conv_a[:n_times]  # interpolated to the input function times
-    conv_b = conv_b[:n_times]  # interpolated to the input function times
+    
+    # Downsample signals for convolution
+    prop_a_ds = propagator_a[::delta_time]
+    prop_b_ds = propagator_b[::delta_time] 
+    rho_ds = rho_input_func_interp[::delta_time]
+    
+    n_prop_ds = len(prop_a_ds)
+    n_rho_ds = len(rho_ds)
+    n_conv_ds = n_prop_ds + n_rho_ds - 1
+    
+    # Perform convolution on downsampled signals
+    conv_a_ds = np.zeros(n_conv_ds)
+    for i in range(n_conv_ds):
+        for j in range(max(0, i - n_prop_ds + 1), min(i + 1, n_rho_ds)):
+            conv_a_ds[i] += prop_a_ds[i - j] * rho_ds[j]
+            
+    conv_b_ds = np.zeros(n_conv_ds)
+    for i in range(n_conv_ds):
+        for j in range(max(0, i - n_prop_ds + 1), min(i + 1, n_rho_ds)):
+            conv_b_ds[i] += prop_b_ds[i - j] * rho_ds[j]
+            
+    # Interpolate back to original time points
+    t_ds = np.arange(0, n_conv_ds) * delta_time
+    t_full = np.arange(n_times)
+    conv_a = np.interp(t_full, t_ds, conv_a_ds)
+    conv_b = np.interp(t_full, t_ds, conv_b_ds)
 
     # package compartments
 
     conv_2 = (k4 - alpha) * conv_a + (beta - k4) * conv_b
     conv_3 = conv_a - conv_b
-    q2 = (K1 / bminusa) * conv_2
-    q3 = (k3 * K1 / bminusa) * conv_3
+    q2 = (k1 / bminusa) * conv_2
+    q3 = (k3 * k1 / bminusa) * conv_3
 
-    rho_ideal = rho_input_func_interp + q2 + q3
+    rho_ideal = v1 * (rho_input_func_interp + q2 + q3) * delta_time
 
     if not isidif:
         rho_pred = np.interp(timesMid, timesIdeal, rho_ideal)
@@ -166,6 +169,37 @@ def apply_boxcar(rho: np.ndarray, timesMid: np.ndarray, taus: np.ndarray) -> np.
     cumsum = np.cumsum(np.concatenate((np.zeros(1), rho)))
     rho_sampled = (cumsum[timesF_int] - cumsum[times0_int]) / taus
     return np.nan_to_num(rho_sampled, 0)
+
+
+@jit(nopython=True)
+def slide_input_func(
+    rho_input_func_interp: np.ndarray,
+    timesIdeal: np.ndarray,
+    t_0: float,
+    isidif: bool,
+) -> np.ndarray:
+    """ slide input function, aif or idif, to fit """
+
+    if not isidif:
+
+        # Find indices where input function exceeds 5% of max
+        indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))
+        # Handle case where no values exceed threshold
+        if len(indices[0]) == 0:
+            idx_a = 1  # Default to 1 if no values exceed threshold
+        else:
+            idx_a = max(indices[0][0], 1)  # Take first index but ensure >= 1
+
+        # slide input function to left,
+        # since its measurements is delayed by radial artery cannulation
+        rho_input_func_interp = slide(
+            rho_input_func_interp,
+            timesIdeal,
+            -timesIdeal[idx_a])
+    return slide(
+        rho_input_func_interp,
+        timesIdeal,
+        t_0)
 
 
 @jit(nopython=True)
@@ -211,7 +245,7 @@ class TwoTCSolver(TissueSolver):
 
     @property
     def labels(self):
-        return [r"$K_1/k_2$", r"$k_2$", r"$k_3/k_4$", r"$k_4$", r"$t_0$", r"$\sigma$"]
+        return [r"$k_1/k_2$", r"$k_2$", r"$k_3/k_4$", r"$k_4$", r"$t_0$", r"$v_1$", r"$\sigma$"]
     
     @staticmethod
     def _loglike(selected_data: dict):
@@ -220,6 +254,7 @@ class TwoTCSolver(TissueSolver):
         timesMid = selected_data["timesMid"]
         taus = selected_data["taus"]
         rho_input_func_interp = selected_data["rho_input_func_interp"]
+        delta_time = selected_data["delta_time"]
         isidif = selected_data["isidif"]
 
         # Check dimensions
@@ -230,13 +265,14 @@ class TwoTCSolver(TissueSolver):
 
         # Create wrapper that matches dynesty's expected signature
         def wrapped_loglike(v):
-            nonlocal rho, timesMid, taus, rho_input_func_interp, isidif
+            nonlocal rho, timesMid, taus, rho_input_func_interp, delta_time, isidif
             return loglike(
                 v,
                 rho,
                 timesMid,
                 taus,
                 rho_input_func_interp,
+                delta_time,
                 isidif)
         return wrapped_loglike
 
@@ -298,6 +334,7 @@ class TwoTCSolver(TissueSolver):
                 "timesMid": self.data.timesMid,
                 "taus": self.data.taus,
                 "rho_input_func_interp": self.data.rho_input_func_interp,
+                "delta_time": self.data.delta_time,
                 "isidif": self.data.isidif,
                 "sigma": self.data.sigma,
                 "ndim": self.ndim,
@@ -336,6 +373,7 @@ class TwoTCSolver(TissueSolver):
             "timesMid": self.data.timesMid,
             "taus": self.data.taus,
             "rho_input_func_interp": self.data.rho_input_func_interp,
+            "delta_time": self.data.delta_time,
             "isidif": self.data.isidif,
             "sigma": self.data.sigma,
             "ndim": self.ndim,
@@ -366,6 +404,7 @@ class TwoTCSolver(TissueSolver):
             self.data.timesMid,
             self.data.taus,
             self.data.rho_input_func_interp,
+            self.data.delta_time,
             self.data.isidif
         )
 
@@ -384,5 +423,6 @@ class TwoTCSolver(TissueSolver):
             self.data.timesMid,
             self.data.taus,
             self.data.rho_input_func_interp,
+            self.data.delta_time,
             self.data.isidif
         )

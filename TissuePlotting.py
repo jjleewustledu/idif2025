@@ -71,9 +71,11 @@ class TissuePlotting(DynestyPlotting):
             self.context.solver._set_cached_dynesty_results(results)
 
         if not parc_index:
-            parc_index = range(len(self.context.solver.truths))
-
-        truths = self.context.solver.truths        
+            if self.context.solver.truths.ndim == 2:
+                parc_index = range(self.context.solver.truths.shape[0])
+            else:
+                parc_index = [0]
+        truths = self.context.solver.truths
         A_max = self.context.data.max_tissue_measurement
 
         # input function prediction
@@ -120,7 +122,8 @@ class TissuePlotting(DynestyPlotting):
                 label=f"PET measured, parcel 0:{ncolors-1}")
             
             # signal model
-            rho_pred, timesMid_pred, _, _ = self.context.solver.signalmodel(truths[i], parc_index=pidx)
+            truth_params = truths[i] if truths.ndim == 2 else truths
+            rho_pred, timesMid_pred, _, _ = self.context.solver.signalmodel(truth_params, parc_index=pidx)
             p2, = ax.plot(
                 timesMid_pred,
                 yscaling * A_max * rho_pred,

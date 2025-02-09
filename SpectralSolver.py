@@ -43,7 +43,7 @@ def prior_transform(
     v[1] = u[1] * 0.05 + 0.00003  # 1/(3*T_{end}) < \beta < 3/T_{in}
     for m in np.arange(1, M):
         v[2 * m] = u[2 * m]  # \alpha_1 ~ K_1
-        v_max = v[2 * m - 1] - np.finfo(float).eps
+        v_max = v[2 * m - 1] - 1e-12
         v[2 * m + 1] = u[2 * m + 1] * v_max  # \beta_1 ~ k_2; \beta_2 < \beta_1
     v[2 * M] = u[2 * M] * 0.05  # \alpha_0 ~ V_p
 
@@ -98,30 +98,18 @@ def signalmodel(
     n_times = rho_input_func_interp.shape[0]
     timesIdeal = np.arange(0, n_times)
 
-    # Find indices where input function exceeds 5% of max
-    indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))
-    # Handle case where no values exceed threshold
-    if len(indices[0]) == 0:
-        idx_a = 1  # Default to 1 if no values exceed threshold
-    else:
-        idx_a = max(indices[0][0], 1)  # Take first index but ensure >= 1
-
-    # slide input function to fit
-
-    if not isidif:
-        # slide input function to left,
-        # since its measurements is delayed by radial artery cannulation
-        rho_input_func_interp = slide(
-            rho_input_func_interp,
-            timesIdeal,
-            -timesIdeal[idx_a])
-    rho_input_func_interp = slide(
+    rho_input_func_interp = slide_input_func(
         rho_input_func_interp,
         timesIdeal,
-        t_0)
+        t_0,
+        isidif
+    )
+
+    # propagate input function
 
     # Down sample timesIdeal by delta_time
     timesIdeal_ds = timesIdeal[::delta_time]
+    dt = (timesIdeal_ds[1] - timesIdeal_ds[0]) if len(timesIdeal_ds) > 1 else 1  # Uniform spacing
     n_times_ds = len(timesIdeal_ds)
     rho_input_func_interp_ds = rho_input_func_interp[::delta_time]
     rho_input_func_interp1_ds = np.append(rho_input_func_interp_ds, rho_input_func_interp_ds[-1])
@@ -132,20 +120,19 @@ def signalmodel(
         propagator[m] = a[m] * np.exp(-b[m] * timesIdeal_ds)
 
     # Implement numerical convolution on down sampled grid
-    rho_ideal_ds = 0
+    n_propagator = n_times_ds
+    n_artery = len(rho_input_func_interp_ds)
+    n_conv = n_propagator + n_artery - 1
+    rho_ideal_ds = np.zeros(n_conv)
     for m in np.arange(M):
-        n_propagator = len(propagator[m])
-        n_artery = len(rho_input_func_interp_ds)
-        n_conv = n_propagator + n_artery - 1
         conv = np.zeros(n_conv)
         for i in range(n_conv):
             for j in range(max(0, i - n_propagator + 1), min(i + 1, n_artery)):
                 conv[i] += propagator[m][i - j] * rho_input_func_interp_ds[j]
         rho_ideal_ds = rho_ideal_ds + conv
-    rho_ideal_ds = rho_ideal_ds[:n_times_ds]
+    rho_ideal_ds = rho_ideal_ds[:n_times_ds] * dt
 
     # Cumulative trapezoidal integration on down sampled grid
-    dt = (timesIdeal_ds[1] - timesIdeal_ds[0]) if len(timesIdeal_ds) > 1 else 1  # Uniform spacing
     cumtrapz_ds = np.zeros(len(timesIdeal_ds))
     cumsum = 0.0
     for i in range(len(cumtrapz_ds)):
@@ -180,6 +167,37 @@ def apply_boxcar(rho: np.ndarray, timesMid: np.ndarray, taus: np.ndarray) -> np.
     cumsum = np.cumsum(np.concatenate((np.zeros(1), rho)))
     rho_sampled = (cumsum[timesF_int] - cumsum[times0_int]) / taus
     return np.nan_to_num(rho_sampled, 0)
+
+
+@jit(nopython=True)
+def slide_input_func(
+    rho_input_func_interp: np.ndarray,
+    timesIdeal: np.ndarray,
+    t_0: float,
+    isidif: bool,
+) -> np.ndarray:
+    """ slide input function, aif or idif, to fit """
+
+    if not isidif:
+
+        # Find indices where input function exceeds 5% of max
+        indices = np.where(rho_input_func_interp > 0.05 * np.max(rho_input_func_interp))
+        # Handle case where no values exceed threshold
+        if len(indices[0]) == 0:
+            idx_a = 1  # Default to 1 if no values exceed threshold
+        else:
+            idx_a = max(indices[0][0], 1)  # Take first index but ensure >= 1
+
+        # slide input function to left,
+        # since its measurements is delayed by radial artery cannulation
+        rho_input_func_interp = slide(
+            rho_input_func_interp,
+            timesIdeal,
+            -timesIdeal[idx_a])
+    return slide(
+        rho_input_func_interp,
+        timesIdeal,
+        t_0)
 
 
 @jit(nopython=True)
@@ -230,14 +248,14 @@ class SpectralSolver(TissueSolver):
 
     @property
     def labels(self):
-        if self._labels:
+        if hasattr(self, "_labels"):
             return self._labels
 
         M = self.context.M
         lbls = []
         for m in np.arange(M):
             lbls.extend([fr"$\alpha_{{{m + 1}}}$", fr"$\beta_{{{m + 1}}}$"])
-        lbls.extend([r"$a_0$", r"$\sigma$"])
+        lbls.extend([r"$a_0$", r"$t_0$", r"$\sigma$"])
         self._labels = lbls
         return lbls
     

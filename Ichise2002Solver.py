@@ -23,6 +23,7 @@
 
 import numpy as np
 from numba import jit
+from numpy.typing import NDArray
 
 from TwoTCSolver import TwoTCSolver
 
@@ -38,7 +39,7 @@ def prior_transform(
     v[2] = u[2] * 1e3 + 1  # k_3 / k_4
     v[3] = u[3] * 0.5 + 0.00001  # k_4 (1/s)
     v[4] = u[4] * 999.9 + 0.1  # V (mL/cm^{-3}) is total volume := V_N + V_S
-    v[5] = u[5] * 120  # t_0 (s)
+    v[5] = u[5] * 20  # t_0 (s)
     v[6] = u[6] * sigma  # sigma ~ fraction of M0
     return v
 
@@ -237,4 +238,17 @@ class Ichise2002Solver(TwoTCSolver):
 
     @property
     def labels(self):
-        return [r"$K_1$", r"$k_2$", r"$k_3$", r"$k_4$", r"$V$", r"$t_0$", r"$\sigma$"]
+        return [r"$K_1/k_2$", r"$k_2$", r"$k_3/k_4$", r"$k_4$", r"$V_N + V_S$", r"$t_0$", r"$\sigma$"]
+
+    def volume_specific(self, v: list | tuple | NDArray):
+        K1 = v[0] * v[1]  # K_1
+        k2 = v[1]  # k_2
+        k3 = v[2] * v[3]  # k_3
+        k4 = v[3]  # k_4
+        return K1*k3/(k2*k4)
+
+    def volume_nonspecific(self, v: list | tuple | NDArray):
+        return v[4] - self.volume_specific(v)
+
+    def volume_total(self, v: list | tuple | NDArray):
+        return v[4]

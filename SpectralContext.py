@@ -25,7 +25,7 @@ import sys
 import logging
 import matplotlib
 
-from TissueData import TissueData
+from SpectralData import SpectralData
 from SpectralSolver import SpectralSolver
 from TissueContext import TissueContext
 
@@ -42,7 +42,7 @@ class SpectralContext(TissueContext):
             - tissue_fqfn (str): Fully qualified filename for tissue data
 
     Attributes:
-        data (TissueData): Data handler for the 2-tissue compartment model
+        data (SpectralData): Data handler for the 2-tissue compartment model
         solver (SpectralSolver): Solver implementing the 2-tissue compartment model
         tag (str): Identifier tag for the analysis
         input_func_type (str): Type of input function used
@@ -74,7 +74,7 @@ class SpectralContext(TissueContext):
 
     def __init__(self, data_dict: dict):
         super().__init__(data_dict)
-        self._data = TissueData(self, data_dict)
+        self._data = SpectralData(self, data_dict)
         self._solver = SpectralSolver(self)
         if "Spectral" not in self.tag:
             if self.tag:
@@ -89,7 +89,11 @@ class SpectralContext(TissueContext):
     @property
     def input_func_type(self):
         return self.data.input_func_type
-
+    
+    @property
+    def M(self):
+        return self.data.M
+    
     @property
     def solver(self):
         return self._solver

@@ -23,9 +23,10 @@
 
 import numpy as np
 from numba import jit
+from numpy.typing import NDArray
 
 
-from TissueSolver import TissueSolver
+from TwoTCSolver import TwoTCSolver
 
 
 @jit(nopython=True)
@@ -34,13 +35,13 @@ def prior_transform(
     sigma: float
 ) -> np.ndarray:
     v = u
-    v[0] = u[0] * 1e3 + 0.01  # k_1 / k_2
+    v[0] = u[0] * 1e3 + 1  # K_1 / k_2
     v[1] = u[1] * 0.5 + 0.00001  # k_2 (1/s)
     v[2] = u[2] * 1e3 + 1  # k_3 / k_4
     v[3] = u[3] * 0.5 + 0.00001  # k_4 (1/s)
-    v[4] = u[4] * 0.099 + 0.001  # V_P (mL/cm^{-3})
-    v[5] = u[5] * 9999.9 + 0.1  # V^\star (mL/cm^{-3}) is total volume := V_P + V_N + V_S
-    v[6] = u[6] * 120  # t_0 (s)
+    v[4] = u[4] * 0.995 + 0.005  # V_P (mL/cm^{-3})
+    v[5] = u[5] * 9999.9 + 0.1  # V_N + V_S; V^\star (mL/cm^{-3}) is total volume := V_P + V_N + V_S
+    v[6] = u[6] * 20  # t_0 (s)
     v[7] = u[7] * sigma  # sigma ~ fraction of M0
     return v
 
@@ -78,18 +79,18 @@ def signalmodel(
     """ Ichise2002VascSolver assumes all input params to be decay-corrected """
     
     ks = np.zeros(4)
-    ks[0] = v[0] * v[1]  # k_1
+    ks[0] = v[0] * v[1]  # K_1
     ks[1] = v[1]  # k_2
     ks[2] = v[2] * v[3]  # k_3
     ks[3] = v[3]  # k_4
     VP = v[4]
-    Vstar = v[5]  # total volume of distribution V^\star = V_P + V_N + V_S, per Ichise 2002 appendix
+    Vstar = VP + v[5]  # total volume of distribution V^\star = V_P + V_N + V_S, per Ichise 2002 appendix
     g1 = Vstar * ks[1] * ks[3]
     g2 = -1 * ks[1] * ks[3]
     g3 = -(ks[1] + ks[2] + ks[3])
-    g4star = VP*ks[0]
+    g4star = ks[0] + ks[1] * VP
     g5 = VP
-    t_0 = v[5]
+    t_0 = v[6]
 
     n_times = rho_input_func_interp.shape[0]
     timesIdeal = np.arange(0, n_times)
@@ -211,7 +212,7 @@ def slide(rho: np.ndarray, t: np.ndarray, dt: float, halflife: float = 0) -> np.
         return rho
 
 
-class Ichise2002VascSolver(TissueSolver):
+class Ichise2002VascSolver(TwoTCSolver):
     """Solver implementing Ichise's 2002 model for PET data analysis.
 
     This class implements the tissue model described in Ichise et al. 2002 [1] for analyzing
@@ -242,4 +243,34 @@ class Ichise2002VascSolver(TissueSolver):
 
     @property
     def labels(self):
-        return [r"$k_1$", r"$k_2$", r"$k_3$", r"$k_4$", r"$V_P$", r"$V^*$", r"$t_0$", r"$\sigma$"]
+        return [r"$k_1/k_2$", r"$k_2$", r"$k_3/k_4$", r"$k_4$", r"$V_P$", r"$V_N + V_S$", r"$t_0$", r"$\sigma$"]
+
+    def volume_specific(self, v: list | tuple | NDArray):        
+        ks = np.zeros(4)
+        ks[0] = v[0] * v[1]  # K_1
+        ks[1] = v[1]  # k_2
+        ks[2] = v[2] * v[3]  # k_3
+        ks[3] = v[3]  # k_4
+        VP = v[4]
+        Vstar = v[4] + v[5]  # total volume of distribution V^\star = V_P + V_N + V_S, per Ichise 2002 appendix
+        g1 = Vstar * ks[1] * ks[3]
+        g2 = -1 * ks[1] * ks[3]
+        g3 = -(ks[1] + ks[2] + ks[3])
+        g4star = ks[0]
+        g5 = VP
+
+        numer = g1*(g1 + g3*g4star) + g2*(g4star + g3*g5)**2
+        denom = g2*(g1 + g3*g4star)
+        return numer/denom
+
+    def volume_nonspecific(self, v: list | tuple | NDArray):
+        VNS = v[5]  # total volume of distribution V^\star = V_P + V_N + V_S, per Ichise 2002 appendix
+        VS = self.volume_specific(v)
+
+        return VNS - VS
+
+    def volume_plasma(self, v: list | tuple | NDArray):
+        return v[4]
+
+    def volume_total(self, v: list | tuple | NDArray):
+        return v[4] + v[5]

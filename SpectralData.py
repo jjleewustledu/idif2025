@@ -42,7 +42,11 @@ class SpectralData(TissueData):
     def __init__(self, context, data_dict: dict = {}):
         super().__init__(context, data_dict)
         if "M" not in self._data_dict:
-            self._data_dict["M"] = 3
+            self._data_dict["M"] = 3 
+    
+    @property
+    def corner_title_fmt(self):
+        return ".4f"
 
     @property
     def M(self) -> int:

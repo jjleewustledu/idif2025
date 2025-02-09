@@ -144,7 +144,7 @@ def signalmodel(
     q2 = (k1 / bminusa) * conv_2
     q3 = (k3 * k1 / bminusa) * conv_3
 
-    rho_ideal = v1 * (rho_input_func_interp + q2 + q3) * delta_time
+    rho_ideal = v1 * rho_input_func_interp + v1 * (q2 + q3) * delta_time
 
     if not isidif:
         rho_pred = np.interp(timesMid, timesIdeal, rho_ideal)

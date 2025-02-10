@@ -178,6 +178,7 @@ class DynestyPlotting:
             tindex: int = 0,
             tmin: float | None = None,
             tmax: float | None = None,
+            timesIdealMax: float | None = 90,
             tag: str = "",
             ncolors: int = 1000,
             alpha: float = 0.3,
@@ -200,6 +201,11 @@ class DynestyPlotting:
         for tidx, t in enumerate(trange):
             truths_[tindex] = t
             _, rho_ideal, timesIdeal = self.context.solver.signalmodel(truths_)
+            if timesIdealMax:
+                idx = np.argmax(timesIdeal > timesIdealMax)
+                if idx > 0:  # Found a value exceeding timesIdealMax
+                    timesIdeal = timesIdeal[:idx]
+                    rho_ideal = rho_ideal[:idx]
             ax.plot(timesIdeal, rho_ideal, color=viridis(tidx), alpha=alpha, linewidth=linewidth)
 
         ax.set_ylabel("activity (arbitrary)")

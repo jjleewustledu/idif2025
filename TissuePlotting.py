@@ -55,6 +55,7 @@ class TissuePlotting(DynestyPlotting):
             self,
             results: dyutils.Results | list[dyutils.Results] | str | None = None,
             parc_index: list[int] | tuple[int, ...] | NDArray | None = None,
+            parc_label: str = "",
             activity_units: str = "kBq/mL"
     ) -> None:
         """ plots from multiple selected parc. indices
@@ -95,7 +96,7 @@ class TissuePlotting(DynestyPlotting):
         else:
             yscaling = 1
         if_scaling = A_max / np.max(A_if)
-        xwidth = np.min((timesMid_tiss[-1], timesMid_if[-1]))
+        xwidth = np.max((timesMid_tiss[-1], timesMid_if[-1]))
 
         fig, ax = plt.subplots(figsize=(12, 0.618*12))
         ncolors = len(parc_index) 
@@ -106,10 +107,16 @@ class TissuePlotting(DynestyPlotting):
             timesMid_if,
             yscaling * if_scaling * A_if,
             color="dodgerblue",
-            linewidth=3,
-            alpha=0.75,
+            linewidth=4.5,
+            alpha=1,
             label=f"input function x {if_scaling:.3}")  
 
+        if parc_label:
+            labelm = f"PET measured, {parc_label}"
+            labelp = f"PET predicted, {parc_label}"
+        else:
+            labelm = f"PET measured, parcel 0:{ncolors-1}"
+            labelp = f"PET predicted, parcel 0:{ncolors-1}"
         for i, pidx in enumerate(parc_index):
             p1, = ax.plot(
                 timesMid_tiss,
@@ -117,9 +124,9 @@ class TissuePlotting(DynestyPlotting):
                 color=greys(i),
                 marker="+", 
                 ls="none",
-                alpha=0.75,
+                alpha=0.8,
                 markersize=10,
-                label=f"PET measured, parcel 0:{ncolors-1}")
+                label=labelm)
             
             # signal model
             truth_params = truths[i] if truths.ndim == 2 else truths
@@ -128,20 +135,21 @@ class TissuePlotting(DynestyPlotting):
                 timesMid_pred,
                 yscaling * A_max * rho_pred,
                 color=reds(i),
-                linewidth=2,
-                alpha=0.75,
-                label=f"PET predicted, parcel 0:{ncolors-1}")
+                linewidth=3,
+                alpha=0.4,
+                label=labelp)
         
         plt.xlim((-0.1 * xwidth, 1.1 * xwidth))
         plt.xlabel("time of mid-frame (s)")
         plt.ylabel(f"activity ({activity_units})")
-        plt.legend(handles=[p1, p2, p3], loc="right", fontsize=12)
+        plt.legend(handles=[p1, p2, p3], loc="lower right", fontsize=12)
         plt.tight_layout()
 
     def truths_plot(
             self,
             truths: list[float] | tuple[float, ...] | NDArray | None = None,
             parc_index: int | None = None,
+            parc_label: str = "",
             activity_units: str = "kBq/mL"
     ) -> None:
         """ plots PET measurement, rho_pred from signal model, and input function prediction """
@@ -175,7 +183,7 @@ class TissuePlotting(DynestyPlotting):
         else:
             yscaling = 1
         if_scaling = A_max / np.max(A_if)
-        xwidth = np.min((timesMid_tiss[-1], timesMid_if[-1]))
+        xwidth = np.max((timesMid_tiss[-1], timesMid_if[-1]))
 
         plt.figure(figsize=(12, 0.618*12))
 
@@ -185,7 +193,11 @@ class TissuePlotting(DynestyPlotting):
             color="dodgerblue",
             linewidth=3,
             alpha=0.7,
-            label=f"input function x {if_scaling:.3}")  
+            label=f"input function x {if_scaling:.3}")
+        if parc_label:
+            label = f"PET measured, {parc_label}"
+        else:
+            label = f"PET measured, parcel {parc_index}"
         p1, = plt.plot(
             timesMid_tiss,
             yscaling * A_max * tiss_meas["img"][parc_index],
@@ -194,7 +206,11 @@ class TissuePlotting(DynestyPlotting):
             ls="none",
             alpha=0.9,
             markersize=16,
-            label=f"PET measured, parcel {parc_index}")
+            label=label)
+        if parc_label:
+            label = f"PET predicted, {parc_label}"
+        else:
+            label = f"PET predicted, parcel {parc_index}"
         p2, = plt.plot(
             timesMid_pred,
             yscaling * A_max * rho_pred,
@@ -203,10 +219,10 @@ class TissuePlotting(DynestyPlotting):
             ls="none", 
             alpha=0.8,
             markersize=6,
-            label=f"PET predicted, parcel {parc_index}")
+            label=label)
         
         plt.xlim((-0.1 * xwidth, 1.1 * xwidth))
         plt.xlabel("time of mid-frame (s)")
         plt.ylabel(f"activity ({activity_units})")
-        plt.legend(handles=[p1, p2, p3], loc="right", fontsize=12)
+        plt.legend(handles=[p1, p2, p3], loc="lower right", fontsize=12)
         plt.tight_layout()

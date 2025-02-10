@@ -53,7 +53,8 @@ class InputFuncPlotting(DynestyPlotting):
             self,
             truths: NDArray | None = None,
             parc_index: int | None = None,
-            activity_units: str = "kBq/mL"
+            activity_units: str = "kBq/mL",
+            timesMidMax: float | None = 90
     ) -> None:
         """ plots input function measurement and rho_pred, with rho_ideal, from signalmodel """
         if truths is None:
@@ -75,6 +76,17 @@ class InputFuncPlotting(DynestyPlotting):
             scaling = 1e-6
         else:
             scaling = 1
+
+        if timesMidMax:
+            idx = np.argmax(tM > timesMidMax)
+            if idx > 0:  # Found a value exceeding timesMidMax
+                tM = tM[:idx]
+                rho = rho[:idx]
+                rho_pred = rho_pred[:idx]
+            idxIdeal = np.argmax(timesIdeal > timesMidMax)
+            if idxIdeal > 0:  # Found a value exceeding timesMidMax
+                timesIdeal = timesIdeal[:idxIdeal]
+                rho_ideal = rho_ideal[:idxIdeal]
 
         plt.figure(figsize=(12, 0.618*12))
         plt.plot(

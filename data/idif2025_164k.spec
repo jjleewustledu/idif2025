@@ -90,21 +90,6 @@
    <DataFile Structure="All"
              DataFileType="CONNECTIVITY_DENSE_SCALAR"
              Selected="true">
-      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-ho_proc-schaefer-idif-logz-mean.dscalar.nii
-   </DataFile>
-   <DataFile Structure="All"
-             DataFileType="CONNECTIVITY_DENSE_SCALAR"
-             Selected="true">
-      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-oo_proc-schaefer-idif-logz-mean.dscalar.nii
-   </DataFile>
-   <DataFile Structure="All"
-             DataFileType="CONNECTIVITY_DENSE_SCALAR"
-             Selected="true">
-      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-oo_proc-schaefer-twilite-logz-mean.dscalar.nii
-   </DataFile>
-   <DataFile Structure="All"
-             DataFileType="CONNECTIVITY_DENSE_SCALAR"
-             Selected="true">
       ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-co_proc-schaefer-idif-martinv1-mean.dscalar.nii
    </DataFile>
    <DataFile Structure="All"
@@ -135,47 +120,32 @@
    <DataFile Structure="All"
              DataFileType="CONNECTIVITY_DENSE_SCALAR"
              Selected="true">
-      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-ho_proc-schaefer-twilite-logz-mean.dscalar.nii
+      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-oo_proc-schaefer-idif-logz-median.dscalar.nii
    </DataFile>
    <DataFile Structure="All"
              DataFileType="CONNECTIVITY_DENSE_SCALAR"
              Selected="true">
-      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-co_proc-schaefer-baresid-martinv1-mean.dscalar.nii
+      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-oo_proc-schaefer-twilite-logz-median.dscalar.nii
    </DataFile>
    <DataFile Structure="All"
              DataFileType="CONNECTIVITY_DENSE_SCALAR"
              Selected="true">
-      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-co_proc-schaefer-baresid-martinv1-median.dscalar.nii
+      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-ho_proc-schaefer-idif-logz-median.dscalar.nii
    </DataFile>
    <DataFile Structure="All"
              DataFileType="CONNECTIVITY_DENSE_SCALAR"
              Selected="true">
-      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-ho_proc-schaefer-bfactors-median.dscalar.nii
+      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-ho_proc-schaefer-twilite-logz-median.dscalar.nii
    </DataFile>
    <DataFile Structure="All"
              DataFileType="CONNECTIVITY_DENSE_SCALAR"
              Selected="true">
-      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-ho_proc-schaefer-Raichle1983-bfactors-median.dscalar.nii
+      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-oo_proc-schaefer-group-bfactors-median.dscalar.nii
    </DataFile>
    <DataFile Structure="All"
              DataFileType="CONNECTIVITY_DENSE_SCALAR"
              Selected="true">
-      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-oo_proc-schaefer-baresid-cmro2-mean.dscalar.nii
-   </DataFile>
-   <DataFile Structure="All"
-             DataFileType="CONNECTIVITY_DENSE_SCALAR"
-             Selected="true">
-      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-oo_proc-schaefer-baresid-cmro2-median.dscalar.nii
-   </DataFile>
-   <DataFile Structure="All"
-             DataFileType="CONNECTIVITY_DENSE_SCALAR"
-             Selected="true">
-      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-oo_proc-schaefer-Mintun1984-bfactors-median.dscalar.nii
-   </DataFile>
-   <DataFile Structure="All"
-             DataFileType="CONNECTIVITY_DENSE_SCALAR"
-             Selected="true">
-      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-oo_proc-schaefer-bfactors-median.dscalar.nii
+      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-ho_proc-schaefer-group-bfactors-median.dscalar.nii
    </DataFile>
    <DataFile Structure="All"
              DataFileType="CONNECTIVITY_DENSE_TIME_SERIES"
@@ -215,32 +185,7 @@
    <DataFile Structure="All"
              DataFileType="CONNECTIVITY_DENSE_TIME_SERIES"
              Selected="true">
-      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-ho_proc-schaefer-baresid-raichleks-mean.dtseries.nii
-   </DataFile>
-   <DataFile Structure="All"
-             DataFileType="CONNECTIVITY_DENSE_TIME_SERIES"
-             Selected="true">
       ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-ho_proc-schaefer-idif-raichleks-mean.dtseries.nii
-   </DataFile>
-   <DataFile Structure="All"
-             DataFileType="CONNECTIVITY_DENSE_TIME_SERIES"
-             Selected="true">
-      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-ho_proc-schaefer-baresid-raichleks-median.dtseries.nii
-   </DataFile>
-   <DataFile Structure="All"
-             DataFileType="CONNECTIVITY_DENSE_TIME_SERIES"
-             Selected="true">
-      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-oo_proc-schaefer-baresid-mintunks-mean.dtseries.nii
-   </DataFile>
-   <DataFile Structure="All"
-             DataFileType="CONNECTIVITY_DENSE_TIME_SERIES"
-             Selected="true">
-      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-oo_proc-schaefer-baresid-mintunks-median.dtseries.nii
-   </DataFile>
-   <DataFile Structure="Invalid"
-             DataFileType="IMAGE"
-             Selected="true">
-      ../../../../../../Volumes/PrecunealSSD/Singularity/CCIR_01211/derivatives/sub-all_ses-all_trc-oo_proc-schaefer-Mintun1984-bfactors-median.png
    </DataFile>
    <DataFile Structure="CortexLeft"
              DataFileType="METRIC"
@@ -255,7 +200,7 @@
    <DataFile Structure="All"
              DataFileType="SCENE"
              Selected="false">
-      idif2024_164k.scene
+      idif2025_164k.scene
    </DataFile>
    <DataFile Structure="Invalid"
              DataFileType="VOLUME"

@@ -1,0 +1,14 @@
+*.lta
+data/ses-20210421150523/pet/sub-108293_ses-20210421150523_trc-oo_proc-MipIdif_idif_dynesty-DynestySolver-oo-summary.txt
+data/ses-20210421150523/pet/sub-108293_ses-20210421150523_trc-oo_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc_dynesty-DynestySolver-oo-summary.txt
+data/ses-20210421152358/pet/sub-108293_ses-20210421152358_trc-ho_proc-MipIdif_idif_dynesty-DynestySolver-ho-summary.txt
+data/ses-20210421152358/pet/sub-108293_ses-20210421152358_trc-ho_proc-MipIdif_idif_dynesty-DynestySolver-summary.txt
+data/ses-20210421152358/pet/sub-108293_ses-20210421152358_trc-ho_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc_dynesty-DynestySolver-summary.txt
+data/ses-20210421155709/pet/sub-108293_ses-20210421155709_trc-fdg_proc-MipIdif_idif_dynesty-DynestySolver-fdg-summary.txt
+data/ses-20210421155709/pet/sub-108293_ses-20210421155709_trc-fdg_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc_dynesty-DynestySolver-fdg-summary.txt
+*.bak
+playground for Boxcar 20250107000300.ipynb
+playground for Input Functions 20250117.ipynb
+scratch.txt
+sub-108293_ses-20210421150523_trc-oo_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames_timeAppend-4-schaeffer-TissueIO-Artery-playground_figs-Mintun1984-parc24-playground_figures_twil-traceplot.ai
+sub-108293_ses-20210421150523_trc-oo_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames_timeAppend-4-schaeffer-TissueIO-Artery-playground_figs-Mintun1984-parc24-playground_figures_twil-traceplot.pdf

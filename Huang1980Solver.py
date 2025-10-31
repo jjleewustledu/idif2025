@@ -37,10 +37,10 @@ def prior_transform(
     sigma: float
 ) -> np.ndarray:
     v = u
-    v[0] = u[0] * 1e3 + 1  # k_1/k_2
-    v[1] = u[1] * 0.5 + 0.00001  # k_2 (1/s)
-    v[2] = u[2] * 1e3 + 1  # k_3/k_4
-    v[3] = u[3] * 0.5 + 0.00001  # k_4 (1/s)
+    v[0] = u[0] * 32 + 1  # k_1/k_2
+    v[1] = u[1] * 0.01 + 0.0001  # k_2 (1/s)
+    v[2] = u[2] * 32 + 1  # k_3/k_4
+    v[3] = u[3] * 0.0005 + 0.00001  # k_4 (1/s)
     v[4] = u[4] * 20  # t_0 (s)
     v[5] = u[5] * sigma  # sigma ~ fraction of A0
     return v

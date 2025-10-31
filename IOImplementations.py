@@ -391,8 +391,8 @@ class TissueIO(BaseIO):
             self.__class__.__name__ + "-" + 
             self.context.input_func_type + "-" + 
             self.context.data.tag)
-        fqfp1 = fqfp1.replace("ParcSchaeffer-reshape-to-schaeffer-", "")
-        fqfp1 = fqfp1.replace("ParcWmparc-reshape-to-wmparc-", "")
+        # fqfp1 = fqfp1.replace("ParcSchaeffer-reshape-to-schaeffer-", "")
+        # fqfp1 = fqfp1.replace("ParcWmparc-reshape-to-wmparc-", "")
         fqfp1 = fqfp1.replace("ModelAndArtery", "")
         fqfp1 = fqfp1.replace("Model", "")
         fqfp1 = fqfp1.replace("Radial", "")

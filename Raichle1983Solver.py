@@ -38,8 +38,8 @@ def prior_transform(
 ) -> np.ndarray:
     v = u
     v[0] = u[0] * 0.016 + 0.0011  # f (1/s)
-    v[1] = u[1] * 1.95 + 0.05  # \lambda (cm^3/mL)
-    v[2] = u[2] * 0.0272 + 0.0011  # ps (mL cm^{-3}s^{-1})
+    v[1] = u[1] * 1.5 + 0.5  # \lambda (cm^3/mL)
+    v[2] = u[2] * 0.015 + 0.0117  # ps (mL cm^{-3}s^{-1})
     v[3] = u[3] * 40 - 10  # t_0 (s)
     v[4] = u[4] * sigma  # sigma ~ fraction of A0
     return v

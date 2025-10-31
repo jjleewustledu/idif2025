@@ -37,11 +37,11 @@ def prior_transform(
     sigma: float
 ) -> np.ndarray:
     v = u
-    v[0] = u[0] * 0.9 + 0.1  # OEF
-    v[1] = u[1] * 1.5 + 0.5  # frac. water of metab. at 90 s
-    v[2] = u[2] * 0.95 + 0.05  # {v_{post} + 0.5 v_{cap}} / v_1
-    v[3] = u[3] * 40 - 10  # t_0 (s)
-    v[4] = u[4] * 29 + 1  # \tau_d (s)
+    v[0] = u[0] * 0.6 + 0.2  # OEF
+    v[1] = u[1] * 0.2 + 0.4  # frac. water of metab. at 90 s
+    v[2] = u[2] * 0.07 + 0.8  # {v_{post} + 0.5 v_{cap}} / v_1
+    v[3] = u[3] * 20 - 15  # t_0 (s)
+    v[4] = u[4] * 5  # \tau_d (s)
     v[5] = u[5] * sigma  # sigma ~ fraction of A0
     return v
 

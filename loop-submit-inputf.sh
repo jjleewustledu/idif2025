@@ -44,7 +44,8 @@ set -e
 trap 'echo "Script submit_inputf.sh exited with error: $?" >&2; exit $?' ERR
 
 derivatives="${SINGULARITY_HOME}/CCIR_01211/derivatives"
-subs=("sub-108293" "sub-108237" "sub-108254" "sub-108250" "sub-108284" "sub-108306")
+readarray -t subs < <(find "$derivatives" -maxdepth 1 -type d -name "sub-108*" -printf '%f\n')
+##subs=("sub-108293" "sub-108237" "sub-108254" "sub-108250" "sub-108284" "sub-108306")
 len_subs="${#subs[@]}"
 
 submit_jobs() {
@@ -69,11 +70,11 @@ submit_jobs() {
 }
 
 # submit_radial_artery.sh
-proc="proc-TwiliteKit-do-make-input-func-nomodel_inputfunc.nii.gz"
-submit_main="${HOME}/PycharmProjects/dynesty/idif2025/submit-radial-artery.sh"
-submit_jobs "$proc" "$submit_main"
+# proc="proc-TwiliteKit-do-make-input-func-nomodel_inputfunc.nii.gz"
+# submit_main="${HOME}/PycharmProjects/dynesty/idif2025/submit-radial-artery.sh"
+# submit_jobs "$proc" "$submit_main"
 
 # submit_boxcar.sh
-proc="proc-MipIdif_idif.nii.gz"
+proc="proc-MipIdif-finite_idif.nii.gz"
 submit_main="${HOME}/PycharmProjects/dynesty/idif2025/submit-boxcar.sh"
 submit_jobs "$proc" "$submit_main"

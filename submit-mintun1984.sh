@@ -68,11 +68,13 @@
 #SBATCH --priority=0
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=30
-#SBATCH --mem-per-cpu=3G
+#SBATCH --mem-per-cpu=7G
 #SBATCH --time=48:00:00
-#SBATCH --reservation=Aris_group
+##SBATCH --reservation=Aris_group
 #SBATCH --account=aristeidis_sotiras
 #SBATCH --partition=tier2_cpu
+##SBATCH --account=manu_goyal
+##SBATCH --partition=tier1_cpu
 
 ## send useful job information to stdout
 echo "------------------------------------------------------"
@@ -121,7 +123,7 @@ inputf=$1
 pet=$2
 v1=$3
 ks=$4
-nlive=4000
+nlive=2000
 filepath="${pet%/*}"
 base="${pet##*/}"
 fileprefix="${base%.*}"

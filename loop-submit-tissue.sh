@@ -63,17 +63,18 @@ case "$1" in
     pattern_if="trc-ho_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc-RadialArteryIO-ideal.nii.gz"
     ;;
   *)
-    pattern_if="trc-ho_proc-MipIdif_idif-BoxcarIO-ideal.nii.gz"
+    pattern_if="trc-ho_proc-MipIdif-finite_idif-BoxcarIO-ideal.nii.gz"
     ;;
 esac
 echo "using pattern for input func:  ${pattern_if}"
 
 # global variables
-pattern_pet="trc-ho_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames-ParcSchaeffer-reshape-to-schaeffer-schaeffer.nii.gz"
+pattern_pet="trc-ho_proc-ParcSchaeffer-highsnr-schaeffer-schaeffer-finite.nii.gz"
 submit_main="${HOME}/PycharmProjects/dynesty/idif2025/submit-tissue.sh"
 tissue_context="${HOME}/PycharmProjects/dynesty/idif2025/Raichle1983Context.py"
 derivatives="${SINGULARITY_HOME}/CCIR_01211/derivatives"
-subs=("sub-108293" "sub-108237" "sub-108254" "sub-108250" "sub-108284" "sub-108306")
+readarray -t subs < <(find "$derivatives" -maxdepth 1 -type d -name "sub-108*" -printf '%f\n')
+##subs=("sub-108293" "sub-108237" "sub-108254" "sub-108250" "sub-108284" "sub-108306")
 
 # Find all session folders for subjects
 find_sessions() {
@@ -101,10 +102,10 @@ find_files_in_session() {
         files_found+=("$line")
     done < <(find "$session_path" -type f -name "*$pattern_pet*")
 
-    if [ ${#files_found[@]} -gt 1 ]; then
-        echo "Error: Multiple PET files found in $session_path matching pattern: $pattern_pet" >&2
-        exit 1
-    fi
+    # if [ ${#files_found[@]} -gt 1 ]; then
+    #     echo "Error: Multiple PET files found in $session_path matching pattern: $pattern_pet" >&2
+    #     exit 1
+    # fi
 
     # Store pet file
     local pet_file="${files_found[0]}"

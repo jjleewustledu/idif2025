@@ -1,13 +1,13 @@
 #!/bin/bash
 # -*- coding: utf-8 -*-
-# submit-boxcar.sh
-# ===============
+# submit-mintun1984.sh
+# ===================
 #
-# This script submits boxcar input function analysis jobs to SLURM for processing PET data.
+# This script submits Mintun 1984 model analysis jobs to SLURM for processing PET data.
 #
 # The script configures and submits a SLURM job with specific resource requirements for analyzing
-# boxcar input functions. It sets up email notifications, resource allocations, and outputs
-# job information to stdout/stderr.
+# CMRO2 using the Mintun 1984 model. It sets up email notifications, resource allocations, and 
+# outputs job information to stdout/stderr.
 #
 # Structure:
 # ---------
@@ -22,18 +22,22 @@
 #
 # Usage:
 # -----
-# ./submit-boxcar.sh <input_file>
+# ./submit-mintun1984.sh <input_func> <v1_file> <ks_file>
 #
 # Arguments:
 # ---------
-# input_file : str
-#     Path to the input function file to process
+# input_func : str
+#     Path to the input function file (RadialArteryIO or BoxcarIO)
+# v1_file : str
+#     Path to the V1 parameter file
+# ks_file : str
+#     Path to the Ks parameter file
 #
 # Resources:
 # ---------
-# - 1 CPU per task
+# - 30 CPUs per task
 # - 3GB memory per CPU
-# - 24 hour time limit
+# - 48 hour time limit
 # - Tier 2 CPU partition
 #
 # Notes:
@@ -43,8 +47,9 @@
 #
 # See Also:
 # --------
-# submit-radial-artery.sh : Similar script for radial artery input function analysis
-# submit-tissue.sh : Similar script for tissue analysis
+# submit-radial-artery.sh : Script for radial artery input function analysis
+# submit-boxcar.sh : Script for boxcar input function analysis
+# submit-tissue.sh : Script for tissue analysis
 
 # SLURM
 
@@ -62,14 +67,12 @@
 ## resources
 #SBATCH --priority=0
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=3G
-#SBATCH --time=24:00:00
+#SBATCH --cpus-per-task=32
+#SBATCH --mem-per-cpu=16G
+#SBATCH --time=120:00:00
 ##SBATCH --reservation=Aris_group
-##SBATCH --account=aristeidis_sotiras
-##SBATCH --partition=tier2_cpu
-#SBATCH --account=manu_goyal
-#SBATCH --partition=tier1_cpu
+#SBATCH --account=aristeidis_sotiras
+#SBATCH --partition=tier2_cpu
 
 ## send useful job information to stdout
 echo "------------------------------------------------------"
@@ -113,9 +116,11 @@ echo "------------------------------------------------------" 1>&2
 set -e
 trap 'echo "Script submit_main_async.sh exited with error: $?" >&2; exit $?' ERR
 
-the_main="BoxcarContext.py"
-pet=$1
-nlive=8000
+the_main="Huang1980Context.py"
+inputf=$1
+pet=$2
+v1=$3
+nlive=4000
 filepath="${pet%/*}"
 base="${pet##*/}"
 fileprefix="${base%.*}"
@@ -123,11 +128,13 @@ fileprefix="${fileprefix%.*}"
 date2save=$(date +"%m-%d-%y")
 
 echo "Executing ${the_main}" 1>&2
+echo "inputf is ${inputf}" 1>&2
 echo "pet is ${pet}" 1>&2
+echo "v1 is ${v1}" 1>&2
 echo "nlive is ${nlive}" 1>&2
 
 # MAIN Command
 
 export CCHOME=/home/jjlee && \
 export PATH="${CCHOME}/miniconda3/envs/dynesty12/bin:${PATH}" && \
-python ${CCHOME}/PycharmProjects/dynesty/idif2025/${the_main} "${pet}" "${nlive}" > "${filepath}/${fileprefix}-submit-${date2save}.log"
+python ${the_main} "${inputf}" "${pet}" "${v1}" "${nlive}" > "${filepath}/${fileprefix}-submit-${date2save}.log"

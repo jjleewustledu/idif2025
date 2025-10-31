@@ -1,13 +1,13 @@
 #!/bin/bash
 # -*- coding: utf-8 -*-
-# loop-submit-mintun1984.sh
+# loop-submit-huang1980.sh
 # ========================
 #
-# This script submits Mintun 1984 model analysis jobs to SLURM for multiple subjects and sessions.
+# This script submits Huang 1980 model analysis jobs to SLURM for multiple subjects and sessions.
 #
 # The script processes PET data using either radial artery or boxcar input functions along with
-# V1 and Ks parameter files to estimate CMRO2 using the Mintun 1984 model. Jobs are submitted
-# using submit-mintun1984.sh.
+# V1 and Ks parameter files to estimate CMRglc using the Huang 1980 model. Jobs are submitted
+# using submit-huang1980.sh.
 #
 # Structure:
 # ---------
@@ -29,11 +29,11 @@
 #     Returns:
 #     -------
 #     tuple
-#         (v1_file, ks_file) paths for the session
+#         v1_file paths for the session
 #
 # Usage:
 # -----
-# ./loop-submit-mintun1984.sh [artery|twilite]
+# ./loop-submit-huang1980.sh [artery|twilite]
 #
 # Arguments:
 # ---------
@@ -75,18 +75,15 @@ done
 
 # Set patterns based on input type
 if [ "$input_type" = "artery" ] || [ "$input_type" = "twilite" ]; then
-  pattern_if="trc-oo_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc-RadialArteryIO-ideal.nii.gz"
+  pattern_if="trc-fdg_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc-RadialArteryIO-ideal.nii.gz"
   pattern_v1="trc-co_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames-ParcSchaeffer-highsnr-schaeffer-schaeffer-twilite_martinv1.nii.gz"
-  pattern_ks="trc-ho_proc-delay0-BrainMoCo2-createNiftiMovingAvgFrames-schaeffer-TissueIO-Artery-qm.nii.gz"
 else
-  pattern_if="trc-oo_proc-MipIdif-finite_idif-BoxcarIO-ideal.nii.gz"
+  pattern_if="trc-fdg_proc-MipIdif-finite_idif.nii.gz"
   pattern_v1="trc-co_proc-ParcSchaeffer-highsnr-schaeffer-schaeffer-finite-idif_martinv1.nii.gz"
-  pattern_ks="trc-ho_proc-ParcSchaeffer-highsnr-schaeffer-schaeffer-finite-TissueIO-Boxcar--Raichle1983-qm.nii.gz"
 fi
 
 echo "using pattern for input func:  ${pattern_if}"
 echo "using pattern for v1:  ${pattern_v1}"
-echo "using pattern for ks:  ${pattern_ks}"
 if [ "$dry_run" = true ]; then
   echo ""
   echo "DRY RUN MODE: Commands will be printed but not executed"
@@ -95,9 +92,9 @@ if [ "$dry_run" = true ]; then
 fi
 
 # global variables
-pattern_pet="trc-oo_proc-ParcSchaeffer-highsnr-schaeffer-schaeffer-finite.nii.gz"
-submit_main="${HOME}/PycharmProjects/dynesty/idif2025/submit-mintun1984.sh"
-tissue_context="${HOME}/PycharmProjects/dynesty/idif2025/Mintun1984Context.py"
+pattern_pet="trc-fdg_proc-ParcSchaeffer-highsnr-schaeffer-schaeffer-finite.nii.gz"
+submit_main="${HOME}/PycharmProjects/dynesty/idif2025/submit-huang1980.sh"
+tissue_context="${HOME}/PycharmProjects/dynesty/idif2025/Huang1980Context.py"
 derivatives="${SINGULARITY_HOME}/CCIR_01211/derivatives"
 readarray -t subs < <(find "$derivatives" -maxdepth 1 -type d -name "sub-108*" -printf '%f\n')
 ##subs=("sub-108293" "sub-108237" "sub-108254" "sub-108250" "sub-108284" "sub-108306")
@@ -118,24 +115,9 @@ find_v1_ks_files() {
         last_file="${files_found[-1]}"
     fi
     local v1_file="$last_file"
-    
-    # Reset for ks search
-    files_found=()
-    last_file=""
 
-    # Find ks file 
-    while IFS= read -r line; do
-        files_found+=("$line")
-    done < <(find "$session_path" -type f -name "*$pattern_ks*" | sort)
-
-    # Get last ks file
-    if [ ${#files_found[@]} -gt 0 ]; then
-        last_file="${files_found[-1]}"
-    fi
-    local ks_file="$last_file"
-
-    # Return v1 file and ks file
-    printf '%s\n%s\n' "$v1_file" "$ks_file"
+    # Return v1 file
+    printf '%s\n%s\n' "$v1_file"
 }
 
 # Find matching files in a single session path
@@ -189,17 +171,15 @@ submit_single_job() {
     local if_file=$1
     local pet_file=$2
     local v1_file=$3
-    local ks_file=$4
     echo ""
     echo "Submitting job with: ${submit_main} \\
         <path>/${if_file##*/} \\
         <path>/${pet_file##*/} \\
-        <path>/${v1_file##*/} \\
-        <path>/${ks_file##*/}"    
+        <path>/${v1_file##*/}"    
     echo ""
     if [ "$dry_run" = false ]; then
         ### echo "sbatch pending"
-        sbatch "${submit_main}" "${if_file}" "${pet_file}" "${v1_file}" "${ks_file}"
+        sbatch "${submit_main}" "${if_file}" "${pet_file}" "${v1_file}"
     fi
 }
 
@@ -212,31 +192,26 @@ for sub in "${subs[@]}"; do
     
     # First find v1 and ks files for this subject
     v1_file=""
-    ks_file=""
     
     # Look through all sessions for v1 and ks files
     while IFS= read -r session; do
         readarray -t model_files < <(find_v1_ks_files "$session")
-        if [ -n "${model_files[0]}" ] && [ -z "$v1_file" ]; then
-            v1_file="${model_files[0]}"
-        fi
-        if [ -n "${model_files[1]}" ] && [ -z "$ks_file" ]; then
-            ks_file="${model_files[1]}"
+        if [ -n "${model_files}" ] && [ -z "$v1_file" ]; then
+            v1_file="${model_files}"
         fi
         # Break if we found both files
-        if [ -n "$v1_file" ] && [ -n "$ks_file" ]; then
+        if [ -n "$v1_file" ]; then
             break
         fi
     done < <(find "$sub_path" -maxdepth 1 -type d -name "ses-*")
     
     # Check if we found the required files
-    if [ -z "$v1_file" ] || [ -z "$ks_file" ]; then
-        echo "Warning: Could not find v1 file or ks file for subject $sub" >&2
+    if [ -z "$v1_file" ]; then
+        echo "Warning: Could not find v1 file for subject $sub" >&2
         continue
     fi
     
     echo "Found v1 file: $(basename "$v1_file")"
-    echo "Found ks file: $(basename "$ks_file")"
     echo ""
     
     # Now process each session with these v1 and ks files
@@ -262,7 +237,7 @@ for sub in "${subs[@]}"; do
             echo "  Input function file: $(basename "$if_file")"
             
             # Submit job for this pair
-            submit_single_job "$if_file" "$pet_file" "$v1_file" "$ks_file"
+            submit_single_job "$if_file" "$pet_file" "$v1_file"
         else
             echo "Warning: Could not find matching pair of files in session $session" >&2
         fi

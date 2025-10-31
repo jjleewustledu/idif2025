@@ -57,12 +57,14 @@
 ## resources
 #SBATCH --priority=0
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=31
-#SBATCH --mem-per-cpu=3G
-#SBATCH --time=48:00:00
-#SBATCH --reservation=Aris_group
-#SBATCH --account=aristeidis_sotiras
-#SBATCH --partition=tier2_cpu
+#SBATCH --cpus-per-task=30
+#SBATCH --mem-per-cpu=7G
+#SBATCH --time=24:00:00
+##SBATCH --reservation=Aris_group
+##SBATCH --account=aristeidis_sotiras
+##SBATCH --partition=tier2_cpu
+#SBATCH --account=manu_goyal
+#SBATCH --partition=tier1_cpu
 
 ## send useful job information to stdout
 echo "------------------------------------------------------"
